@@ -46,7 +46,7 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-30" />
-        <p>Nenhum cliente MENSAL com valor calculado.</p>
+        <p>Nenhum cliente recorrente com valor calculado.</p>
         <p className="text-sm mt-2">Verifique se os advogados das tarefas estão na tabela de preços.</p>
       </div>
     );
@@ -62,10 +62,10 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
           <TableHeader>
             <TableRow className="border-border">
               <TableHead className="text-muted-foreground font-semibold w-8"></TableHead>
-              <TableHead className="text-muted-foreground font-semibold">Cliente MENSAL</TableHead>
+              <TableHead className="text-muted-foreground font-semibold">Cliente Recorrente</TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-center">Uso do Crédito</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">Horas Consumidas</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">Valor Consumido</TableHead>
-              <TableHead className="text-muted-foreground font-semibold text-center">Uso do Crédito</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -96,7 +96,7 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                           <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
                         )}
                         {client.creditUsage?.isWarning && !client.creditUsage?.isCritical && (
-                          <AlertTriangle className="w-4 h-4 text-primary flex-shrink-0" />
+                          <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
                         )}
                         {index < 3 && !client.creditUsage?.isWarning && !client.creditUsage?.isCritical && (
                           <span className={`
@@ -110,7 +110,7 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                         )}
                         <span className={cn(
                           client.creditUsage?.isCritical && "text-destructive font-semibold",
-                          client.creditUsage?.isWarning && !client.creditUsage?.isCritical && "text-primary font-semibold"
+                          client.creditUsage?.isWarning && !client.creditUsage?.isCritical && "text-amber-600 font-semibold"
                         )}>
                           {client.project}
                         </span>
@@ -119,18 +119,18 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {client.horasMensal.toFixed(1)}h
-                    </TableCell>
-                    <TableCell className="text-right font-semibold text-primary">
-                      {formatCurrency(client.valorMensal)}
-                    </TableCell>
                     <TableCell className="text-center">
                       {client.creditUsage ? (
                         <CreditUsageBar creditUsage={client.creditUsage} compact />
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {client.horasMensal.toFixed(1)}h
+                    </TableCell>
+                    <TableCell className="text-right font-semibold text-primary">
+                      {formatCurrency(client.valorMensal)}
                     </TableCell>
                   </TableRow>
                   
@@ -150,13 +150,13 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                           </span>
                         </div>
                       </TableCell>
+                      <TableCell></TableCell>
                       <TableCell className="text-right text-muted-foreground">
                         {lawyer.hours.toFixed(1)}h
                       </TableCell>
                       <TableCell className="text-right text-foreground">
                         {formatCurrency(lawyer.value)}
                       </TableCell>
-                      <TableCell></TableCell>
                     </TableRow>
                   ))}
                 </>
@@ -169,12 +169,12 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
       {/* Summary Footer */}
       <div className="flex items-center justify-between pt-4 border-t border-border">
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>{clientsWithValue.length} clientes MENSAL</span>
+          <span>{clientsWithValue.length} clientes recorrentes</span>
           <span>•</span>
           <span>{totalHours.toFixed(1)}h totais</span>
         </div>
         <div className="text-right">
-          <span className="text-sm text-muted-foreground">Valor Total MENSAL: </span>
+          <span className="text-sm text-muted-foreground">Valor Total Recorrente: </span>
           <span className="text-lg font-bold text-primary">{formatCurrency(totalValue)}</span>
         </div>
       </div>

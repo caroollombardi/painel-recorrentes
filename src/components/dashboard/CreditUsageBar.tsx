@@ -16,16 +16,17 @@ function formatCurrency(value: number): string {
 export function CreditUsageBar({ creditUsage, compact = false }: CreditUsageBarProps) {
   const { percentualUsado, isWarning, isCritical } = creditUsage;
   
+  // Traffic light: <60% verde, 60-80% amarelo, >80% vermelho
   const getBarColor = () => {
-    if (isCritical) return "bg-destructive";
-    if (isWarning) return "bg-primary";
-    return "bg-emerald-500";
+    if (isCritical) return "bg-destructive"; // >80% - vermelho
+    if (isWarning) return "bg-amber-500"; // 60-80% - amarelo
+    return "bg-emerald-500"; // <60% - verde
   };
   
   const getTextColor = () => {
-    if (isCritical) return "text-destructive";
-    if (isWarning) return "text-primary";
-    return "text-emerald-600";
+    if (isCritical) return "text-destructive"; // >80% - vermelho
+    if (isWarning) return "text-amber-600"; // 60-80% - amarelo
+    return "text-emerald-600"; // <60% - verde
   };
 
   if (compact) {

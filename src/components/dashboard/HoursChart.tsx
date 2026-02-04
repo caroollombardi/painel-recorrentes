@@ -82,7 +82,7 @@ export function HoursChart({ data }: HoursChartProps) {
             wrapperStyle={{ paddingTop: 20 }}
             formatter={() => (
               <span className="text-sm text-muted-foreground">
-                Horas MENSAL
+                Horas Clientes Recorrentes
               </span>
             )}
           />
