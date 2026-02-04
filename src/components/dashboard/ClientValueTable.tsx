@@ -8,8 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DollarSign, ChevronDown, ChevronRight, User } from "lucide-react";
+import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CreditUsageBar } from "./CreditUsageBar";
 
 interface ClientValueTableProps {
   data: ClientData[];
@@ -63,7 +64,8 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
               <TableHead className="text-muted-foreground font-semibold w-8"></TableHead>
               <TableHead className="text-muted-foreground font-semibold">Cliente MENSAL</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">Horas</TableHead>
-              <TableHead className="text-muted-foreground font-semibold text-right">Valor Total</TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-right">Valor Consumido</TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-center">Uso do Crédito</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">% do Total</TableHead>
             </TableRow>
           </TableHeader>
@@ -91,7 +93,13 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                     </TableCell>
                     <TableCell className="font-medium text-foreground">
                       <div className="flex items-center gap-2">
-                        {index < 3 && (
+                        {client.creditUsage?.isCritical && (
+                          <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+                        )}
+                        {client.creditUsage?.isWarning && !client.creditUsage?.isCritical && (
+                          <AlertTriangle className="w-4 h-4 text-primary flex-shrink-0" />
+                        )}
+                        {index < 3 && !client.creditUsage?.isWarning && !client.creditUsage?.isCritical && (
                           <span className={`
                             inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold
                             ${index === 0 ? 'bg-primary text-primary-foreground' : 
@@ -101,7 +109,12 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                             {index + 1}
                           </span>
                         )}
-                        {client.project}
+                        <span className={cn(
+                          client.creditUsage?.isCritical && "text-destructive font-semibold",
+                          client.creditUsage?.isWarning && !client.creditUsage?.isCritical && "text-primary font-semibold"
+                        )}>
+                          {client.project}
+                        </span>
                         <span className="text-xs text-muted-foreground">
                           ({client.lawyers.length} advogado{client.lawyers.length !== 1 ? 's' : ''})
                         </span>
@@ -113,11 +126,18 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                     <TableCell className="text-right font-semibold text-primary">
                       {formatCurrency(client.valorMensal)}
                     </TableCell>
+                    <TableCell className="text-center">
+                      {client.creditUsage ? (
+                        <CreditUsageBar creditUsage={client.creditUsage} compact />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-primary transition-all duration-500"
+                            className="h-full bg-secondary transition-all duration-500"
                             style={{ width: `${Math.min(percentage, 100)}%` }}
                           />
                         </div>
@@ -129,7 +149,7 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                   </TableRow>
                   
                   {/* Expanded Lawyers */}
-                  {isExpanded && client.lawyers.map((lawyer, lawyerIndex) => (
+                  {isExpanded && client.lawyers.map((lawyer) => (
                     <TableRow 
                       key={`${client.project}-${lawyer.name}`}
                       className="bg-muted/20 border-border"
@@ -150,6 +170,7 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                       <TableCell className="text-right text-foreground">
                         {formatCurrency(lawyer.value)}
                       </TableCell>
+                      <TableCell></TableCell>
                       <TableCell className="text-right text-muted-foreground text-sm">
                         {((lawyer.value / client.valorMensal) * 100).toFixed(0)}% do cliente
                       </TableCell>
