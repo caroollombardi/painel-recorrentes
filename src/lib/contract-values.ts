@@ -1,0 +1,76 @@
+// Tabela de valores de contrato por cliente
+export interface ContractValue {
+  cliente: string;
+  valorMensalPago: number;
+  valorMensalCredito: number;
+}
+
+export const contractValues: ContractValue[] = [
+  { cliente: "AIM CONVERSION", valorMensalPago: 4952.71, valorMensalCredito: 9905.42 },
+  { cliente: "SUPLOS", valorMensalPago: 2000.00, valorMensalCredito: 4000.00 },
+  { cliente: "APPLAUSE", valorMensalPago: 3000.00, valorMensalCredito: 6000.00 },
+  { cliente: "ARCA TECH", valorMensalPago: 3450.00, valorMensalCredito: 6900.00 },
+  { cliente: "PINÓ", valorMensalPago: 3000.00, valorMensalCredito: 6000.00 },
+  { cliente: "BTAX", valorMensalPago: 4500.00, valorMensalCredito: 9000.00 },
+  { cliente: "COMPOSTA", valorMensalPago: 4350.00, valorMensalCredito: 8700.00 },
+  { cliente: "FIGUEIRA CAPITAL", valorMensalPago: 6350.00, valorMensalCredito: 12700.00 },
+  { cliente: "LAYER UP", valorMensalPago: 3000.00, valorMensalCredito: 6000.00 },
+  { cliente: "MADALOZZO", valorMensalPago: 4000.00, valorMensalCredito: 8000.00 },
+  { cliente: "MAKASÍ", valorMensalPago: 10432.00, valorMensalCredito: 20864.00 },
+  { cliente: "ME2", valorMensalPago: 2750.00, valorMensalCredito: 5500.00 },
+  { cliente: "MEETROX", valorMensalPago: 4180.72, valorMensalCredito: 8361.44 },
+  { cliente: "RNF", valorMensalPago: 4200.00, valorMensalCredito: 8400.00 },
+  { cliente: "SMART CITIZEN", valorMensalPago: 4950.00, valorMensalCredito: 9900.00 },
+  { cliente: "SOLVIS", valorMensalPago: 4206.89, valorMensalCredito: 8413.78 },
+  { cliente: "SOMOS VALOR", valorMensalPago: 3445.20, valorMensalCredito: 6890.40 },
+  { cliente: "TASK TI", valorMensalPago: 3000.00, valorMensalCredito: 6000.00 },
+  { cliente: "KPEX G100", valorMensalPago: 1100.00, valorMensalCredito: 2200.00 },
+  { cliente: "KPEX G200", valorMensalPago: 1100.00, valorMensalCredito: 2200.00 },
+  { cliente: "KPEX G300", valorMensalPago: 1100.00, valorMensalCredito: 2200.00 },
+  { cliente: "KPEX São Carlos", valorMensalPago: 1100.00, valorMensalCredito: 2200.00 },
+  { cliente: "KPEX Ribeirão Preto", valorMensalPago: 1100.00, valorMensalCredito: 2200.00 },
+  { cliente: "KPEX Louveira", valorMensalPago: 1100.00, valorMensalCredito: 2200.00 },
+];
+
+// Create a map for quick lookup by client name (normalized)
+export const contractValueMap = new Map<string, ContractValue>(
+  contractValues.map(contract => [contract.cliente.toLowerCase().trim(), contract])
+);
+
+export function getClientContract(clientName: string): ContractValue | null {
+  if (!clientName) return null;
+  
+  const normalized = clientName.toLowerCase().trim();
+  
+  // Try exact match first
+  const exactMatch = contractValueMap.get(normalized);
+  if (exactMatch) return exactMatch;
+  
+  // Try partial match (client name contains or is contained)
+  for (const contract of contractValues) {
+    const contractNormalized = contract.cliente.toLowerCase().trim();
+    if (contractNormalized.includes(normalized) || normalized.includes(contractNormalized)) {
+      return contract;
+    }
+  }
+  
+  return null;
+}
+
+export function calculateCreditUsage(valorConsumido: number, valorMensalCredito: number): {
+  percentual: number;
+  isWarning: boolean;
+  isCritical: boolean;
+} {
+  if (valorMensalCredito <= 0) {
+    return { percentual: 0, isWarning: false, isCritical: false };
+  }
+  
+  const percentual = (valorConsumido / valorMensalCredito) * 100;
+  
+  return {
+    percentual: Math.round(percentual * 10) / 10,
+    isWarning: percentual >= 80 && percentual < 100,
+    isCritical: percentual >= 100,
+  };
+}

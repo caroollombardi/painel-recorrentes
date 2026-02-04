@@ -1,4 +1,5 @@
 import { getLawyerHourlyRate } from "./lawyer-prices";
+import { getClientContract, calculateCreditUsage } from "./contract-values";
 
 export interface TaskRecord {
   taskId: string;
@@ -19,11 +20,21 @@ export interface LawyerWork {
   value: number;
 }
 
+export interface CreditUsage {
+  valorPago: number;
+  valorCredito: number;
+  valorConsumido: number;
+  percentualUsado: number;
+  isWarning: boolean;
+  isCritical: boolean;
+}
+
 export interface ClientData {
   project: string;
   horasMensal: number;
   valorMensal: number;
   lawyers: LawyerWork[];
+  creditUsage: CreditUsage | null;
 }
 
 export interface DashboardData {
@@ -34,6 +45,8 @@ export interface DashboardData {
   topClientHours: number;
   topClientValor: number;
   avgHourlyRate: number;
+  clientsAtWarning: number;
+  clientsAtCritical: number;
 }
 
 function parseTimeToHours(time: string): number {
@@ -125,6 +138,8 @@ export function parseCSVData(csvText: string): DashboardData {
   let topClientValor = 0;
   
   const clients: ClientData[] = [];
+  let clientsAtWarning = 0;
+  let clientsAtCritical = 0;
   
   clientMap.forEach((lawyerMap, project) => {
     const lawyers: LawyerWork[] = [];
@@ -156,11 +171,36 @@ export function parseCSVData(csvText: string): DashboardData {
       topClient = project;
     }
     
+    // Calculate credit usage for this client
+    const contract = getClientContract(project);
+    let creditUsage: CreditUsage | null = null;
+    
+    if (contract) {
+      const valorConsumido = Math.round(clientValor * 100) / 100;
+      const usage = calculateCreditUsage(valorConsumido, contract.valorMensalCredito);
+      
+      creditUsage = {
+        valorPago: contract.valorMensalPago,
+        valorCredito: contract.valorMensalCredito,
+        valorConsumido,
+        percentualUsado: usage.percentual,
+        isWarning: usage.isWarning,
+        isCritical: usage.isCritical,
+      };
+      
+      if (usage.isCritical) {
+        clientsAtCritical++;
+      } else if (usage.isWarning) {
+        clientsAtWarning++;
+      }
+    }
+    
     clients.push({
       project,
       horasMensal: Math.round(clientHours * 100) / 100,
       valorMensal: Math.round(clientValor * 100) / 100,
       lawyers,
+      creditUsage,
     });
   });
   
@@ -177,6 +217,8 @@ export function parseCSVData(csvText: string): DashboardData {
     topClientHours: Math.round(topClientHours * 100) / 100,
     topClientValor: Math.round(topClientValor * 100) / 100,
     avgHourlyRate: Math.round(avgHourlyRate * 100) / 100,
+    clientsAtWarning,
+    clientsAtCritical,
   };
 }
 

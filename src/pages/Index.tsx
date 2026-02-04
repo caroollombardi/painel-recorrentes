@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
-import { Clock, Users, DollarSign, TrendingUp } from "lucide-react";
+import { Clock, Users, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
 import { parseCSVData, DashboardData, ClientData } from "@/lib/data-parser";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientFilter } from "@/components/dashboard/ClientFilter";
 import { ClientValueTable } from "@/components/dashboard/ClientValueTable";
+import { CreditWarningBanner } from "@/components/dashboard/CreditWarningBanner";
 import asanaData from "@/data/asana-data.csv?raw";
 
 const Index = () => {
@@ -55,8 +56,14 @@ const Index = () => {
       </header>
 
       <main className="container py-8 space-y-8">
+        {/* Credit Warning Banner */}
+        <CreditWarningBanner 
+          clientsAtWarning={dashboardData.clientsAtWarning}
+          clientsAtCritical={dashboardData.clientsAtCritical}
+        />
+
         {/* KPI Cards */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <KPICard
             title="Total Horas MENSAL"
             value={`${dashboardData.totalHoras.toFixed(1)}h`}
@@ -87,6 +94,14 @@ const Index = () => {
             subtitle="Média ponderada por hora"
             icon={<TrendingUp className="w-5 h-5 text-muted-foreground" />}
             delay={150}
+          />
+          <KPICard
+            title="Clientes em Alerta"
+            value={`${dashboardData.clientsAtWarning + dashboardData.clientsAtCritical}`}
+            subtitle={`${dashboardData.clientsAtCritical} crítico${dashboardData.clientsAtCritical !== 1 ? 's' : ''}, ${dashboardData.clientsAtWarning} aviso${dashboardData.clientsAtWarning !== 1 ? 's' : ''}`}
+            icon={<AlertTriangle className="w-5 h-5 text-primary" />}
+            variant={(dashboardData.clientsAtCritical > 0) ? "accent" : undefined}
+            delay={200}
           />
         </section>
 
