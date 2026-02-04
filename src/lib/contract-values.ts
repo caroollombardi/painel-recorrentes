@@ -68,9 +68,10 @@ export function calculateCreditUsage(valorConsumido: number, valorMensalCredito:
   
   const percentual = (valorConsumido / valorMensalCredito) * 100;
   
+  // Traffic light system: <60% OK, 60-80% Atenção, >80% Alerta
   return {
     percentual: Math.round(percentual * 10) / 10,
-    isWarning: percentual >= 80 && percentual < 100,
-    isCritical: percentual >= 100,
+    isWarning: percentual >= 60 && percentual < 80,
+    isCritical: percentual >= 80,
   };
 }

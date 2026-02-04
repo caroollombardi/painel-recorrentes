@@ -65,7 +65,7 @@ const Index = () => {
         {/* KPI Cards */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <KPICard
-            title="Total Horas MENSAL"
+            title="Total Horas Recorrentes"
             value={`${dashboardData.totalHoras.toFixed(1)}h`}
             subtitle="Contratos fixos mensais"
             icon={<Clock className="w-5 h-5 text-primary" />}
@@ -73,7 +73,7 @@ const Index = () => {
             delay={0}
           />
           <KPICard
-            title="Valor Total MENSAL"
+            title="Valor Total Recorrente"
             value={formatCurrency(dashboardData.totalValor)}
             subtitle="Baseado na tabela de preços"
             icon={<DollarSign className="w-5 h-5 text-primary" />}
@@ -119,7 +119,7 @@ const Index = () => {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl font-display font-semibold text-foreground">
-                Horas por Cliente MENSAL
+                Horas por Cliente Recorrente
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Ordenado do maior para o menor consumo
@@ -137,7 +137,7 @@ const Index = () => {
             </div>
             <div>
               <h2 className="text-xl font-display font-semibold text-foreground">
-                Valor por Cliente MENSAL
+                Valor por Cliente Recorrente
               </h2>
               <p className="text-sm text-muted-foreground">
                 Clique para ver os advogados que trabalharam e seus valores/hora
@@ -151,7 +151,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border bg-card/50 py-6">
         <div className="container text-center text-sm text-muted-foreground">
-          Dashboard de Análise de Horas MENSAL • Dados exportados do Asana
+          Dashboard de Análise Clientes Recorrentes • Dados exportados do Asana
         </div>
       </footer>
     </div>
