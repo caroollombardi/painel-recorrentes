@@ -1,15 +1,18 @@
 import { useState, useMemo } from "react";
-import { Clock, Users, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
+import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { parseCSVData, DashboardData, ClientData } from "@/lib/data-parser";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientFilter } from "@/components/dashboard/ClientFilter";
 import { ClientValueTable } from "@/components/dashboard/ClientValueTable";
 import { CreditWarningBanner } from "@/components/dashboard/CreditWarningBanner";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import asanaData from "@/data/asana-data.csv?raw";
 
 const Index = () => {
   const [selectedClient, setSelectedClient] = useState<string>("all");
+  const [showValues, setShowValues] = useState<boolean>(true);
 
   const dashboardData = useMemo<DashboardData>(() => {
     return parseCSVData(asanaData);
@@ -30,6 +33,7 @@ const Index = () => {
   }, [dashboardData.clients]);
 
   const formatCurrency = (value: number) => {
+    if (!showValues) return "—";
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
@@ -47,9 +51,26 @@ const Index = () => {
                 Análise de horas e valores por advogado
               </p>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="w-4 h-4" />
-              <span>Dados atualizados em tempo real</span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <span>Dados atualizados em tempo real</span>
+              </div>
+              <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
+                {showValues ? (
+                  <Eye className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                  <EyeOff className="w-4 h-4 text-muted-foreground" />
+                )}
+                <Label htmlFor="show-values" className="text-sm text-muted-foreground cursor-pointer">
+                  Exibir valores (R$)
+                </Label>
+                <Switch
+                  id="show-values"
+                  checked={showValues}
+                  onCheckedChange={setShowValues}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -74,8 +95,8 @@ const Index = () => {
           />
           <KPICard
             title="Valor Total Recorrente"
-            value={formatCurrency(dashboardData.totalValor)}
-            subtitle="Baseado na tabela de preços"
+            value={showValues ? formatCurrency(dashboardData.totalValor) : "—"}
+            subtitle={showValues ? "Baseado na tabela de preços" : "Valores ocultos"}
             icon={<DollarSign className="w-5 h-5 text-primary" />}
             variant="accent"
             delay={50}
@@ -83,15 +104,18 @@ const Index = () => {
           <KPICard
             title="Top Cliente"
             value={dashboardData.topClient || "—"}
-            subtitle={`${formatCurrency(dashboardData.topClientValor)} (${dashboardData.topClientHours.toFixed(1)}h)`}
+            subtitle={showValues 
+              ? `${formatCurrency(dashboardData.topClientValor)} (${dashboardData.topClientHours.toFixed(1)}h)`
+              : `${dashboardData.topClientHours.toFixed(1)}h`
+            }
             icon={<Users className="w-5 h-5 text-muted-foreground" />}
             variant="highlight"
             delay={100}
           />
           <KPICard
             title="Média Valor/Hora"
-            value={formatCurrency(dashboardData.avgHourlyRate)}
-            subtitle="Média ponderada por hora"
+            value={showValues ? formatCurrency(dashboardData.avgHourlyRate) : "—"}
+            subtitle={showValues ? "Média ponderada por hora" : "Valores ocultos"}
             icon={<TrendingUp className="w-5 h-5 text-muted-foreground" />}
             delay={150}
           />
@@ -126,7 +150,7 @@ const Index = () => {
               </p>
             </div>
           </div>
-          <HoursChart data={filteredData} />
+          <HoursChart data={filteredData} showValues={showValues} />
         </section>
 
         {/* Client Value Table */}
@@ -144,7 +168,7 @@ const Index = () => {
               </p>
             </div>
           </div>
-          <ClientValueTable data={filteredData} />
+          <ClientValueTable data={filteredData} showValues={showValues} />
         </section>
       </main>
 

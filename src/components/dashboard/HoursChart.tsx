@@ -3,16 +3,18 @@ import { ClientData } from "@/lib/data-parser";
 
 interface HoursChartProps {
   data: ClientData[];
+  showValues?: boolean;
 }
 
-function formatCurrency(value: number): string {
+function formatCurrency(value: number, show: boolean = true): string {
+  if (!show) return "—";
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
   }).format(value);
 }
 
-export function HoursChart({ data }: HoursChartProps) {
+export function HoursChart({ data, showValues = true }: HoursChartProps) {
   const chartData = data.slice(0, 15).map(client => ({
     name: client.project.length > 20 
       ? client.project.substring(0, 20) + '...' 
@@ -25,25 +27,27 @@ export function HoursChart({ data }: HoursChartProps) {
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      const tooltipData = payload[0].payload;
       return (
         <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
           <p className="font-display font-semibold text-foreground mb-2">
-            {data.fullName}
+            {tooltipData.fullName}
           </p>
           <div className="space-y-1 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-primary" />
               <span className="text-muted-foreground">Horas:</span>
-              <span className="font-medium text-foreground">{data.horas.toFixed(2)}h</span>
+              <span className="font-medium text-foreground">{tooltipData.horas.toFixed(2)}h</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-chart-outros" />
-              <span className="text-muted-foreground">Valor:</span>
-              <span className="font-medium text-foreground">{formatCurrency(data.valor)}</span>
-            </div>
+            {showValues && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-chart-outros" />
+                <span className="text-muted-foreground">Valor:</span>
+                <span className="font-medium text-foreground">{formatCurrency(tooltipData.valor, showValues)}</span>
+              </div>
+            )}
             <div className="flex items-center gap-2 text-muted-foreground">
-              <span>{data.lawyerCount} advogado{data.lawyerCount !== 1 ? 's' : ''}</span>
+              <span>{tooltipData.lawyerCount} advogado{tooltipData.lawyerCount !== 1 ? 's' : ''}</span>
             </div>
           </div>
         </div>
