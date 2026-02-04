@@ -182,6 +182,11 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
           <span className="text-lg font-bold text-primary">{formatCurrency(totalValue, showValues)}</span>
         </div>
       </div>
+      
+      {/* Micro-legenda explicativa */}
+      <p className="text-xs text-muted-foreground/70 mt-3 leading-relaxed">
+        Uso do crédito (%) refere-se ao percentual do pacote mensal contratado já consumido por cada cliente no período.
+      </p>
     </div>
   );
 }
