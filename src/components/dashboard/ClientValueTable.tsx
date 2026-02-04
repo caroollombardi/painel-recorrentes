@@ -14,16 +14,18 @@ import { CreditUsageBar } from "./CreditUsageBar";
 
 interface ClientValueTableProps {
   data: ClientData[];
+  showValues?: boolean;
 }
 
-function formatCurrency(value: number): string {
+function formatCurrency(value: number, show: boolean = true): string {
+  if (!show) return "—";
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
   }).format(value);
 }
 
-export function ClientValueTable({ data }: ClientValueTableProps) {
+export function ClientValueTable({ data, showValues = true }: ClientValueTableProps) {
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   
   // Sort by total value descending
@@ -130,7 +132,7 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                       {client.horasMensal.toFixed(1)}h
                     </TableCell>
                     <TableCell className="text-right font-semibold text-primary">
-                      {formatCurrency(client.valorMensal)}
+                      {formatCurrency(client.valorMensal, showValues)}
                     </TableCell>
                   </TableRow>
                   
@@ -145,9 +147,11 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <User className="w-4 h-4" />
                           <span className="font-medium text-foreground">{lawyer.name}</span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                            {formatCurrency(lawyer.hourlyRate)}/h
-                          </span>
+                          {showValues && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                              {formatCurrency(lawyer.hourlyRate, showValues)}/h
+                            </span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell></TableCell>
@@ -155,7 +159,7 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                         {lawyer.hours.toFixed(1)}h
                       </TableCell>
                       <TableCell className="text-right text-foreground">
-                        {formatCurrency(lawyer.value)}
+                        {formatCurrency(lawyer.value, showValues)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -175,7 +179,7 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
         </div>
         <div className="text-right">
           <span className="text-sm text-muted-foreground">Valor Total Recorrente: </span>
-          <span className="text-lg font-bold text-primary">{formatCurrency(totalValue)}</span>
+          <span className="text-lg font-bold text-primary">{formatCurrency(totalValue, showValues)}</span>
         </div>
       </div>
     </div>
