@@ -1,3 +1,5 @@
+import { getLawyerHourlyRate } from "./lawyer-prices";
+
 export interface TaskRecord {
   taskId: string;
   project: string;
@@ -5,6 +7,8 @@ export interface TaskRecord {
   contrato: string;
   hours: number;
   completedAt: string;
+  assignee: string;
+  value: number; // hours * hourlyRate
 }
 
 export interface ClientData {
@@ -13,6 +17,9 @@ export interface ClientData {
   horasOutros: number;
   totalHoras: number;
   isRisk: boolean;
+  valorMensal: number;
+  valorOutros: number;
+  valorTotal: number;
 }
 
 export interface DashboardData {
@@ -22,6 +29,9 @@ export interface DashboardData {
   topMensalClient: string;
   topMensalHours: number;
   percentDiff: number;
+  totalValorMensal: number;
+  totalValorOutros: number;
+  totalValor: number;
 }
 
 function parseTimeToHours(time: string): number {
@@ -61,11 +71,15 @@ export function parseCSVData(csvText: string): DashboardData {
     const actualTime = fields[17]; // Actual time column
     const contrato = fields[19]; // CONTRATO column
     const completedAt = fields[2]; // Completed At column
+    const assignee = fields[6]; // Assignee column
     
     if (!project || !actualTime) continue;
     
     const hours = parseTimeToHours(actualTime);
     if (hours === 0) continue;
+    
+    const hourlyRate = getLawyerHourlyRate(assignee);
+    const value = hours * hourlyRate;
     
     records.push({
       taskId: fields[0],
@@ -74,19 +88,23 @@ export function parseCSVData(csvText: string): DashboardData {
       contrato: contrato?.trim() || '',
       hours,
       completedAt,
+      assignee: assignee?.trim() || '',
+      value,
     });
   }
   
   // Aggregate by client
-  const clientMap = new Map<string, { mensal: number; outros: number }>();
+  const clientMap = new Map<string, { mensal: number; outros: number; valorMensal: number; valorOutros: number }>();
   
   records.forEach(record => {
-    const current = clientMap.get(record.project) || { mensal: 0, outros: 0 };
+    const current = clientMap.get(record.project) || { mensal: 0, outros: 0, valorMensal: 0, valorOutros: 0 };
     
     if (record.contrato === 'MENSAL') {
       current.mensal += record.hours;
+      current.valorMensal += record.value;
     } else if (record.contrato === 'ATO' || record.contrato === 'TABELA') {
       current.outros += record.hours;
+      current.valorOutros += record.value;
     }
     
     clientMap.set(record.project, current);
@@ -95,6 +113,8 @@ export function parseCSVData(csvText: string): DashboardData {
   // Convert to array and calculate totals
   let totalMensal = 0;
   let totalOutros = 0;
+  let totalValorMensal = 0;
+  let totalValorOutros = 0;
   let topMensalClient = '';
   let topMensalHours = 0;
   
@@ -105,6 +125,8 @@ export function parseCSVData(csvText: string): DashboardData {
     if (data.mensal > 0 || data.outros > 0) {
       totalMensal += data.mensal;
       totalOutros += data.outros;
+      totalValorMensal += data.valorMensal;
+      totalValorOutros += data.valorOutros;
       
       if (data.mensal > topMensalHours) {
         topMensalHours = data.mensal;
@@ -117,6 +139,9 @@ export function parseCSVData(csvText: string): DashboardData {
         horasOutros: Math.round(data.outros * 100) / 100,
         totalHoras: Math.round((data.mensal + data.outros) * 100) / 100,
         isRisk: data.mensal > data.outros && data.mensal > 0,
+        valorMensal: Math.round(data.valorMensal * 100) / 100,
+        valorOutros: Math.round(data.valorOutros * 100) / 100,
+        valorTotal: Math.round((data.valorMensal + data.valorOutros) * 100) / 100,
       });
     }
   });
@@ -135,6 +160,9 @@ export function parseCSVData(csvText: string): DashboardData {
     topMensalClient,
     topMensalHours: Math.round(topMensalHours * 100) / 100,
     percentDiff,
+    totalValorMensal: Math.round(totalValorMensal * 100) / 100,
+    totalValorOutros: Math.round(totalValorOutros * 100) / 100,
+    totalValor: Math.round((totalValorMensal + totalValorOutros) * 100) / 100,
   };
 }
 
