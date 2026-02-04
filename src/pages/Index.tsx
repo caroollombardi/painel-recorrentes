@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
-import { Clock, TrendingUp, AlertTriangle, Users } from "lucide-react";
+import { Clock, TrendingUp, AlertTriangle, Users, DollarSign } from "lucide-react";
 import { parseCSVData, DashboardData, ClientData } from "@/lib/data-parser";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientFilter } from "@/components/dashboard/ClientFilter";
 import { RiskTable } from "@/components/dashboard/RiskTable";
+import { ClientValueTable } from "@/components/dashboard/ClientValueTable";
 import asanaData from "@/data/asana-data.csv?raw";
 
 const Index = () => {
@@ -63,7 +64,7 @@ const Index = () => {
 
       <main className="container py-8 space-y-8">
         {/* KPI Cards */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <KPICard
             title="Total Horas MENSAL"
             value={`${dashboardData.totalMensal.toFixed(1)}h`}
@@ -93,6 +94,14 @@ const Index = () => {
             subtitle={dashboardData.percentDiff > 0 ? "MENSAL consome mais" : "OUTROS consome mais"}
             icon={<AlertTriangle className="w-5 h-5 text-primary" />}
             delay={150}
+          />
+          <KPICard
+            title="Valor Total do Mês"
+            value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.totalValor)}
+            subtitle={`MENSAL: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' }).format(dashboardData.totalValorMensal)}`}
+            icon={<DollarSign className="w-5 h-5 text-primary" />}
+            variant="accent"
+            delay={200}
           />
         </section>
 
@@ -131,6 +140,24 @@ const Index = () => {
             </div>
           </div>
           <HoursChart data={filteredData} />
+        </section>
+
+        {/* Client Value Table */}
+        <section className="bg-card rounded-lg border border-border p-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <DollarSign className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-display font-semibold text-foreground">
+                Valor por Cliente no Mês
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Cálculo baseado nas horas trabalhadas × valor/hora do advogado
+              </p>
+            </div>
+          </div>
+          <ClientValueTable data={filteredData} />
         </section>
 
         {/* Risk Table */}
