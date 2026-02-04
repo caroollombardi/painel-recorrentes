@@ -40,8 +40,8 @@ const Index = () => {
         <div className="container py-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground tracking-tight">
-                Dashboard Clientes MENSAL
+              <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight">
+                Análise <span style={{ color: '#FB7435' }}>Clientes Recorrentes</span>
               </h1>
               <p className="text-muted-foreground mt-1">
                 Análise de horas e valores por advogado
