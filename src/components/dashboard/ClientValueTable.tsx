@@ -63,10 +63,9 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
             <TableRow className="border-border">
               <TableHead className="text-muted-foreground font-semibold w-8"></TableHead>
               <TableHead className="text-muted-foreground font-semibold">Cliente MENSAL</TableHead>
-              <TableHead className="text-muted-foreground font-semibold text-right">Horas</TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-right">Horas Consumidas</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">Valor Consumido</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-center">Uso do Crédito</TableHead>
-              <TableHead className="text-muted-foreground font-semibold text-right">% do Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -133,19 +132,6 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-secondary transition-all duration-500"
-                            style={{ width: `${Math.min(percentage, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-sm text-muted-foreground w-12 text-right">
-                          {percentage.toFixed(1)}%
-                        </span>
-                      </div>
-                    </TableCell>
                   </TableRow>
                   
                   {/* Expanded Lawyers */}
@@ -171,9 +157,6 @@ export function ClientValueTable({ data }: ClientValueTableProps) {
                         {formatCurrency(lawyer.value)}
                       </TableCell>
                       <TableCell></TableCell>
-                      <TableCell className="text-right text-muted-foreground text-sm">
-                        {((lawyer.value / client.valorMensal) * 100).toFixed(0)}% do cliente
-                      </TableCell>
                     </TableRow>
                   ))}
                 </>
