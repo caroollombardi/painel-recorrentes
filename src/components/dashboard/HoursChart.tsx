@@ -1,9 +1,15 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend } from "recharts";
 import { ClientData } from "@/lib/data-parser";
-import { AlertTriangle } from "lucide-react";
 
 interface HoursChartProps {
   data: ClientData[];
+}
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
 }
 
 export function HoursChart({ data }: HoursChartProps) {
@@ -12,9 +18,9 @@ export function HoursChart({ data }: HoursChartProps) {
       ? client.project.substring(0, 20) + '...' 
       : client.project,
     fullName: client.project,
-    mensal: client.horasMensal,
-    outros: client.horasOutros,
-    isRisk: client.isRisk,
+    horas: client.horasMensal,
+    valor: client.valorMensal,
+    lawyerCount: client.lawyers.length,
   }));
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -28,21 +34,18 @@ export function HoursChart({ data }: HoursChartProps) {
           <div className="space-y-1 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-primary" />
-              <span className="text-muted-foreground">MENSAL:</span>
-              <span className="font-medium text-foreground">{data.mensal.toFixed(2)}h</span>
+              <span className="text-muted-foreground">Horas:</span>
+              <span className="font-medium text-foreground">{data.horas.toFixed(2)}h</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-chart-outros" />
-              <span className="text-muted-foreground">OUTROS:</span>
-              <span className="font-medium text-foreground">{data.outros.toFixed(2)}h</span>
+              <span className="text-muted-foreground">Valor:</span>
+              <span className="font-medium text-foreground">{formatCurrency(data.valor)}</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span>{data.lawyerCount} advogado{data.lawyerCount !== 1 ? 's' : ''}</span>
             </div>
           </div>
-          {data.isRisk && (
-            <div className="mt-3 flex items-center gap-2 text-primary">
-              <AlertTriangle className="w-4 h-4" />
-              <span className="text-xs font-medium">Risco de Margem</span>
-            </div>
-          )}
         </div>
       );
     }
@@ -77,32 +80,26 @@ export function HoursChart({ data }: HoursChartProps) {
           <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }} />
           <Legend 
             wrapperStyle={{ paddingTop: 20 }}
-            formatter={(value) => (
-              <span className="text-sm text-muted-foreground capitalize">
-                {value === 'mensal' ? 'MENSAL' : 'OUTROS (ATO/TABELA)'}
+            formatter={() => (
+              <span className="text-sm text-muted-foreground">
+                Horas MENSAL
               </span>
             )}
           />
           <Bar 
-            dataKey="mensal" 
-            name="mensal"
+            dataKey="horas" 
+            name="horas"
             radius={[0, 4, 4, 0]}
             maxBarSize={24}
+            fill="hsl(var(--primary))"
           >
             {chartData.map((entry, index) => (
               <Cell 
-                key={`mensal-${index}`} 
-                fill={entry.isRisk ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.7)'}
+                key={`cell-${index}`} 
+                fill={index < 3 ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.7)'}
               />
             ))}
           </Bar>
-          <Bar 
-            dataKey="outros" 
-            name="outros"
-            fill="hsl(var(--chart-outros))"
-            radius={[0, 4, 4, 0]}
-            maxBarSize={24}
-          />
         </BarChart>
       </ResponsiveContainer>
     </div>
