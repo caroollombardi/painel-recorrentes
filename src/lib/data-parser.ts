@@ -8,30 +8,32 @@ export interface TaskRecord {
   hours: number;
   completedAt: string;
   assignee: string;
+  hourlyRate: number;
   value: number; // hours * hourlyRate
+}
+
+export interface LawyerWork {
+  name: string;
+  hours: number;
+  hourlyRate: number;
+  value: number;
 }
 
 export interface ClientData {
   project: string;
   horasMensal: number;
-  horasOutros: number;
-  totalHoras: number;
-  isRisk: boolean;
   valorMensal: number;
-  valorOutros: number;
-  valorTotal: number;
+  lawyers: LawyerWork[];
 }
 
 export interface DashboardData {
   clients: ClientData[];
-  totalMensal: number;
-  totalOutros: number;
-  topMensalClient: string;
-  topMensalHours: number;
-  percentDiff: number;
-  totalValorMensal: number;
-  totalValorOutros: number;
+  totalHoras: number;
   totalValor: number;
+  topClient: string;
+  topClientHours: number;
+  topClientValor: number;
+  avgHourlyRate: number;
 }
 
 function parseTimeToHours(time: string): number {
@@ -75,6 +77,9 @@ export function parseCSVData(csvText: string): DashboardData {
     
     if (!project || !actualTime) continue;
     
+    // Only include MENSAL contracts
+    if (contrato?.trim() !== 'MENSAL') continue;
+    
     const hours = parseTimeToHours(actualTime);
     if (hours === 0) continue;
     
@@ -89,80 +94,89 @@ export function parseCSVData(csvText: string): DashboardData {
       hours,
       completedAt,
       assignee: assignee?.trim() || '',
+      hourlyRate,
       value,
     });
   }
   
-  // Aggregate by client
-  const clientMap = new Map<string, { mensal: number; outros: number; valorMensal: number; valorOutros: number }>();
+  // Aggregate by client and lawyer
+  const clientMap = new Map<string, Map<string, { hours: number; hourlyRate: number; value: number }>>();
   
   records.forEach(record => {
-    const current = clientMap.get(record.project) || { mensal: 0, outros: 0, valorMensal: 0, valorOutros: 0 };
-    
-    if (record.contrato === 'MENSAL') {
-      current.mensal += record.hours;
-      current.valorMensal += record.value;
-    } else if (record.contrato === 'ATO' || record.contrato === 'TABELA') {
-      current.outros += record.hours;
-      current.valorOutros += record.value;
+    if (!clientMap.has(record.project)) {
+      clientMap.set(record.project, new Map());
     }
     
-    clientMap.set(record.project, current);
+    const lawyerMap = clientMap.get(record.project)!;
+    const current = lawyerMap.get(record.assignee) || { hours: 0, hourlyRate: record.hourlyRate, value: 0 };
+    
+    current.hours += record.hours;
+    current.value += record.value;
+    current.hourlyRate = record.hourlyRate; // Keep the rate
+    
+    lawyerMap.set(record.assignee, current);
   });
   
   // Convert to array and calculate totals
-  let totalMensal = 0;
-  let totalOutros = 0;
-  let totalValorMensal = 0;
-  let totalValorOutros = 0;
-  let topMensalClient = '';
-  let topMensalHours = 0;
+  let totalHoras = 0;
+  let totalValor = 0;
+  let topClient = '';
+  let topClientHours = 0;
+  let topClientValor = 0;
   
   const clients: ClientData[] = [];
   
-  clientMap.forEach((data, project) => {
-    // Only include clients with at least one of the contract types
-    if (data.mensal > 0 || data.outros > 0) {
-      totalMensal += data.mensal;
-      totalOutros += data.outros;
-      totalValorMensal += data.valorMensal;
-      totalValorOutros += data.valorOutros;
-      
-      if (data.mensal > topMensalHours) {
-        topMensalHours = data.mensal;
-        topMensalClient = project;
+  clientMap.forEach((lawyerMap, project) => {
+    const lawyers: LawyerWork[] = [];
+    let clientHours = 0;
+    let clientValor = 0;
+    
+    lawyerMap.forEach((data, name) => {
+      if (name) { // Only include if lawyer name exists
+        lawyers.push({
+          name,
+          hours: Math.round(data.hours * 100) / 100,
+          hourlyRate: data.hourlyRate,
+          value: Math.round(data.value * 100) / 100,
+        });
       }
-      
-      clients.push({
-        project,
-        horasMensal: Math.round(data.mensal * 100) / 100,
-        horasOutros: Math.round(data.outros * 100) / 100,
-        totalHoras: Math.round((data.mensal + data.outros) * 100) / 100,
-        isRisk: data.mensal > data.outros && data.mensal > 0,
-        valorMensal: Math.round(data.valorMensal * 100) / 100,
-        valorOutros: Math.round(data.valorOutros * 100) / 100,
-        valorTotal: Math.round((data.valorMensal + data.valorOutros) * 100) / 100,
-      });
+      clientHours += data.hours;
+      clientValor += data.value;
+    });
+    
+    // Sort lawyers by hours descending
+    lawyers.sort((a, b) => b.hours - a.hours);
+    
+    totalHoras += clientHours;
+    totalValor += clientValor;
+    
+    if (clientHours > topClientHours) {
+      topClientHours = clientHours;
+      topClientValor = clientValor;
+      topClient = project;
     }
+    
+    clients.push({
+      project,
+      horasMensal: Math.round(clientHours * 100) / 100,
+      valorMensal: Math.round(clientValor * 100) / 100,
+      lawyers,
+    });
   });
   
-  // Sort by total hours descending
-  clients.sort((a, b) => b.totalHoras - a.totalHoras);
+  // Sort by value descending
+  clients.sort((a, b) => b.valorMensal - a.valorMensal);
   
-  const percentDiff = totalOutros > 0 
-    ? Math.round(((totalMensal - totalOutros) / totalOutros) * 100)
-    : totalMensal > 0 ? 100 : 0;
+  const avgHourlyRate = totalHoras > 0 ? totalValor / totalHoras : 0;
   
   return {
     clients,
-    totalMensal: Math.round(totalMensal * 100) / 100,
-    totalOutros: Math.round(totalOutros * 100) / 100,
-    topMensalClient,
-    topMensalHours: Math.round(topMensalHours * 100) / 100,
-    percentDiff,
-    totalValorMensal: Math.round(totalValorMensal * 100) / 100,
-    totalValorOutros: Math.round(totalValorOutros * 100) / 100,
-    totalValor: Math.round((totalValorMensal + totalValorOutros) * 100) / 100,
+    totalHoras: Math.round(totalHoras * 100) / 100,
+    totalValor: Math.round(totalValor * 100) / 100,
+    topClient,
+    topClientHours: Math.round(topClientHours * 100) / 100,
+    topClientValor: Math.round(topClientValor * 100) / 100,
+    avgHourlyRate: Math.round(avgHourlyRate * 100) / 100,
   };
 }
 
