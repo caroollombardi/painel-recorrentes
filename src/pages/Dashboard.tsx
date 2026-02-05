@@ -44,35 +44,24 @@ export function Dashboard({ data }: DashboardProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container py-4">
-          {/* Logo row */}
-          <div className="flex items-center justify-between mb-4">
+        <div className="container py-6">
+          {/* Centered institutional header */}
+          <div className="flex flex-col items-center text-center mb-6">
             <img 
               src={wsaLogo} 
               alt="Wolff e Scripes Advogados" 
-              className="h-10 object-contain"
+              className="h-12 object-contain mb-4"
             />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/')}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Home className="w-4 h-4 mr-2" />
-              Atualizar Dados
-            </Button>
+            <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight">
+              Análise <span style={{ color: '#FB7435' }}>Clientes Recorrentes</span>
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Análise de horas e valores por advogado
+            </p>
           </div>
           
-          {/* Title and controls row */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight">
-                Análise <span style={{ color: '#FB7435' }}>Clientes Recorrentes</span>
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Análise de horas e valores por advogado
-              </p>
-            </div>
+          {/* Controls row */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-4 border-t border-border/50">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock className="w-4 h-4" />
@@ -94,6 +83,15 @@ export function Dashboard({ data }: DashboardProps) {
                 />
               </div>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/admin')}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Atualizar Dados
+            </Button>
           </div>
         </div>
       </header>

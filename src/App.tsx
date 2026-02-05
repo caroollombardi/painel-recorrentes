@@ -37,20 +37,20 @@ const App = () => {
             <Route 
               path="/" 
               element={
+                dashboardData ? (
+                  <Dashboard data={dashboardData} />
+                ) : (
+                  <Navigate to="/admin" replace />
+                )
+              } 
+            />
+            <Route 
+              path="/admin" 
+              element={
                 <Home 
                   onDataUpdate={handleDataUpdate} 
                   hasData={dashboardData !== null}
                 />
-              } 
-            />
-            <Route 
-              path="/dashboard" 
-              element={
-                dashboardData ? (
-                  <Dashboard data={dashboardData} />
-                ) : (
-                  <Navigate to="/" replace />
-                )
               } 
             />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
