@@ -29,7 +29,7 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
       // Small delay for UX feedback
       setTimeout(() => {
         setIsProcessing(false);
-        navigate('/dashboard');
+        navigate('/');
       }, 800);
     } catch (error) {
       console.error('Error processing file:', error);
@@ -50,7 +50,7 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
             />
             {hasData && (
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/')}
                 className="text-sm text-primary hover:underline font-medium"
               >
                 Ver Dashboard →
@@ -139,7 +139,7 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
           {hasData && (
             <div className="text-center">
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/')}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium transition-transform hover:scale-105"
                 style={{ backgroundColor: '#FB7435' }}
               >
