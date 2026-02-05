@@ -14,6 +14,156 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_settings: {
+        Row: {
+          created_at: string
+          email_notifications_enabled: boolean
+          id: string
+          threshold_attention: number
+          threshold_overflow: number
+          threshold_risk: number
+          updated_at: string
+          whatsapp_notifications_enabled: boolean
+        }
+        Insert: {
+          created_at?: string
+          email_notifications_enabled?: boolean
+          id?: string
+          threshold_attention?: number
+          threshold_overflow?: number
+          threshold_risk?: number
+          updated_at?: string
+          whatsapp_notifications_enabled?: boolean
+        }
+        Update: {
+          created_at?: string
+          email_notifications_enabled?: boolean
+          id?: string
+          threshold_attention?: number
+          threshold_overflow?: number
+          threshold_risk?: number
+          updated_at?: string
+          whatsapp_notifications_enabled?: boolean
+        }
+        Relationships: []
+      }
+      client_notification_settings: {
+        Row: {
+          client_name: string
+          created_at: string
+          custom_threshold_attention: number | null
+          custom_threshold_overflow: number | null
+          custom_threshold_risk: number | null
+          id: string
+          notes: string | null
+          notifications_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          client_name: string
+          created_at?: string
+          custom_threshold_attention?: number | null
+          custom_threshold_overflow?: number | null
+          custom_threshold_risk?: number | null
+          id?: string
+          notes?: string | null
+          notifications_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          client_name?: string
+          created_at?: string
+          custom_threshold_attention?: number | null
+          custom_threshold_overflow?: number | null
+          custom_threshold_risk?: number | null
+          id?: string
+          notes?: string | null
+          notifications_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notification_history: {
+        Row: {
+          alert_level: string
+          client_name: string
+          error_message: string | null
+          hours_consumed: number | null
+          id: string
+          message: string
+          notification_type: string
+          percent_consumed: number
+          percent_month_elapsed: number
+          recipient: string
+          sent_at: string
+          success: boolean
+          value_consumed: number | null
+        }
+        Insert: {
+          alert_level: string
+          client_name: string
+          error_message?: string | null
+          hours_consumed?: number | null
+          id?: string
+          message: string
+          notification_type: string
+          percent_consumed: number
+          percent_month_elapsed: number
+          recipient: string
+          sent_at?: string
+          success?: boolean
+          value_consumed?: number | null
+        }
+        Update: {
+          alert_level?: string
+          client_name?: string
+          error_message?: string | null
+          hours_consumed?: number | null
+          id?: string
+          message?: string
+          notification_type?: string
+          percent_consumed?: number
+          percent_month_elapsed?: number
+          recipient?: string
+          sent_at?: string
+          success?: boolean
+          value_consumed?: number | null
+        }
+        Relationships: []
+      }
+      notification_recipients: {
+        Row: {
+          alert_levels: string[]
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string | null
+          type: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          alert_levels?: string[]
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          type: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          alert_levels?: string[]
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          type?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
