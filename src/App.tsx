@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
+import Setup from "./pages/Setup";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
@@ -39,8 +40,9 @@ const App = () => {
         <BrowserRouter>
           <AuthProvider>
             <Routes>
-              {/* Public route - Login */}
+              {/* Public routes */}
               <Route path="/auth" element={<Auth />} />
+              <Route path="/setup" element={<Setup />} />
               
               {/* Protected routes */}
               <Route 
