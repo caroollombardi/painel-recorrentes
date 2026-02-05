@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { getLawyerHourlyRate } from "./lawyer-prices";
 import { getClientContract, calculateCreditUsage } from "./contract-values";
+import { getMonthProgress, analyzeConsumption } from "./month-progress";
 import { DashboardData, ClientData, TaskRecord, LawyerWork, CreditUsage } from "./data-parser";
 
 function parseTimeToHours(time: string): number {
@@ -93,6 +94,11 @@ export function parseXLSXData(fileBuffer: ArrayBuffer): DashboardData {
   const clients: ClientData[] = [];
   let clientsAtWarning = 0;
   let clientsAtCritical = 0;
+  let clientsAtRisk = 0;
+  let clientsAtOverflow = 0;
+  
+  // Obter progresso do mês atual
+  const monthProgress = getMonthProgress();
   
   clientMap.forEach((lawyerMap, project) => {
     const lawyers: LawyerWork[] = [];
@@ -132,6 +138,9 @@ export function parseXLSXData(fileBuffer: ArrayBuffer): DashboardData {
       const valorConsumido = Math.round(clientValor * 100) / 100;
       const usage = calculateCreditUsage(valorConsumido, contract.valorMensalCredito);
       
+      // Análise preditiva do consumo
+      const analysis = analyzeConsumption(usage.percentual, monthProgress);
+      
       creditUsage = {
         valorPago: contract.valorMensalPago,
         valorCredito: contract.valorMensalCredito,
@@ -139,12 +148,18 @@ export function parseXLSXData(fileBuffer: ArrayBuffer): DashboardData {
         percentualUsado: usage.percentual,
         isWarning: usage.isWarning,
         isCritical: usage.isCritical,
+        analysis,
       };
       
-      if (usage.isCritical) {
+      // Contagem por nível de alerta (3 níveis)
+      if (usage.percentual >= 100) {
+        clientsAtOverflow++; // Nível 3 - Estouro
         clientsAtCritical++;
-      } else if (usage.isWarning) {
-        clientsAtWarning++;
+      } else if (usage.percentual >= 80) {
+        clientsAtRisk++; // Nível 2 - Risco
+        clientsAtCritical++;
+      } else if (usage.percentual >= 60) {
+        clientsAtWarning++; // Nível 1 - Atenção
       }
     }
     
@@ -172,5 +187,8 @@ export function parseXLSXData(fileBuffer: ArrayBuffer): DashboardData {
     avgHourlyRate: Math.round(avgHourlyRate * 100) / 100,
     clientsAtWarning,
     clientsAtCritical,
+    clientsAtRisk,
+    clientsAtOverflow,
+    monthProgress,
   };
 }
