@@ -1,12 +1,14 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Upload, UsersRound, LogOut } from "lucide-react";
+import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Upload, UsersRound, LogOut, Settings } from "lucide-react";
 import { DashboardData, ClientData } from "@/lib/data-parser";
+import { generateTopClientPhrase } from "@/lib/month-progress";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientFilter } from "@/components/dashboard/ClientFilter";
 import { ClientValueTable } from "@/components/dashboard/ClientValueTable";
-import { CreditWarningBanner } from "@/components/dashboard/CreditWarningBanner";
+import { EnhancedCreditWarningBanner } from "@/components/dashboard/EnhancedCreditWarningBanner";
+import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndicator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -80,6 +82,15 @@ export function Dashboard({ data }: DashboardProps) {
                     <UsersRound className="w-4 h-4 mr-2" />
                     Usuários
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate('/settings')}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Configurações
+                  </Button>
                 </>
               )}
               <Button
@@ -135,10 +146,15 @@ export function Dashboard({ data }: DashboardProps) {
       </header>
 
       <main className="container py-8 space-y-8">
-        {/* Credit Warning Banner */}
-        <CreditWarningBanner 
+        {/* Month Progress Indicator */}
+        <MonthProgressIndicator monthProgress={data.monthProgress} />
+        
+        {/* Enhanced Credit Warning Banner with 3 levels */}
+        <EnhancedCreditWarningBanner 
           clientsAtWarning={data.clientsAtWarning}
-          clientsAtCritical={data.clientsAtCritical}
+          clientsAtRisk={data.clientsAtRisk}
+          clientsAtOverflow={data.clientsAtOverflow}
+          monthProgress={data.monthProgress}
         />
 
         {/* KPI Cards */}
@@ -162,9 +178,18 @@ export function Dashboard({ data }: DashboardProps) {
           <KPICard
             title="Top Cliente"
             value={data.topClient || "—"}
-            subtitle={showValues 
-              ? `${formatCurrency(data.topClientValor)} (${data.topClientHours.toFixed(1)}h)`
-              : `${data.topClientHours.toFixed(1)}h`
+            subtitle={
+              data.topClient && data.clients.find(c => c.project === data.topClient)?.creditUsage
+                ? generateTopClientPhrase(
+                    data.topClient,
+                    data.clients.find(c => c.project === data.topClient)?.creditUsage?.percentualUsado || 0,
+                    data.topClientHours,
+                    data.topClientValor,
+                    data.monthProgress
+                  )
+                : showValues 
+                  ? `${formatCurrency(data.topClientValor)} (${data.topClientHours.toFixed(1)}h)`
+                  : `${data.topClientHours.toFixed(1)}h`
             }
             icon={<Users className="w-5 h-5 text-muted-foreground" />}
             variant="highlight"
@@ -180,7 +205,13 @@ export function Dashboard({ data }: DashboardProps) {
           <KPICard
             title="Clientes em Alerta"
             value={`${data.clientsAtWarning + data.clientsAtCritical}`}
-            subtitle={`${data.clientsAtCritical} crítico${data.clientsAtCritical !== 1 ? 's' : ''}, ${data.clientsAtWarning} aviso${data.clientsAtWarning !== 1 ? 's' : ''}`}
+            subtitle={
+              data.clientsAtOverflow > 0 
+                ? `🚨 ${data.clientsAtOverflow} estouro, ⚠️ ${data.clientsAtRisk} risco, 🔔 ${data.clientsAtWarning} atenção`
+                : data.clientsAtRisk > 0
+                  ? `⚠️ ${data.clientsAtRisk} risco, 🔔 ${data.clientsAtWarning} atenção`
+                  : `🔔 ${data.clientsAtWarning} em atenção`
+            }
             icon={<AlertTriangle className="w-5 h-5 text-primary" />}
             variant={(data.clientsAtCritical > 0) ? "accent" : undefined}
             delay={200}
