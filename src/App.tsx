@@ -11,6 +11,7 @@ import Setup from "./pages/Setup";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { DashboardData, parseCSVData } from "@/lib/data-parser";
 import asanaData from "@/data/asana-data.csv?raw";
@@ -73,6 +74,14 @@ const App = () => {
                 element={
                   <ProtectedRoute requireAdmin>
                     <Users />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/settings" 
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <Settings />
                   </ProtectedRoute>
                 } 
               />
