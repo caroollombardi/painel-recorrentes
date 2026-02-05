@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Home } from "lucide-react";
+import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Upload, UsersRound, LogOut } from "lucide-react";
 import { DashboardData, ClientData } from "@/lib/data-parser";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { HoursChart } from "@/components/dashboard/HoursChart";
@@ -10,6 +10,7 @@ import { CreditWarningBanner } from "@/components/dashboard/CreditWarningBanner"
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import wsaLogo from "@/assets/wsa-logo.png";
 
 interface DashboardProps {
@@ -18,6 +19,7 @@ interface DashboardProps {
 
 export function Dashboard({ data }: DashboardProps) {
   const navigate = useNavigate();
+  const { isAdmin, signOut, user } = useAuth();
   const [selectedClient, setSelectedClient] = useState<string>("all");
   const [showValues, setShowValues] = useState<boolean>(true);
 
@@ -40,18 +42,60 @@ export function Dashboard({ data }: DashboardProps) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Header - Corporate left-aligned layout */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container py-6">
-          {/* Centered institutional header */}
-          <div className="flex flex-col items-center text-center mb-6">
+        <div className="container py-4">
+          {/* Top row: Logo left, user actions right */}
+          <div className="flex items-center justify-between mb-4">
             <img 
               src={wsaLogo} 
               alt="Wolff e Scripes Advogados" 
-              className="h-12 object-contain mb-4"
+              className="h-10 object-contain"
             />
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate('/admin')}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Atualizar Dados
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate('/users')}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <UsersRound className="w-4 h-4 mr-2" />
+                    Usuários
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sair
+              </Button>
+            </div>
+          </div>
+          
+          {/* Title row */}
+          <div className="mb-4">
             <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight">
               Análise <span style={{ color: '#FB7435' }}>Clientes Recorrentes</span>
             </h1>
@@ -83,15 +127,9 @@ export function Dashboard({ data }: DashboardProps) {
                 />
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/admin')}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Home className="w-4 h-4 mr-2" />
-              Atualizar Dados
-            </Button>
+            <div className="text-sm text-muted-foreground">
+              {user?.email}
+            </div>
           </div>
         </div>
       </header>
