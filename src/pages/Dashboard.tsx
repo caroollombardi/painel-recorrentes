@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff } from "lucide-react";
-import { parseCSVData, DashboardData, ClientData } from "@/lib/data-parser";
+import { useNavigate } from "react-router-dom";
+import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Home } from "lucide-react";
+import { DashboardData, ClientData } from "@/lib/data-parser";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientFilter } from "@/components/dashboard/ClientFilter";
@@ -8,29 +9,31 @@ import { ClientValueTable } from "@/components/dashboard/ClientValueTable";
 import { CreditWarningBanner } from "@/components/dashboard/CreditWarningBanner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import asanaData from "@/data/asana-data.csv?raw";
+import { Button } from "@/components/ui/button";
+import wsaLogo from "@/assets/wsa-logo.png";
 
-const Index = () => {
+interface DashboardProps {
+  data: DashboardData;
+}
+
+export function Dashboard({ data }: DashboardProps) {
+  const navigate = useNavigate();
   const [selectedClient, setSelectedClient] = useState<string>("all");
   const [showValues, setShowValues] = useState<boolean>(true);
 
-  const dashboardData = useMemo<DashboardData>(() => {
-    return parseCSVData(asanaData);
-  }, []);
-
   const filteredData = useMemo<ClientData[]>(() => {
-    let filtered = dashboardData.clients;
+    let filtered = data.clients;
 
     if (selectedClient !== "all") {
       filtered = filtered.filter(c => c.project === selectedClient);
     }
 
     return filtered;
-  }, [dashboardData.clients, selectedClient]);
+  }, [data.clients, selectedClient]);
 
   const clientList = useMemo(() => {
-    return dashboardData.clients.map(c => c.project);
-  }, [dashboardData.clients]);
+    return data.clients.map(c => c.project);
+  }, [data.clients]);
 
   const formatCurrency = (value: number) => {
     if (!showValues) return "—";
@@ -41,7 +44,26 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container py-6">
+        <div className="container py-4">
+          {/* Logo row */}
+          <div className="flex items-center justify-between mb-4">
+            <img 
+              src={wsaLogo} 
+              alt="Wolff e Scripes Advogados" 
+              className="h-10 object-contain"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/')}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Home className="w-4 h-4 mr-2" />
+              Atualizar Dados
+            </Button>
+          </div>
+          
+          {/* Title and controls row */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight">
@@ -54,7 +76,7 @@ const Index = () => {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock className="w-4 h-4" />
-                <span>Dados atualizados em tempo real</span>
+                <span>Dados atualizados</span>
               </div>
               <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
                 {showValues ? (
@@ -79,15 +101,15 @@ const Index = () => {
       <main className="container py-8 space-y-8">
         {/* Credit Warning Banner */}
         <CreditWarningBanner 
-          clientsAtWarning={dashboardData.clientsAtWarning}
-          clientsAtCritical={dashboardData.clientsAtCritical}
+          clientsAtWarning={data.clientsAtWarning}
+          clientsAtCritical={data.clientsAtCritical}
         />
 
         {/* KPI Cards */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <KPICard
             title="Total Horas Recorrentes"
-            value={`${dashboardData.totalHoras.toFixed(1)}h`}
+            value={`${data.totalHoras.toFixed(1)}h`}
             subtitle="Contratos fixos mensais"
             icon={<Clock className="w-5 h-5 text-primary" />}
             variant="accent"
@@ -95,7 +117,7 @@ const Index = () => {
           />
           <KPICard
             title="Valor Total Recorrente"
-            value={showValues ? formatCurrency(dashboardData.totalValor) : "—"}
+            value={showValues ? formatCurrency(data.totalValor) : "—"}
             subtitle={showValues ? "Baseado na tabela de preços" : "Valores ocultos"}
             icon={<DollarSign className="w-5 h-5 text-primary" />}
             variant="accent"
@@ -103,10 +125,10 @@ const Index = () => {
           />
           <KPICard
             title="Top Cliente"
-            value={dashboardData.topClient || "—"}
+            value={data.topClient || "—"}
             subtitle={showValues 
-              ? `${formatCurrency(dashboardData.topClientValor)} (${dashboardData.topClientHours.toFixed(1)}h)`
-              : `${dashboardData.topClientHours.toFixed(1)}h`
+              ? `${formatCurrency(data.topClientValor)} (${data.topClientHours.toFixed(1)}h)`
+              : `${data.topClientHours.toFixed(1)}h`
             }
             icon={<Users className="w-5 h-5 text-muted-foreground" />}
             variant="highlight"
@@ -114,17 +136,17 @@ const Index = () => {
           />
           <KPICard
             title="Média Valor/Hora"
-            value={showValues ? formatCurrency(dashboardData.avgHourlyRate) : "—"}
+            value={showValues ? formatCurrency(data.avgHourlyRate) : "—"}
             subtitle={showValues ? "Média ponderada por hora" : "Valores ocultos"}
             icon={<TrendingUp className="w-5 h-5 text-muted-foreground" />}
             delay={150}
           />
           <KPICard
             title="Clientes em Alerta"
-            value={`${dashboardData.clientsAtWarning + dashboardData.clientsAtCritical}`}
-            subtitle={`${dashboardData.clientsAtCritical} crítico${dashboardData.clientsAtCritical !== 1 ? 's' : ''}, ${dashboardData.clientsAtWarning} aviso${dashboardData.clientsAtWarning !== 1 ? 's' : ''}`}
+            value={`${data.clientsAtWarning + data.clientsAtCritical}`}
+            subtitle={`${data.clientsAtCritical} crítico${data.clientsAtCritical !== 1 ? 's' : ''}, ${data.clientsAtWarning} aviso${data.clientsAtWarning !== 1 ? 's' : ''}`}
             icon={<AlertTriangle className="w-5 h-5 text-primary" />}
-            variant={(dashboardData.clientsAtCritical > 0) ? "accent" : undefined}
+            variant={(data.clientsAtCritical > 0) ? "accent" : undefined}
             delay={200}
           />
         </section>
@@ -175,11 +197,11 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border bg-card/50 py-6">
         <div className="container text-center text-sm text-muted-foreground">
-          Dashboard de Análise Clientes Recorrentes • Dados exportados do Asana
+          Wolff e Scripes Advogados • Dashboard de Clientes Recorrentes
         </div>
       </footer>
     </div>
   );
-};
+}
 
-export default Index;
+export default Dashboard;
