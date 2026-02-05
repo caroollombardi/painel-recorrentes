@@ -1,9 +1,11 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Clock, Database } from "lucide-react";
+import { BarChart3, Clock, Database, ArrowLeft, UsersRound, LogOut } from "lucide-react";
 import { FileUpload } from "@/components/dashboard/FileUpload";
 import { parseXLSXData } from "@/lib/xlsx-parser";
 import { DashboardData } from "@/lib/data-parser";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 import wsaLogo from "@/assets/wsa-logo.png";
 
 interface HomeProps {
@@ -13,6 +15,7 @@ interface HomeProps {
 
 export function Home({ onDataUpdate, hasData }: HomeProps) {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
@@ -37,9 +40,14 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
     }
   }, [onDataUpdate, navigate]);
 
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header with WSA Logo */}
+      {/* Header with WSA Logo - left aligned */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="container py-4">
           <div className="flex items-center justify-between">
@@ -48,14 +56,37 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
               alt="Wolff e Scripes Advogados" 
               className="h-10 object-contain"
             />
-            {hasData && (
-              <button
-                onClick={() => navigate('/')}
-                className="text-sm text-primary hover:underline font-medium"
+            <div className="flex items-center gap-2">
+              {hasData && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/')}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Dashboard
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/users')}
+                className="text-muted-foreground hover:text-foreground"
               >
-                Ver Dashboard →
-              </button>
-            )}
+                <UsersRound className="w-4 h-4 mr-2" />
+                Usuários
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sair
+              </Button>
+            </div>
           </div>
         </div>
       </header>
