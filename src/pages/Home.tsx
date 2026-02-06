@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import wsaLogo from "@/assets/wsa-logo.png";
 
 interface HomeProps {
-  onDataUpdate: (data: DashboardData) => void;
+  onDataUpdate: (data: DashboardData, fileName?: string) => void;
   hasData: boolean;
 }
 
@@ -26,7 +26,7 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
       const buffer = await file.arrayBuffer();
       const data = parseXLSXData(buffer);
       
-      onDataUpdate(data);
+      onDataUpdate(data, file.name);
       setLastUpdate(new Date());
       
       // Small delay for UX feedback
