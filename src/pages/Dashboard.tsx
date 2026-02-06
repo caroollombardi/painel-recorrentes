@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Upload, UsersRound, LogOut, Settings } from "lucide-react";
+import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Upload, UsersRound, LogOut, Settings, Monitor } from "lucide-react";
 import { DashboardData, ClientData } from "@/lib/data-parser";
 import { generateTopClientPhrase } from "@/lib/month-progress";
 import { KPICard } from "@/components/dashboard/KPICard";
@@ -12,7 +12,10 @@ import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndi
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePresentationMode } from "@/hooks/use-presentation-mode";
+import { PresentationMode } from "@/components/dashboard/PresentationMode";
 import wsaLogo from "@/assets/wsa-logo.png";
 
 interface DashboardProps {
@@ -24,14 +27,13 @@ export function Dashboard({ data }: DashboardProps) {
   const { isAdmin, signOut, user } = useAuth();
   const [selectedClient, setSelectedClient] = useState<string>("all");
   const [showValues, setShowValues] = useState<boolean>(true);
+  const presentation = usePresentationMode();
 
   const filteredData = useMemo<ClientData[]>(() => {
     let filtered = data.clients;
-
     if (selectedClient !== "all") {
       filtered = filtered.filter(c => c.project === selectedClient);
     }
-
     return filtered;
   }, [data.clients, selectedClient]);
 
@@ -48,6 +50,18 @@ export function Dashboard({ data }: DashboardProps) {
     await signOut();
     navigate('/auth');
   };
+
+  if (presentation.isActive) {
+    return (
+      <PresentationMode
+        data={data}
+        currentSlide={presentation.currentSlide}
+        slideCount={presentation.slideCount}
+        onExit={presentation.toggle}
+      />
+    );
+  }
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -93,6 +107,24 @@ export function Dashboard({ data }: DashboardProps) {
                   </Button>
                 </>
               )}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={presentation.toggle}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Monitor className="w-4 h-4 mr-2" />
+                      Modo TV
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Atalho: tecla <kbd className="px-1 py-0.5 bg-muted rounded text-xs font-mono">F</kbd></p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <Button
                 variant="ghost"
                 size="sm"
