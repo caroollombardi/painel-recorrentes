@@ -2,14 +2,16 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-type AppRole = 'admin' | 'viewer' | null;
+type AppRole = 'admin' | 'viewer' | 'socio' | 'gestao' | 'operacional';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  role: AppRole;
+  role: AppRole | null;
+  roles: AppRole[];
   isAdmin: boolean;
   isLoading: boolean;
+  hasRole: (role: AppRole) => boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -20,26 +22,25 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [role, setRole] = useState<AppRole>(null);
+  const [roles, setRoles] = useState<AppRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchUserRole = async (userId: string) => {
+  const fetchUserRoles = async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
+        .eq('user_id', userId);
       
       if (error) {
-        console.error('Error fetching role:', error);
-        return null;
+        console.error('Error fetching roles:', error);
+        return [];
       }
       
-      return data?.role as AppRole || null;
+      return (data?.map(d => d.role as AppRole) || []);
     } catch (e) {
-      console.error('Error in fetchUserRole:', e);
-      return null;
+      console.error('Error in fetchUserRoles:', e);
+      return [];
     }
   };
 
@@ -53,10 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Defer role fetching to avoid deadlock
         if (newSession?.user) {
           setTimeout(() => {
-            fetchUserRole(newSession.user.id).then(setRole);
+            fetchUserRoles(newSession.user.id).then(setRoles);
           }, 0);
         } else {
-          setRole(null);
+          setRoles([]);
         }
       }
     );
@@ -67,8 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(existingSession?.user ?? null);
       
       if (existingSession?.user) {
-        fetchUserRole(existingSession.user.id).then((fetchedRole) => {
-          setRole(fetchedRole);
+        fetchUserRoles(existingSession.user.id).then((fetchedRoles) => {
+          setRoles(fetchedRoles);
           setIsLoading(false);
         });
       } else {
@@ -125,15 +126,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-    setRole(null);
+    setRoles([]);
   };
+
+  const hasRole = (r: AppRole) => roles.includes(r);
 
   const value = {
     user,
     session,
-    role,
-    isAdmin: role === 'admin',
+    role: roles[0] || null,
+    roles,
+    isAdmin: roles.includes('admin'),
     isLoading,
+    hasRole,
     signIn,
     signUp,
     signOut,

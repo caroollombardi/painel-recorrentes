@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Mail, Phone, Save, Trash2, Plus, Settings as SettingsIcon } from "lucide-react";
+import { ArrowLeft, Bell, Mail, Phone, Save, Trash2, Plus, Settings as SettingsIcon, Target, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +35,8 @@ interface NotificationRecipient {
 export default function Settings() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isAdmin } = useAuth();
+  const { isAdmin, hasRole } = useAuth();
+  const canAccessMetas = hasRole('socio') || hasRole('gestao');
   
   const [settings, setSettings] = useState<AlertSettings | null>(null);
   const [recipients, setRecipients] = useState<NotificationRecipient[]>([]);
@@ -48,12 +49,16 @@ export default function Settings() {
   const [newRecipientName, setNewRecipientName] = useState('');
   
   useEffect(() => {
-    if (!isAdmin) {
+    if (!isAdmin && !canAccessMetas) {
       navigate('/');
       return;
     }
-    loadSettings();
-  }, [isAdmin, navigate]);
+    if (isAdmin) {
+      loadSettings();
+    } else {
+      setLoading(false);
+    }
+  }, [isAdmin, canAccessMetas, navigate]);
   
   async function loadSettings() {
     try {
@@ -244,8 +249,40 @@ export default function Settings() {
         </div>
       </header>
       
-      <main className="container py-8 max-w-4xl">
-        <Tabs defaultValue="thresholds" className="space-y-6">
+      <main className="container py-8 max-w-4xl space-y-8">
+        {/* Configurações Estratégicas - only for socio and gestao */}
+        {canAccessMetas && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Target className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    Configurações Estratégicas
+                    <Shield className="w-4 h-4 text-muted-foreground" />
+                  </CardTitle>
+                  <CardDescription>
+                    Módulos de acesso restrito para sócios e gestão
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="border-primary/30 hover:bg-primary/10"
+                onClick={() => navigate('/metas-2026')}
+              >
+                <Target className="w-4 h-4 mr-2 text-primary" />
+                Metas 2026 — Receita Recorrente
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {isAdmin && <Tabs defaultValue="thresholds" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="thresholds">
               <SettingsIcon className="w-4 h-4 mr-2" />
@@ -518,7 +555,7 @@ export default function Settings() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
+        </Tabs>}
       </main>
     </div>
   );

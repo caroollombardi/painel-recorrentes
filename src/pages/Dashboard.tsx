@@ -24,7 +24,8 @@ interface DashboardProps {
 
 export function Dashboard({ data }: DashboardProps) {
   const navigate = useNavigate();
-  const { isAdmin, signOut, user } = useAuth();
+  const { isAdmin, signOut, user, hasRole } = useAuth();
+  const canAccessMetas = hasRole('socio') || hasRole('gestao');
   const [selectedClient, setSelectedClient] = useState<string>("all");
   const [showValues, setShowValues] = useState<boolean>(true);
   const presentation = usePresentationMode();
@@ -106,6 +107,17 @@ export function Dashboard({ data }: DashboardProps) {
                     Configurações
                   </Button>
                 </>
+              )}
+              {!isAdmin && canAccessMetas && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/settings')}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Configurações
+                </Button>
               )}
               <TooltipProvider>
                 <Tooltip>
