@@ -15,7 +15,7 @@ function formatCurrency(value: number, show: boolean = true): string {
 }
 
 export function HoursChart({ data, showValues = true }: HoursChartProps) {
-  const chartData = data.slice(0, 15).map(client => ({
+  const chartData = [...data].sort((a, b) => b.horasMensal - a.horasMensal).slice(0, 15).map(client => ({
     name: client.project.length > 20 
       ? client.project.substring(0, 20) + '...' 
       : client.project,
