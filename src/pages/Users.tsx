@@ -25,11 +25,13 @@ import {
 import wsaLogo from '@/assets/wsa-logo.png';
 import { z } from 'zod';
 
+type AppRoleType = 'admin' | 'viewer' | 'socio' | 'gestao' | 'operacional';
+
 const newUserSchema = z.object({
   name: z.string().trim().min(2, { message: 'Nome deve ter pelo menos 2 caracteres' }),
   email: z.string().trim().email({ message: 'Email inválido' }),
   password: z.string().min(6, { message: 'Senha deve ter pelo menos 6 caracteres' }),
-  role: z.enum(['admin', 'viewer'], { required_error: 'Selecione um perfil' }),
+  role: z.enum(['admin', 'viewer', 'socio', 'gestao', 'operacional'], { required_error: 'Selecione um perfil' }),
 });
 
 interface UserProfile {
@@ -39,7 +41,7 @@ interface UserProfile {
   email: string;
   is_active: boolean;
   created_at: string;
-  role?: 'admin' | 'viewer' | null;
+  role?: AppRoleType | null;
 }
 
 export function Users() {
@@ -57,7 +59,7 @@ export function Users() {
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState<'admin' | 'viewer'>('viewer');
+  const [newRole, setNewRole] = useState<AppRoleType>('viewer');
 
   const fetchUsers = async () => {
     try {
@@ -168,7 +170,7 @@ export function Users() {
     }
   };
 
-  const assignRole = async (userId: string, role: 'admin' | 'viewer') => {
+  const assignRole = async (userId: string, role: AppRoleType) => {
     try {
       // First, check if user already has a role
       const { data: existingRole } = await supabase
@@ -205,27 +207,49 @@ export function Users() {
   };
 
   const getRoleBadge = (role: string | null | undefined) => {
-    if (role === 'admin') {
-      return (
-        <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
-          <Shield className="w-3 h-3 mr-1" />
-          Admin
-        </Badge>
-      );
+    switch (role) {
+      case 'admin':
+        return (
+          <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
+            <Shield className="w-3 h-3 mr-1" />
+            Admin
+          </Badge>
+        );
+      case 'gestao':
+        return (
+          <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
+            <Shield className="w-3 h-3 mr-1" />
+            Gestão
+          </Badge>
+        );
+      case 'socio':
+        return (
+          <Badge variant="default" className="bg-accent/10 text-accent-foreground border-accent/20">
+            <Shield className="w-3 h-3 mr-1" />
+            Sócio
+          </Badge>
+        );
+      case 'operacional':
+        return (
+          <Badge variant="secondary">
+            <Eye className="w-3 h-3 mr-1" />
+            Operacional
+          </Badge>
+        );
+      case 'viewer':
+        return (
+          <Badge variant="secondary">
+            <Eye className="w-3 h-3 mr-1" />
+            Visualizador
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="text-muted-foreground">
+            Sem perfil
+          </Badge>
+        );
     }
-    if (role === 'viewer') {
-      return (
-        <Badge variant="secondary">
-          <Eye className="w-3 h-3 mr-1" />
-          Visualizador
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="outline" className="text-muted-foreground">
-        Sem perfil
-      </Badge>
-    );
   };
 
   if (!isAdmin) {
@@ -346,7 +370,7 @@ export function Users() {
                   <Label htmlFor="new-role">Perfil de Acesso</Label>
                   <Select 
                     value={newRole} 
-                    onValueChange={(v: 'admin' | 'viewer') => setNewRole(v)}
+                    onValueChange={(v: AppRoleType) => setNewRole(v)}
                     disabled={isSubmitting}
                   >
                     <SelectTrigger>
@@ -359,6 +383,24 @@ export function Users() {
                           Administrador
                         </div>
                       </SelectItem>
+                      <SelectItem value="gestao">
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4" />
+                          Gestão
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="socio">
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4" />
+                          Sócio
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="operacional">
+                        <div className="flex items-center gap-2">
+                          <Eye className="w-4 h-4" />
+                          Operacional
+                        </div>
+                      </SelectItem>
                       <SelectItem value="viewer">
                         <div className="flex items-center gap-2">
                           <Eye className="w-4 h-4" />
@@ -368,7 +410,7 @@ export function Users() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Admin: acesso total • Visualizador: apenas consulta
+                    Admin: técnico • Gestão: metas e operações • Sócio: estratégico • Operacional/Visualizador: consulta
                   </p>
                 </div>
 
@@ -436,7 +478,7 @@ export function Users() {
                           value={u.role || 'none'}
                           onValueChange={(v) => {
                             if (v !== 'none') {
-                              assignRole(u.user_id, v as 'admin' | 'viewer');
+                              assignRole(u.user_id, v as AppRoleType);
                             }
                           }}
                           disabled={u.user_id === user?.id}
@@ -451,6 +493,24 @@ export function Users() {
                               <div className="flex items-center gap-2">
                                 <Shield className="w-4 h-4" />
                                 Admin
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="gestao">
+                              <div className="flex items-center gap-2">
+                                <Shield className="w-4 h-4" />
+                                Gestão
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="socio">
+                              <div className="flex items-center gap-2">
+                                <Shield className="w-4 h-4" />
+                                Sócio
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="operacional">
+                              <div className="flex items-center gap-2">
+                                <Eye className="w-4 h-4" />
+                                Operacional
                               </div>
                             </SelectItem>
                             <SelectItem value="viewer">
@@ -501,17 +561,48 @@ export function Users() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
                 <div className="flex items-center gap-2 mb-2">
                   <Shield className="w-5 h-5 text-primary" />
                   <h3 className="font-semibold">Administrador</h3>
                 </div>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Acesso total ao dashboard</li>
-                  <li>• Pode cadastrar e gerenciar usuários</li>
-                  <li>• Pode atualizar dados do sistema</li>
-                  <li>• Pode alterar senhas e perfis</li>
+                  <li>• Acesso técnico ao sistema</li>
+                  <li>• Cadastrar e gerenciar usuários</li>
+                  <li>• Atualizar dados e integrações</li>
+                </ul>
+              </div>
+              <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold">Gestão</h3>
+                </div>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Visualizar e editar metas</li>
+                  <li>• Acompanhar progresso</li>
+                  <li>• Apresentar resultados</li>
+                </ul>
+              </div>
+              <div className="p-4 rounded-lg border border-border bg-muted/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="w-5 h-5 text-muted-foreground" />
+                  <h3 className="font-semibold">Sócio</h3>
+                </div>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Visualizar metas e progresso</li>
+                  <li>• Acompanhar alertas</li>
+                  <li>• Acesso ao dashboard</li>
+                </ul>
+              </div>
+              <div className="p-4 rounded-lg border border-border bg-muted/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Eye className="w-5 h-5 text-muted-foreground" />
+                  <h3 className="font-semibold">Operacional</h3>
+                </div>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>• Dados operacionais</li>
+                  <li>• Sem acesso a metas</li>
                 </ul>
               </div>
               <div className="p-4 rounded-lg border border-border bg-muted/30">
@@ -522,8 +613,6 @@ export function Users() {
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• Acesso apenas ao dashboard</li>
                   <li>• Não pode alterar dados</li>
-                  <li>• Não pode gerenciar usuários</li>
-                  <li>• Ideal para sócios e consultores</li>
                 </ul>
               </div>
             </div>

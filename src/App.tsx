@@ -11,6 +11,7 @@ import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
+import Metas2026 from "./pages/Metas2026";
 import NotFound from "./pages/NotFound";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 
@@ -68,8 +69,16 @@ function AppRoutes() {
       <Route 
         path="/settings" 
         element={
-          <ProtectedRoute requireAdmin>
+          <ProtectedRoute allowedRoles={['admin', 'socio', 'gestao']}>
             <Settings />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/metas-2026" 
+        element={
+          <ProtectedRoute allowedRoles={['socio', 'gestao']}>
+            <Metas2026 />
           </ProtectedRoute>
         } 
       />
