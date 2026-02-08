@@ -110,6 +110,39 @@ export type Database = {
         }
         Relationships: []
       }
+      metas_2026: {
+        Row: {
+          created_at: string
+          id: string
+          meta_clientes: number
+          observacoes: string | null
+          socio: string
+          ticket_medio_meta: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meta_clientes?: number
+          observacoes?: string | null
+          socio: string
+          ticket_medio_meta?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meta_clientes?: number
+          observacoes?: string | null
+          socio?: string
+          ticket_medio_meta?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       notification_history: {
         Row: {
           alert_level: string
@@ -188,6 +221,36 @@ export type Database = {
           type?: string
           updated_at?: string
           value?: string
+        }
+        Relationships: []
+      }
+      novos_clientes_2026: {
+        Row: {
+          cliente: string
+          created_at: string
+          data_entrada: string
+          id: string
+          socio_responsavel: string
+          updated_at: string
+          valor_anual_estimado: number
+        }
+        Insert: {
+          cliente: string
+          created_at?: string
+          data_entrada?: string
+          id?: string
+          socio_responsavel: string
+          updated_at?: string
+          valor_anual_estimado?: number
+        }
+        Update: {
+          cliente?: string
+          created_at?: string
+          data_entrada?: string
+          id?: string
+          socio_responsavel?: string
+          updated_at?: string
+          valor_anual_estimado?: number
         }
         Relationships: []
       }
