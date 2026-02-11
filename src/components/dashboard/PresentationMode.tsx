@@ -151,8 +151,8 @@ export function PresentationMode({
               />
               <KPICard
                 title="Valor Total Recorrente"
-                value={formatCurrency(data.totalValor)}
-                subtitle="Baseado na tabela de preços"
+                value="—"
+                subtitle="Oculto no modo apresentação"
                 icon={<DollarSign className="w-5 h-5 text-primary" />}
                 variant="accent"
                 delay={50}
@@ -173,7 +173,7 @@ export function PresentationMode({
                         data.topClientValor,
                         data.monthProgress
                       )
-                    : `${formatCurrency(data.topClientValor)} (${data.topClientHours.toFixed(1)}h)`
+                    : `${data.topClientHours.toFixed(1)}h`
                 }
                 icon={<Users className="w-5 h-5 text-muted-foreground" />}
                 variant="highlight"
@@ -181,8 +181,8 @@ export function PresentationMode({
               />
               <KPICard
                 title="Média Valor/Hora"
-                value={formatCurrency(data.avgHourlyRate)}
-                subtitle="Média ponderada por hora"
+                value="—"
+                subtitle="Oculto no modo apresentação"
                 icon={
                   <TrendingUp className="w-5 h-5 text-muted-foreground" />
                 }
@@ -223,7 +223,7 @@ export function PresentationMode({
             </div>
 
             <div className="bg-card rounded-lg border border-border p-6 shadow-sm max-w-6xl mx-auto">
-              <HoursChart data={data.clients} showValues={true} />
+              <HoursChart data={data.clients} showValues={false} />
             </div>
           </div>
         </PresentationSlide>
@@ -241,7 +241,7 @@ export function PresentationMode({
             </div>
 
             <div className="bg-card rounded-lg border border-border p-6 shadow-sm max-w-7xl mx-auto">
-              <ClientValueTable data={data.clients} showValues={true} />
+              <ClientValueTable data={data.clients} showValues={false} />
             </div>
           </div>
         </PresentationSlide>
