@@ -3,6 +3,7 @@ import { getLawyerHourlyRate } from "./lawyer-prices";
 import { getClientContract, calculateCreditUsage } from "./contract-values";
 import { getMonthProgress, analyzeConsumption } from "./month-progress";
 import { DashboardData, ClientData, TaskRecord, LawyerWork, CreditUsage } from "./data-parser";
+import { calculateAverageHours } from "./average-hours";
 
 function parseTimeToHours(time: string): number {
   if (!time || time.trim() === '') return 0;
@@ -163,12 +164,17 @@ export function parseXLSXData(fileBuffer: ArrayBuffer): DashboardData {
       }
     }
     
+    // Calculate average monthly hours
+    const clientAvgRate = clientHours > 0 ? clientValor / clientHours : 0;
+    const averageHours = calculateAverageHours(project, clientHours, clientAvgRate, records, contract);
+    
     clients.push({
       project,
       horasMensal: Math.round(clientHours * 100) / 100,
       valorMensal: Math.round(clientValor * 100) / 100,
       lawyers,
       creditUsage,
+      averageHours,
     });
   });
   
