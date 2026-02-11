@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ClientData } from "@/lib/data-parser";
+import { ClientData, HealthStatus } from "@/lib/data-parser";
 import {
   Table,
   TableBody,
@@ -11,6 +11,7 @@ import {
 import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreditUsageBar } from "./CreditUsageBar";
+import { Badge } from "@/components/ui/badge";
 
 interface ClientValueTableProps {
   data: ClientData[];
@@ -67,6 +68,7 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
               <TableHead className="text-muted-foreground font-semibold">Cliente Recorrente</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-center">Uso do Crédito</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">Horas Consumidas</TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-center">Horas Médias Mensais</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">Valor Consumido</TableHead>
             </TableRow>
           </TableHeader>
@@ -131,6 +133,32 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
                     <TableCell className="text-right text-muted-foreground">
                       {client.horasMensal.toFixed(1)}h
                     </TableCell>
+                    <TableCell className="text-center">
+                      {client.averageHours ? (
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span className="text-sm font-medium text-foreground">
+                            {client.averageHours.horasMediasMensais.toFixed(1)}h
+                          </span>
+                          {client.averageHours.healthStatus && (
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px] px-1.5 py-0",
+                                client.averageHours.healthStatus === 'green' && "border-emerald-500/50 text-emerald-600 bg-emerald-500/10",
+                                client.averageHours.healthStatus === 'yellow' && "border-amber-500/50 text-amber-600 bg-amber-500/10",
+                                client.averageHours.healthStatus === 'red' && "border-destructive/50 text-destructive bg-destructive/10",
+                              )}
+                            >
+                              {client.averageHours.healthStatus === 'green' && '≤90%'}
+                              {client.averageHours.healthStatus === 'yellow' && '91-110%'}
+                              {client.averageHours.healthStatus === 'red' && '>110%'}
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right font-semibold text-primary">
                       {formatCurrency(client.valorMensal, showValues)}
                     </TableCell>
@@ -142,6 +170,7 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
                       key={`${client.project}-${lawyer.name}`}
                       className="bg-muted/20 border-border"
                     >
+                      <TableCell></TableCell>
                       <TableCell></TableCell>
                       <TableCell className="pl-12">
                         <div className="flex items-center gap-2 text-muted-foreground">
