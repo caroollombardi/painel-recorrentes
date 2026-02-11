@@ -68,7 +68,7 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
               <TableHead className="text-muted-foreground font-semibold">Cliente Recorrente</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-center">Uso do Crédito</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">Horas Consumidas</TableHead>
-              <TableHead className="text-muted-foreground font-semibold text-center">Horas Médias Mensais</TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-center">Valor Médio/Hora</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">Valor Consumido</TableHead>
             </TableRow>
           </TableHeader>
@@ -134,27 +134,34 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
                       {client.horasMensal.toFixed(1)}h
                     </TableCell>
                     <TableCell className="text-center">
-                      {client.averageHours ? (
-                        <div className="flex items-center justify-center gap-1.5">
-                          <span className="text-sm font-medium text-foreground">
-                            {client.averageHours.horasMediasMensais.toFixed(1)}h
-                          </span>
-                          {client.averageHours.healthStatus && (
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "text-[10px] px-1.5 py-0",
-                                client.averageHours.healthStatus === 'green' && "border-emerald-500/50 text-emerald-600 bg-emerald-500/10",
-                                client.averageHours.healthStatus === 'yellow' && "border-amber-500/50 text-amber-600 bg-amber-500/10",
-                                client.averageHours.healthStatus === 'red' && "border-destructive/50 text-destructive bg-destructive/10",
-                              )}
-                            >
-                              {client.averageHours.healthStatus === 'green' && '≤90%'}
-                              {client.averageHours.healthStatus === 'yellow' && '91-110%'}
-                              {client.averageHours.healthStatus === 'red' && '>110%'}
-                            </Badge>
-                          )}
-                        </div>
+                      {client.creditUsage && client.horasMensal > 0 ? (
+                        (() => {
+                          const valorMedioHora = client.creditUsage.valorPago / client.horasMensal;
+                          // Compare with the avg lawyer rate for this client
+                          const avgLawyerRate = client.valorMensal / client.horasMensal;
+                          const ratio = avgLawyerRate > 0 ? (valorMedioHora / avgLawyerRate) * 100 : 0;
+                          const health: HealthStatus = ratio >= 110 ? 'green' : ratio >= 90 ? 'yellow' : 'red';
+                          return (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span className="text-sm font-medium text-foreground">
+                                {formatCurrency(valorMedioHora, showValues)}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-[10px] px-1.5 py-0",
+                                  health === 'green' && "border-emerald-500/50 text-emerald-600 bg-emerald-500/10",
+                                  health === 'yellow' && "border-amber-500/50 text-amber-600 bg-amber-500/10",
+                                  health === 'red' && "border-destructive/50 text-destructive bg-destructive/10",
+                                )}
+                              >
+                                {health === 'green' && 'Saudável'}
+                                {health === 'yellow' && 'Atenção'}
+                                {health === 'red' && 'Risco'}
+                              </Badge>
+                            </div>
+                          );
+                        })()
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
