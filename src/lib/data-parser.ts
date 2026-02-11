@@ -1,7 +1,7 @@
 import { getLawyerHourlyRate } from "./lawyer-prices";
 import { getClientContract, calculateCreditUsage } from "./contract-values";
 import { getMonthProgress, analyzeConsumption, type MonthProgress, type ConsumptionAnalysis } from "./month-progress";
-import { calculateAverageHours } from "./average-hours";
+
 
 export interface TaskRecord {
   taskId: string;
@@ -34,20 +34,12 @@ export interface CreditUsage {
 
 export type HealthStatus = 'green' | 'yellow' | 'red';
 
-export interface AverageHoursInfo {
-  horasMediasMensais: number;
-  mesesAtivos: number;
-  horasContratadas: number | null; // derived from credit / avg rate
-  healthStatus: HealthStatus | null;
-}
-
 export interface ClientData {
   project: string;
   horasMensal: number;
   valorMensal: number;
   lawyers: LawyerWork[];
   creditUsage: CreditUsage | null;
-  averageHours: AverageHoursInfo | null;
 }
 
 export interface DashboardData {
@@ -225,17 +217,12 @@ export function parseCSVData(csvText: string): DashboardData {
       }
     }
     
-    // Calculate average monthly hours
-    const clientAvgRate = clientHours > 0 ? clientValor / clientHours : 0;
-    const averageHours = calculateAverageHours(project, clientHours, clientAvgRate, records, contract);
-    
     clients.push({
       project,
       horasMensal: Math.round(clientHours * 100) / 100,
       valorMensal: Math.round(clientValor * 100) / 100,
       lawyers,
       creditUsage,
-      averageHours,
     });
   });
   
