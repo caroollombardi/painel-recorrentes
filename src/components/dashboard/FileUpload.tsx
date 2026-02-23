@@ -2,15 +2,52 @@ import { useState, useCallback } from "react";
 import { Upload, FileSpreadsheet, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+const ALLOWED_EXTENSIONS = ['.xlsx', '.xls', '.csv'];
+const ALLOWED_MIME_TYPES = [
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'text/csv',
+  'application/csv',
+];
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void;
   isProcessing: boolean;
 }
 
+function validateFile(file: File): string | null {
+  const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    return `Formato inválido. Use: ${ALLOWED_EXTENSIONS.join(', ')}`;
+  }
+
+  if (file.type && !ALLOWED_MIME_TYPES.includes(file.type)) {
+    if (ext !== '.csv') {
+      return `Tipo de arquivo inválido (${file.type}). Envie uma planilha válida.`;
+    }
+  }
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return `Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)}MB). Máximo: ${MAX_FILE_SIZE_MB}MB.`;
+  }
+
+  if (file.size === 0) {
+    return 'Arquivo vazio. Selecione um arquivo válido.';
+  }
+
+  return null;
+}
+
 export function FileUpload({ onFileSelect, isProcessing }: FileUploadProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -22,25 +59,33 @@ export function FileUpload({ onFileSelect, isProcessing }: FileUploadProps) {
     setIsDragOver(false);
   }, []);
 
+  const trySetFile = useCallback((file: File) => {
+    const error = validateFile(file);
+    if (error) {
+      setValidationError(error);
+      setSelectedFile(null);
+      toast({ title: 'Arquivo inválido', description: error, variant: 'destructive' });
+      return;
+    }
+    setValidationError(null);
+    setSelectedFile(file);
+  }, [toast]);
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      const file = files[0];
-      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')) {
-        setSelectedFile(file);
-      }
+      trySetFile(files[0]);
     }
-  }, []);
+  }, [trySetFile]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      setSelectedFile(files[0]);
+      trySetFile(files[0]);
     }
-  }, []);
+  }, [trySetFile]);
 
   const handleUpload = useCallback(() => {
     if (selectedFile) {
@@ -50,7 +95,6 @@ export function FileUpload({ onFileSelect, isProcessing }: FileUploadProps) {
 
   return (
     <div className="space-y-6">
-      {/* Drop zone */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -69,7 +113,7 @@ export function FileUpload({ onFileSelect, isProcessing }: FileUploadProps) {
           onChange={handleFileInput}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
-        
+
         <div className="flex flex-col items-center justify-center text-center space-y-4">
           {selectedFile ? (
             <>
@@ -95,7 +139,7 @@ export function FileUpload({ onFileSelect, isProcessing }: FileUploadProps) {
                   Arraste sua planilha aqui
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  ou clique para selecionar • Formatos: XLSX, XLS, CSV
+                  ou clique para selecionar • Formatos: XLSX, XLS, CSV • Máx: {MAX_FILE_SIZE_MB}MB
                 </p>
               </div>
             </>
@@ -103,7 +147,10 @@ export function FileUpload({ onFileSelect, isProcessing }: FileUploadProps) {
         </div>
       </div>
 
-      {/* Action button */}
+      {validationError && (
+        <p className="text-sm text-destructive text-center">{validationError}</p>
+      )}
+
       {selectedFile && (
         <Button
           onClick={handleUpload}
