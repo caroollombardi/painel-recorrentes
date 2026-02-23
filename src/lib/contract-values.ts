@@ -15,7 +15,7 @@ export const contractValues: ContractValue[] = [
   { cliente: "COMPOSTA", valorMensalPago: 4350.00, valorMensalCredito: 8700.00 },
   { cliente: "FIGUEIRA CAPITAL", valorMensalPago: 6350.00, valorMensalCredito: 12700.00 },
   { cliente: "LAYER UP", valorMensalPago: 3000.00, valorMensalCredito: 6000.00 },
-  { cliente: "MADALOZZO", valorMensalPago: 4000.00, valorMensalCredito: 8000.00 },
+  { cliente: "MADALOZZO CORRETORA", valorMensalPago: 4000.00, valorMensalCredito: 8000.00 },
   { cliente: "MAKASÍ", valorMensalPago: 10432.00, valorMensalCredito: 20864.00 },
   { cliente: "ME2", valorMensalPago: 2750.00, valorMensalCredito: 5500.00 },
   { cliente: "MEETROX", valorMensalPago: 4180.72, valorMensalCredito: 8361.44 },
