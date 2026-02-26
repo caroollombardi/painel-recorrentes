@@ -4,6 +4,7 @@ interface KPICardProps {
   title: string;
   value: string | number;
   subtitle?: string;
+  variation?: string;
   icon?: React.ReactNode;
   variant?: "default" | "accent" | "highlight";
   delay?: number;
@@ -12,7 +13,8 @@ interface KPICardProps {
 export function KPICard({ 
   title, 
   value, 
-  subtitle, 
+  subtitle,
+  variation,
   icon,
   variant = "default",
   delay = 0 
@@ -47,6 +49,14 @@ export function KPICard({
               variant === "accent" ? "text-primary-foreground/70" : "text-muted-foreground"
             )}>
               {subtitle}
+            </p>
+          )}
+          {variation && (
+            <p className={cn(
+              "text-xs mt-1",
+              variant === "accent" ? "text-primary-foreground/50" : "text-muted-foreground/70"
+            )}>
+              {variation}
             </p>
           )}
         </div>

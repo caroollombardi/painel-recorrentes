@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ClientData, HealthStatus } from "@/lib/data-parser";
 import {
   Table,
@@ -8,10 +8,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle } from "lucide-react";
+import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreditUsageBar } from "./CreditUsageBar";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface ClientValueTableProps {
   data: ClientData[];
@@ -26,14 +27,57 @@ function formatCurrency(value: number, show: boolean = true): string {
   }).format(value);
 }
 
+type SortKey = 'horas' | 'valorMedioHora' | 'valorConsumed';
+type SortDir = 'asc' | 'desc';
+
+function getValorMedioHora(client: ClientData): number | null {
+  if (client.creditUsage && client.horasMensal > 0) {
+    return client.creditUsage.valorPago / client.horasMensal;
+  }
+  return null;
+}
+
+const badgeTooltips: Record<string, string> = {
+  'Saudável': 'Abaixo de 60% do crédito consumido',
+  'Atenção': 'Entre 60% e 80% do crédito consumido',
+  'Risco': 'Entre 80% e 100% do crédito consumido',
+  'Estouro': 'Acima de 100% do crédito consumido',
+};
+
 export function ClientValueTable({ data, showValues = true }: ClientValueTableProps) {
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
-  
-  // Sort by total value descending
-  const sortedData = [...data].sort((a, b) => b.valorMensal - a.valorMensal);
-  
-  // Only show clients with value > 0
-  const clientsWithValue = sortedData.filter(c => c.valorMensal > 0);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(prev => prev === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  };
+
+  const sortedData = useMemo(() => {
+    let sorted = [...data].sort((a, b) => b.valorMensal - a.valorMensal);
+    sorted = sorted.filter(c => c.valorMensal > 0);
+
+    if (sortKey) {
+      sorted.sort((a, b) => {
+        let aVal = 0, bVal = 0;
+        if (sortKey === 'horas') {
+          aVal = a.horasMensal; bVal = b.horasMensal;
+        } else if (sortKey === 'valorMedioHora') {
+          aVal = getValorMedioHora(a) ?? -1;
+          bVal = getValorMedioHora(b) ?? -1;
+        } else if (sortKey === 'valorConsumed') {
+          aVal = a.valorMensal; bVal = b.valorMensal;
+        }
+        return sortDir === 'desc' ? bVal - aVal : aVal - bVal;
+      });
+    }
+    return sorted;
+  }, [data, sortKey, sortDir]);
 
   const toggleClient = (project: string) => {
     const newExpanded = new Set(expandedClients);
@@ -45,7 +89,7 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
     setExpandedClients(newExpanded);
   };
 
-  if (clientsWithValue.length === 0) {
+  if (sortedData.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-30" />
@@ -55,8 +99,25 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
     );
   }
 
-  const totalValue = clientsWithValue.reduce((sum, c) => sum + c.valorMensal, 0);
-  const totalHours = clientsWithValue.reduce((sum, c) => sum + c.horasMensal, 0);
+  const totalValue = sortedData.reduce((sum, c) => sum + c.valorMensal, 0);
+  const totalHours = sortedData.reduce((sum, c) => sum + c.horasMensal, 0);
+
+  const SortableHeader = ({ label, sortKeyName }: { label: string; sortKeyName: SortKey }) => {
+    const isActive = sortKey === sortKeyName;
+    return (
+      <button
+        onClick={() => handleSort(sortKeyName)}
+        className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+      >
+        {label}
+        {isActive ? (
+          sortDir === 'desc' ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
+        ) : (
+          <ArrowUpDown className="w-3 h-3 opacity-40" />
+        )}
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -67,15 +128,22 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
               <TableHead className="text-muted-foreground font-semibold w-8"></TableHead>
               <TableHead className="text-muted-foreground font-semibold">Cliente Recorrente</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-center">Uso do Crédito</TableHead>
-              <TableHead className="text-muted-foreground font-semibold text-right">Horas Consumidas</TableHead>
-              <TableHead className="text-muted-foreground font-semibold text-center">Valor Médio/Hora</TableHead>
-              <TableHead className="text-muted-foreground font-semibold text-right">Valor Consumido</TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-right">
+                <SortableHeader label="Horas Consumidas" sortKeyName="horas" />
+              </TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-center">
+                <SortableHeader label="Valor Médio/Hora" sortKeyName="valorMedioHora" />
+              </TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-right">
+                <SortableHeader label="Valor Consumido" sortKeyName="valorConsumed" />
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {clientsWithValue.map((client, index) => {
-              const percentage = totalValue > 0 ? (client.valorMensal / totalValue) * 100 : 0;
+            {sortedData.map((client, index) => {
               const isExpanded = expandedClients.has(client.project);
+              const isOverflow = client.creditUsage && client.creditUsage.percentualUsado >= 100;
+              const isAvulso = !client.creditUsage;
               
               return (
                 <>
@@ -83,7 +151,8 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
                     key={client.project} 
                     className={cn(
                       "border-border hover:bg-muted/50 transition-colors cursor-pointer",
-                      isExpanded && "bg-muted/30"
+                      isExpanded && "bg-muted/30",
+                      isOverflow && "bg-destructive/5 hover:bg-destructive/10"
                     )}
                     onClick={() => toggleClient(client.project)}
                   >
@@ -118,6 +187,11 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
                         )}>
                           {client.project}
                         </span>
+                        {isAvulso && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                            Avulso
+                          </span>
+                        )}
                         <span className="text-xs text-muted-foreground">
                           ({client.lawyers.length} advogado{client.lawyers.length !== 1 ? 's' : ''})
                         </span>
@@ -137,28 +211,37 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
                       {client.creditUsage && client.horasMensal > 0 ? (
                         (() => {
                           const valorMedioHora = client.creditUsage.valorPago / client.horasMensal;
-                          // Compare with the avg lawyer rate for this client
                           const avgLawyerRate = client.valorMensal / client.horasMensal;
                           const ratio = avgLawyerRate > 0 ? (valorMedioHora / avgLawyerRate) * 100 : 0;
                           const health: HealthStatus = ratio >= 110 ? 'green' : ratio >= 90 ? 'yellow' : 'red';
+                          const healthLabel = health === 'green' ? 'Saudável' : health === 'yellow' ? 'Atenção' : 'Risco';
                           return (
                             <div className="flex items-center justify-center gap-1.5">
                               <span className="text-sm font-medium text-foreground">
                                 {formatCurrency(valorMedioHora, showValues)}
                               </span>
-                              <Badge
-                                variant="outline"
-                                className={cn(
-                                  "text-[10px] px-1.5 py-0",
-                                  health === 'green' && "border-emerald-500/50 text-emerald-600 bg-emerald-500/10",
-                                  health === 'yellow' && "border-amber-500/50 text-amber-600 bg-amber-500/10",
-                                  health === 'red' && "border-destructive/50 text-destructive bg-destructive/10",
-                                )}
-                              >
-                                {health === 'green' && 'Saudável'}
-                                {health === 'yellow' && 'Atenção'}
-                                {health === 'red' && 'Risco'}
-                              </Badge>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div>
+                                      <Badge
+                                        variant="outline"
+                                        className={cn(
+                                          "text-[10px] px-1.5 py-0 cursor-help",
+                                          health === 'green' && "border-emerald-500/50 text-emerald-600 bg-emerald-500/10",
+                                          health === 'yellow' && "border-amber-500/50 text-amber-600 bg-amber-500/10",
+                                          health === 'red' && "border-destructive/50 text-destructive bg-destructive/10",
+                                        )}
+                                      >
+                                        {healthLabel}
+                                      </Badge>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    <p className="text-xs">{badgeTooltips[healthLabel] || ''}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             </div>
                           );
                         })()
@@ -209,7 +292,7 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
       {/* Summary Footer */}
       <div className="flex items-center justify-between pt-4 border-t border-border">
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>{clientsWithValue.length} clientes recorrentes</span>
+          <span>{sortedData.length} clientes recorrentes</span>
           <span>•</span>
           <span>{totalHours.toFixed(1)}h totais</span>
         </div>

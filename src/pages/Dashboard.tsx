@@ -1,14 +1,15 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Upload, UsersRound, LogOut, Settings, Monitor } from "lucide-react";
+import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Upload, UsersRound, Settings, Monitor, Filter } from "lucide-react";
 import { DashboardData, ClientData } from "@/lib/data-parser";
 import { generateTopClientPhrase } from "@/lib/month-progress";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { HoursChart } from "@/components/dashboard/HoursChart";
-import { ClientFilter } from "@/components/dashboard/ClientFilter";
 import { ClientValueTable } from "@/components/dashboard/ClientValueTable";
 import { EnhancedCreditWarningBanner } from "@/components/dashboard/EnhancedCreditWarningBanner";
 import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndicator";
+import { MonthSelector } from "@/components/dashboard/MonthSelector";
+import { UserProfileDropdown } from "@/components/dashboard/UserProfileDropdown";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,8 @@ export function Dashboard({ data }: DashboardProps) {
   const canAccessMetas = hasRole('socio') || hasRole('gestao');
   const [selectedClient, setSelectedClient] = useState<string>("all");
   const [showValues, setShowValues] = useState<boolean>(true);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const presentation = usePresentationMode();
 
   const filteredData = useMemo<ClientData[]>(() => {
@@ -63,13 +66,12 @@ export function Dashboard({ data }: DashboardProps) {
     );
   }
 
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Header - Corporate left-aligned layout */}
+      {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container py-4">
-          {/* Top row: Logo left, user actions right */}
+          {/* Top row: Logo left, actions right */}
           <div className="flex items-center justify-between mb-4">
             <img 
               src={wsaLogo} 
@@ -119,6 +121,24 @@ export function Dashboard({ data }: DashboardProps) {
                   Configurações
                 </Button>
               )}
+
+              {/* Toggle values */}
+              <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
+                {showValues ? (
+                  <Eye className="w-4 h-4 text-muted-foreground" />
+                ) : (
+                  <EyeOff className="w-4 h-4 text-muted-foreground" />
+                )}
+                <Label htmlFor="show-values" className="text-sm text-muted-foreground cursor-pointer hidden md:inline">
+                  Exibir valores (R$)
+                </Label>
+                <Switch
+                  id="show-values"
+                  checked={showValues}
+                  onCheckedChange={setShowValues}
+                />
+              </div>
+
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -137,15 +157,9 @@ export function Dashboard({ data }: DashboardProps) {
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sair
-              </Button>
+
+              {/* User Profile Dropdown */}
+              <UserProfileDropdown email={user?.email || ''} onLogout={handleLogout} />
             </div>
           </div>
           
@@ -160,30 +174,10 @@ export function Dashboard({ data }: DashboardProps) {
           </div>
           
           {/* Controls row */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-4 border-t border-border/50">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                <span>Dados atualizados</span>
-              </div>
-              <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
-                {showValues ? (
-                  <Eye className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <EyeOff className="w-4 h-4 text-muted-foreground" />
-                )}
-                <Label htmlFor="show-values" className="text-sm text-muted-foreground cursor-pointer">
-                  Exibir valores (R$)
-                </Label>
-                <Switch
-                  id="show-values"
-                  checked={showValues}
-                  onCheckedChange={setShowValues}
-                />
-              </div>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {user?.email}
+          <div className="flex items-center gap-4 pt-4 border-t border-border/50">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="w-4 h-4" />
+              <span>Dados atualizados</span>
             </div>
           </div>
         </div>
@@ -193,7 +187,7 @@ export function Dashboard({ data }: DashboardProps) {
         {/* Month Progress Indicator */}
         <MonthProgressIndicator monthProgress={data.monthProgress} />
         
-        {/* Enhanced Credit Warning Banner with 3 levels */}
+        {/* Enhanced Credit Warning Banner */}
         <EnhancedCreditWarningBanner 
           clientsAtWarning={data.clientsAtWarning}
           clientsAtRisk={data.clientsAtRisk}
@@ -207,6 +201,7 @@ export function Dashboard({ data }: DashboardProps) {
             title="Total Horas Recorrentes"
             value={`${data.totalHoras.toFixed(1)}h`}
             subtitle="Contratos fixos mensais"
+            variation="— vs. mês anterior"
             icon={<Clock className="w-5 h-5 text-primary" />}
             variant="accent"
             delay={0}
@@ -214,7 +209,8 @@ export function Dashboard({ data }: DashboardProps) {
           <KPICard
             title="Valor Total Recorrente"
             value={showValues ? formatCurrency(data.totalValor) : "—"}
-            subtitle={showValues ? "Baseado na tabela de preços" : "Valores ocultos"}
+            subtitle={showValues ? "Calculado pelo valor/hora de cada advogado" : "Valores ocultos"}
+            variation="— vs. mês anterior"
             icon={<DollarSign className="w-5 h-5 text-primary" />}
             variant="accent"
             delay={50}
@@ -262,12 +258,28 @@ export function Dashboard({ data }: DashboardProps) {
           />
         </section>
 
-        {/* Filters */}
-        <section>
-          <ClientFilter
-            clients={clientList}
-            selectedClient={selectedClient}
-            onClientChange={setSelectedClient}
+        {/* Filters with Month Selector */}
+        <section className="flex flex-wrap items-end gap-4 p-4 bg-card rounded-lg border border-border animate-fade-in">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span className="text-sm font-medium">Filtros:</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Cliente Recorrente</label>
+            <select
+              value={selectedClient}
+              onChange={(e) => setSelectedClient(e.target.value)}
+              className="h-9 w-[200px] rounded-md border border-border bg-background px-3 text-sm"
+            >
+              <option value="all">Todos os clientes</option>
+              {clientList.map((client) => (
+                <option key={client} value={client}>{client}</option>
+              ))}
+            </select>
+          </div>
+          <MonthSelector
+            currentMonth={selectedMonth}
+            currentYear={selectedYear}
+            onChange={(m, y) => { setSelectedMonth(m); setSelectedYear(y); }}
           />
         </section>
 
@@ -297,7 +309,7 @@ export function Dashboard({ data }: DashboardProps) {
                 Valor por Cliente Recorrente
               </h2>
               <p className="text-sm text-muted-foreground">
-                Clique para ver os advogados que trabalharam e seus valores/hora
+                Clique para ver os advogados que trabalham e seus valores/hora
               </p>
             </div>
           </div>

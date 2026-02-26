@@ -28,7 +28,7 @@ export function EnhancedCreditWarningBanner({
         <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle className="font-semibold flex items-center gap-2">
-            🚨 Estouro de Pacote!
+            🚨 Estouro de Crédito!
           </AlertTitle>
           <AlertDescription>
             <span className="font-semibold">{clientsAtOverflow} cliente{clientsAtOverflow !== 1 ? 's' : ''}</span> excedeu{clientsAtOverflow !== 1 ? 'ram' : ''} 100% do crédito mensal.
