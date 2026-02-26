@@ -16,9 +16,7 @@ function formatCurrency(value: number, show: boolean = true): string {
 
 export function HoursChart({ data, showValues = true }: HoursChartProps) {
   const chartData = [...data].sort((a, b) => b.horasMensal - a.horasMensal).slice(0, 15).map(client => ({
-    name: client.project.length > 20 
-      ? client.project.substring(0, 20) + '...' 
-      : client.project,
+    name: client.project,
     fullName: client.project,
     horas: client.horasMensal,
     valor: client.valorMensal,
@@ -56,13 +54,36 @@ export function HoursChart({ data, showValues = true }: HoursChartProps) {
     return null;
   };
 
+  const CustomYAxisTick = ({ x, y, payload }: any) => {
+    const name = payload.value;
+    const maxLen = 22;
+    const displayName = name.length > maxLen ? name.substring(0, maxLen) + '…' : name;
+    
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <title>{name}</title>
+        <text
+          x={-4}
+          y={0}
+          dy={4}
+          textAnchor="end"
+          fill="hsl(var(--muted-foreground))"
+          fontSize={11}
+          style={{ whiteSpace: 'nowrap' }}
+        >
+          {displayName}
+        </text>
+      </g>
+    );
+  };
+
   return (
     <div className="w-full h-[500px] animate-fade-in" style={{ animationDelay: '300ms' }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
           layout="vertical"
-          margin={{ top: 20, right: 30, left: 100, bottom: 20 }}
+          margin={{ top: 20, right: 30, left: 120, bottom: 20 }}
           barGap={2}
         >
           <XAxis 
@@ -76,10 +97,11 @@ export function HoursChart({ data, showValues = true }: HoursChartProps) {
             type="category" 
             dataKey="name" 
             stroke="hsl(var(--muted-foreground))"
-            fontSize={12}
+            fontSize={11}
             tickLine={false}
             axisLine={false}
-            width={95}
+            width={115}
+            tick={<CustomYAxisTick />}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }} />
           <Legend 
