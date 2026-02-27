@@ -251,7 +251,6 @@ export function Dashboard({ data }: DashboardProps) {
             value={`${filteredKPIs.totalHoras.toFixed(1)}h`}
             subtitle="Contratos fixos mensais"
             icon={<Clock className="w-5 h-5 text-primary" />}
-            variant="accent"
             delay={0}
           />
           <KPICard
@@ -259,7 +258,6 @@ export function Dashboard({ data }: DashboardProps) {
             value={showValues ? formatCurrency(filteredKPIs.totalValor) : "—"}
             subtitle={showValues ? "Calculado pelo valor/hora de cada advogado" : "Valores ocultos"}
             icon={<DollarSign className="w-5 h-5 text-primary" />}
-            variant="accent"
             delay={50}
           />
           <KPICard
@@ -300,7 +298,7 @@ export function Dashboard({ data }: DashboardProps) {
                   : `🔔 ${filteredKPIs.clientsAtWarning} em atenção`
             }
             icon={<AlertTriangle className="w-5 h-5 text-primary" />}
-            variant={(filteredKPIs.clientsAtCritical > 0) ? "accent" : undefined}
+            variant="accent"
             delay={200}
           />
         </section>
