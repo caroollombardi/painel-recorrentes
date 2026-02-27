@@ -1,10 +1,11 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Clock, Database, ArrowLeft, UsersRound, LogOut } from "lucide-react";
+import { BarChart3, Clock, Database, ArrowLeft, UsersRound, LogOut, Calendar } from "lucide-react";
 import { FileUpload } from "@/components/dashboard/FileUpload";
 import { parseXLSXData } from "@/lib/xlsx-parser";
 import { DashboardData } from "@/lib/data-parser";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
 import { Button } from "@/components/ui/button";
 import wsaLogo from "@/assets/wsa-logo.png";
 
@@ -16,8 +17,11 @@ interface HomeProps {
 export function Home({ onDataUpdate, hasData }: HomeProps) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { availableMonths } = useMonthlySnapshots();
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  
+  const MONTH_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
   const handleFileSelect = useCallback(async (file: File) => {
     setIsProcessing(true);
@@ -130,6 +134,29 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
               </p>
             )}
           </div>
+
+          {/* Available Historical Data */}
+          {availableMonths.length > 0 && (
+            <div className="bg-card rounded-lg border border-border p-5">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-muted">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-foreground">Dados Históricos Disponíveis</h3>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {availableMonths
+                      .sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year)
+                      .map(({ month, year }) => (
+                        <span key={`${month}-${year}`} className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                          {MONTH_SHORT[month - 1]}/{year}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Info Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

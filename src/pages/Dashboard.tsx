@@ -10,15 +10,23 @@ import { EnhancedCreditWarningBanner } from "@/components/dashboard/EnhancedCred
 import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndicator";
 import { MonthSelector } from "@/components/dashboard/MonthSelector";
 import { UserProfileDropdown } from "@/components/dashboard/UserProfileDropdown";
+import { ExecutiveSummary } from "@/components/dashboard/ExecutiveSummary";
+import { RevenueProjection } from "@/components/dashboard/RevenueProjection";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePresentationMode } from "@/hooks/use-presentation-mode";
+import { useMonthlySnapshots, ClientSnapshotData } from "@/hooks/use-monthly-snapshots";
 import { PresentationMode } from "@/components/dashboard/PresentationMode";
 import { cn } from "@/lib/utils";
 import wsaLogo from "@/assets/wsa-logo.png";
+
+const MONTH_NAMES = [
+  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
 
 interface DashboardProps {
   data: DashboardData;
@@ -35,6 +43,18 @@ export function Dashboard({ data }: DashboardProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const presentation = usePresentationMode();
   const tableRef = useRef<ClientValueTableHandle>(null);
+  const { getPreviousMonthSnapshot } = useMonthlySnapshots();
+
+  // Previous month data
+  const prevSnapshot = useMemo(() => {
+    return getPreviousMonthSnapshot(selectedMonth, selectedYear);
+  }, [getPreviousMonthSnapshot, selectedMonth, selectedYear]);
+
+  const prevMonthName = useMemo(() => {
+    let pm = selectedMonth - 1;
+    if (pm < 0) pm = 11;
+    return MONTH_NAMES[pm];
+  }, [selectedMonth]);
 
   // Compact header on scroll
   useEffect(() => {
@@ -91,6 +111,30 @@ export function Dashboard({ data }: DashboardProps) {
     return { totalHoras, totalValor, avgHourlyRate, topClient, topClientHours, topClientValor, clientsAtWarning, clientsAtCritical, clientsAtRisk, clientsAtOverflow };
   }, [filteredData]);
 
+  // Compute variations
+  const horasVariation = useMemo(() => {
+    if (!prevSnapshot || prevSnapshot.total_horas <= 0) return null;
+    return ((filteredKPIs.totalHoras - prevSnapshot.total_horas) / prevSnapshot.total_horas) * 100;
+  }, [prevSnapshot, filteredKPIs.totalHoras]);
+
+  const valorVariation = useMemo(() => {
+    if (!prevSnapshot || prevSnapshot.total_valor <= 0) return null;
+    return ((filteredKPIs.totalValor - prevSnapshot.total_valor) / prevSnapshot.total_valor) * 100;
+  }, [prevSnapshot, filteredKPIs.totalValor]);
+
+  // Client-level variations from previous month
+  const clientVariations = useMemo(() => {
+    if (!prevSnapshot) return {};
+    const map: Record<string, number | null> = {};
+    const prevClients = prevSnapshot.client_data as ClientSnapshotData[];
+    if (!Array.isArray(prevClients)) return {};
+    
+    prevClients.forEach(pc => {
+      map[pc.project] = pc.horasMensal;
+    });
+    return map;
+  }, [prevSnapshot]);
+
   const formatCurrency = (value: number) => {
     if (!showValues) return "—";
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -112,6 +156,9 @@ export function Dashboard({ data }: DashboardProps) {
         currentSlide={presentation.currentSlide}
         slideCount={presentation.slideCount}
         onExit={presentation.toggle}
+        previousMonthTotalValor={prevSnapshot?.total_valor ?? null}
+        previousMonthTotalHoras={prevSnapshot?.total_horas ?? null}
+        previousMonthName={prevMonthName}
       />
     );
   }
@@ -123,7 +170,7 @@ export function Dashboard({ data }: DashboardProps) {
         "border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 transition-all duration-300",
       )}>
         <div className="container py-3">
-          {/* Navbar row: Logo left, actions right */}
+          {/* Navbar row */}
           <div className="flex items-center justify-between">
             <img 
               src={wsaLogo} 
@@ -133,73 +180,39 @@ export function Dashboard({ data }: DashboardProps) {
             <div className="flex items-center gap-2">
               {isAdmin && (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate('/admin')}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => navigate('/admin')} className="text-muted-foreground hover:text-foreground">
                     <Upload className="w-4 h-4 mr-2" />
                     <span className="hidden md:inline">Atualizar Dados</span>
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate('/users')}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => navigate('/users')} className="text-muted-foreground hover:text-foreground">
                     <UsersRound className="w-4 h-4 mr-2" />
                     <span className="hidden md:inline">Usuários</span>
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate('/settings')}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="text-muted-foreground hover:text-foreground">
                     <Settings className="w-4 h-4 mr-2" />
                     <span className="hidden md:inline">Configurações</span>
                   </Button>
                 </>
               )}
               {!isAdmin && canAccessMetas && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate('/settings')}
-                  className="text-muted-foreground hover:text-foreground"
-                >
+                <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="text-muted-foreground hover:text-foreground">
                   <Settings className="w-4 h-4 mr-2" />
                   <span className="hidden md:inline">Configurações</span>
                 </Button>
               )}
 
-              {/* Toggle values */}
               <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
-                {showValues ? (
-                  <Eye className="w-4 h-4 text-muted-foreground" />
-                ) : (
-                  <EyeOff className="w-4 h-4 text-muted-foreground" />
-                )}
+                {showValues ? <Eye className="w-4 h-4 text-muted-foreground" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
                 <Label htmlFor="show-values" className="text-sm text-muted-foreground cursor-pointer hidden md:inline">
                   Exibir valores (R$)
                 </Label>
-                <Switch
-                  id="show-values"
-                  checked={showValues}
-                  onCheckedChange={setShowValues}
-                />
+                <Switch id="show-values" checked={showValues} onCheckedChange={setShowValues} />
               </div>
 
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={presentation.toggle}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
+                    <Button variant="ghost" size="sm" onClick={presentation.toggle} className="text-muted-foreground hover:text-foreground">
                       <Monitor className="w-4 h-4 mr-2" />
                       <span className="hidden md:inline">Modo TV</span>
                     </Button>
@@ -210,7 +223,6 @@ export function Dashboard({ data }: DashboardProps) {
                 </Tooltip>
               </TooltipProvider>
 
-              {/* User Profile Dropdown */}
               <UserProfileDropdown email={user?.email || ''} onLogout={handleLogout} />
             </div>
           </div>
@@ -221,7 +233,7 @@ export function Dashboard({ data }: DashboardProps) {
             isScrolled ? "max-h-0 opacity-0 mt-0" : "max-h-24 opacity-100 mt-3"
           )}>
             <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight">
-              Análise <span style={{ color: '#FB7435' }}>Clientes Recorrentes</span>
+              Análise <span className="text-primary">Clientes Recorrentes</span>
             </h1>
             <p className="text-muted-foreground mt-1">
               Análise de horas e valores por advogado
@@ -230,7 +242,16 @@ export function Dashboard({ data }: DashboardProps) {
         </div>
       </header>
 
-      <main className="container py-8 space-y-8">
+      <main className="container py-8 space-y-6">
+        {/* Executive Summary */}
+        <ExecutiveSummary
+          data={data}
+          previousMonthTotalValor={prevSnapshot?.total_valor ?? null}
+          previousMonthTotalHoras={prevSnapshot?.total_horas ?? null}
+          previousMonthName={prevSnapshot ? prevMonthName : null}
+          showValues={showValues}
+        />
+
         {/* Month Progress Indicator */}
         <MonthProgressIndicator monthProgress={data.monthProgress} />
         
@@ -250,6 +271,7 @@ export function Dashboard({ data }: DashboardProps) {
             title="Total Horas Recorrentes"
             value={`${filteredKPIs.totalHoras.toFixed(1)}h`}
             subtitle="Contratos fixos mensais"
+            variationPercent={selectedClient === "all" ? horasVariation : undefined}
             icon={<Clock className="w-5 h-5 text-primary" />}
             delay={0}
           />
@@ -257,6 +279,7 @@ export function Dashboard({ data }: DashboardProps) {
             title="Valor Total Recorrente"
             value={showValues ? formatCurrency(filteredKPIs.totalValor) : "—"}
             subtitle={showValues ? "Calculado pelo valor/hora de cada advogado" : "Valores ocultos"}
+            variationPercent={selectedClient === "all" && showValues ? valorVariation : undefined}
             icon={<DollarSign className="w-5 h-5 text-primary" />}
             delay={50}
           />
@@ -302,6 +325,15 @@ export function Dashboard({ data }: DashboardProps) {
             delay={200}
           />
         </section>
+
+        {/* Revenue Projection */}
+        <RevenueProjection
+          totalValorAtual={filteredKPIs.totalValor}
+          monthProgress={data.monthProgress}
+          previousMonthValor={prevSnapshot?.total_valor ?? null}
+          metaMensal={null}
+          showValues={showValues}
+        />
 
         {/* Filters with Month Selector */}
         <section className="flex flex-wrap items-end gap-4 p-4 bg-card rounded-lg border border-border animate-fade-in">
@@ -358,7 +390,12 @@ export function Dashboard({ data }: DashboardProps) {
               </p>
             </div>
           </div>
-          <ClientValueTable ref={tableRef} data={filteredData} showValues={showValues} />
+          <ClientValueTable 
+            ref={tableRef} 
+            data={filteredData} 
+            showValues={showValues} 
+            clientVariations={clientVariations}
+          />
         </section>
       </main>
 

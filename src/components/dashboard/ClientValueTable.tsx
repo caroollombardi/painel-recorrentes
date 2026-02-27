@@ -22,6 +22,7 @@ export interface ClientValueTableHandle {
 interface ClientValueTableProps {
   data: ClientData[];
   showValues?: boolean;
+  clientVariations?: Record<string, number | null>; // previous month hours by client
 }
 
 function formatCurrency(value: number, show: boolean = true): string {
@@ -71,7 +72,7 @@ const badgeTooltips: Record<string, string> = {
 };
 
 export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTableProps>(
-  function ClientValueTable({ data, showValues = true }, ref) {
+  function ClientValueTable({ data, showValues = true, clientVariations = {} }, ref) {
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -233,7 +234,23 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
             )}
           </TableCell>
           <TableCell className="text-right text-muted-foreground">
-            {client.horasMensal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h
+            <div className="flex items-center justify-end gap-1.5">
+              <span>{client.horasMensal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h</span>
+              {(() => {
+                const prevHoras = clientVariations[client.project];
+                if (prevHoras != null && prevHoras > 0) {
+                  const pctChange = ((client.horasMensal - prevHoras) / prevHoras) * 100;
+                  if (Math.abs(pctChange) >= 0.5) {
+                    return (
+                      <span className={cn("text-[10px] font-semibold", pctChange >= 0 ? "text-emerald-600" : "text-destructive")}>
+                        {pctChange >= 0 ? "↑" : "↓"}{Math.abs(pctChange).toFixed(0)}%
+                      </span>
+                    );
+                  }
+                }
+                return null;
+              })()}
+            </div>
           </TableCell>
           <TableCell className="text-center">
             {client.creditUsage && client.horasMensal > 0 ? (
