@@ -15,28 +15,49 @@ function formatCurrency(value: number, show: boolean = true): string {
 }
 
 export function HoursChart({ data, showValues = true }: HoursChartProps) {
-  const chartData = [...data].sort((a, b) => b.horasMensal - a.horasMensal).slice(0, 15).map(client => ({
-    name: client.project,
-    fullName: client.project,
-    horas: client.horasMensal,
-    valor: client.valorMensal,
-    lawyerCount: client.lawyers.length,
-  }));
+  const allData = [...data].sort((a, b) => b.horasMensal - a.horasMensal);
+  const chartData = allData.filter(c => c.horasMensal > 0).map(client => {
+    // Estimate contracted hours: valorCredito / average lawyer rate
+    let creditoHoras = 0;
+    if (client.creditUsage && client.horasMensal > 0 && client.valorMensal > 0) {
+      const avgRate = client.valorMensal / client.horasMensal;
+      creditoHoras = avgRate > 0 ? client.creditUsage.valorCredito / avgRate : 0;
+    }
+    return {
+      name: client.project,
+      fullName: client.project,
+      horas: client.horasMensal,
+      credito: creditoHoras,
+      valor: client.valorMensal,
+      lawyerCount: client.lawyers.length,
+    };
+  });
+
+  const totalClients = data.length;
+  const barHeight = 32;
+  const chartHeight = Math.max(400, chartData.length * barHeight + 80);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const tooltipData = payload[0].payload;
       return (
         <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
-          <p className="font-display font-semibold text-foreground mb-2">
+          <p className="font-display font-semibold text-foreground mb-2" translate="no">
             {tooltipData.fullName}
           </p>
           <div className="space-y-1 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-primary" />
-              <span className="text-muted-foreground">Horas:</span>
-              <span className="font-medium text-foreground">{tooltipData.horas.toFixed(2)}h</span>
+              <span className="text-muted-foreground">Horas Consumidas:</span>
+              <span className="font-medium text-foreground">{tooltipData.horas.toFixed(1)}h</span>
             </div>
+            {tooltipData.credito > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ background: 'hsl(var(--primary) / 0.3)' }} />
+                <span className="text-muted-foreground">Crédito Contratado:</span>
+                <span className="font-medium text-foreground">{tooltipData.credito.toFixed(1)}h</span>
+              </div>
+            )}
             {showValues && (
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-chart-outros" />
@@ -77,57 +98,78 @@ export function HoursChart({ data, showValues = true }: HoursChartProps) {
     );
   };
 
+  const renderLegend = () => (
+    <div className="flex items-center justify-center gap-6 pt-4">
+      <div className="flex items-center gap-2">
+        <div className="w-3 h-3 rounded-sm bg-primary" />
+        <span className="text-sm text-muted-foreground">Horas Consumidas</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="w-3 h-3 rounded-sm" style={{ background: 'hsl(var(--primary) / 0.25)' }} />
+        <span className="text-sm text-muted-foreground">Crédito Contratado</span>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="w-full h-[500px] animate-fade-in" style={{ animationDelay: '300ms' }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={chartData}
-          layout="vertical"
-          margin={{ top: 20, right: 30, left: 120, bottom: 20 }}
-          barGap={2}
-        >
-          <XAxis 
-            type="number" 
-            stroke="hsl(var(--muted-foreground))"
-            fontSize={12}
-            tickLine={false}
-            axisLine={false}
-          />
-          <YAxis 
-            type="category" 
-            dataKey="name" 
-            stroke="hsl(var(--muted-foreground))"
-            fontSize={11}
-            tickLine={false}
-            axisLine={false}
-            width={115}
-            tick={<CustomYAxisTick />}
-          />
-          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }} />
-          <Legend 
-            wrapperStyle={{ paddingTop: 20 }}
-            formatter={() => (
-              <span className="text-sm text-muted-foreground">
-                Horas Clientes Recorrentes
-              </span>
-            )}
-          />
-          <Bar 
-            dataKey="horas" 
-            name="horas"
-            radius={[0, 4, 4, 0]}
-            maxBarSize={24}
-            fill="hsl(var(--primary))"
-          >
-            {chartData.map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`} 
-                fill={index < 3 ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.7)'}
+    <div className="w-full animate-fade-in" style={{ animationDelay: '300ms' }}>
+      <div className="overflow-y-auto" style={{ maxHeight: '550px' }}>
+        <div style={{ height: `${chartHeight}px` }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              margin={{ top: 10, right: 30, left: 120, bottom: 10 }}
+              barGap={-4}
+              barCategoryGap="20%"
+            >
+              <XAxis 
+                type="number" 
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
               />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+              <YAxis 
+                type="category" 
+                dataKey="name" 
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={11}
+                tickLine={false}
+                axisLine={false}
+                width={115}
+                tick={<CustomYAxisTick />}
+              />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }} />
+              <Bar 
+                dataKey="credito" 
+                name="Crédito Contratado"
+                radius={[0, 4, 4, 0]}
+                maxBarSize={20}
+                fill="hsl(var(--primary) / 0.25)"
+              />
+              <Bar 
+                dataKey="horas" 
+                name="Horas Consumidas"
+                radius={[0, 4, 4, 0]}
+                maxBarSize={20}
+                fill="hsl(var(--primary))"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={index < 3 ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.7)'}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      {renderLegend()}
+      <p className="text-xs text-muted-foreground/60 text-center mt-2">
+        Exibindo {chartData.length} de {totalClients} clientes
+      </p>
     </div>
   );
 }
