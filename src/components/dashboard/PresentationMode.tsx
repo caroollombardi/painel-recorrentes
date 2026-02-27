@@ -5,7 +5,7 @@ import { generateTopClientPhrase } from "@/lib/month-progress";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientValueTable } from "@/components/dashboard/ClientValueTable";
-import { EnhancedCreditWarningBanner } from "@/components/dashboard/EnhancedCreditWarningBanner";
+import { CompactAlertStrip } from "@/components/dashboard/CompactAlertStrip";
 import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndicator";
 import { ExecutiveSummary } from "@/components/dashboard/ExecutiveSummary";
 import { Button } from "@/components/ui/button";
@@ -111,10 +111,8 @@ export function PresentationMode({
 
             <MonthProgressIndicator monthProgress={data.monthProgress} className="mx-auto max-w-2xl justify-center" />
 
-            <EnhancedCreditWarningBanner
-              clientsAtWarning={data.clientsAtWarning}
-              clientsAtRisk={data.clientsAtRisk}
-              clientsAtOverflow={data.clientsAtOverflow}
+            <CompactAlertStrip
+              clients={data.clients}
               monthProgress={data.monthProgress}
             />
 

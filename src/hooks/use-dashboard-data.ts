@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { DashboardData, parseCSVData } from "@/lib/data-parser";
-import asanaData from "@/data/asana-data.csv?raw";
+import { DashboardData } from "@/lib/data-parser";
+import { dashboardDataSchema } from "@/lib/schemas";
+import { toast } from "@/hooks/use-toast";
 
 export function useDashboardData() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load data from database on mount
   useEffect(() => {
     async function loadData() {
       try {
@@ -18,25 +18,31 @@ export function useDashboardData() {
           .limit(1)
           .maybeSingle();
 
+        if (error) {
+          console.error("Error fetching dashboard data:", error);
+          setDashboardData(null);
+          return;
+        }
+
         if (data?.data) {
-          setDashboardData(data.data as unknown as DashboardData);
-        } else {
-          // Fallback to bundled CSV
-          try {
-            const parsed = parseCSVData(asanaData);
-            setDashboardData(parsed);
-          } catch (e) {
-            console.error("Error parsing fallback CSV:", e);
+          const result = dashboardDataSchema.safeParse(data.data);
+          if (result.success) {
+            setDashboardData(result.data as DashboardData);
+          } else {
+            console.error("Dashboard data validation failed:", result.error.issues);
+            toast({
+              title: "Erro nos dados",
+              description: "Dados do banco em formato inesperado. Reimporte a planilha.",
+              variant: "destructive",
+            });
+            setDashboardData(null);
           }
+        } else {
+          setDashboardData(null);
         }
       } catch (err) {
         console.error("Error loading dashboard data:", err);
-        try {
-          const parsed = parseCSVData(asanaData);
-          setDashboardData(parsed);
-        } catch (e) {
-          console.error("Error parsing fallback CSV:", e);
-        }
+        setDashboardData(null);
       } finally {
         setIsLoading(false);
       }
@@ -45,7 +51,6 @@ export function useDashboardData() {
     loadData();
   }, []);
 
-  // Save data to database, update state, and save monthly snapshot
   const updateData = useCallback(async (data: DashboardData, fileName?: string) => {
     setDashboardData(data);
 
@@ -53,7 +58,6 @@ export function useDashboardData() {
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user?.id;
 
-      // Check if a record already exists
       const { data: existing } = await supabase
         .from("dashboard_data")
         .select("id")
@@ -82,11 +86,11 @@ export function useDashboardData() {
           }]);
       }
 
-      // Also save a monthly snapshot
+      // Save monthly snapshot
       const now = new Date();
-      const month = now.getMonth() + 1; // 1-indexed
+      const month = now.getMonth() + 1;
       const year = now.getFullYear();
-      
+
       const clientSnapshotData = data.clients
         .filter(c => c.valorMensal > 0)
         .map(c => ({

@@ -42,7 +42,14 @@ function AppRoutes() {
             {dashboardData ? (
               <Dashboard data={dashboardData} />
             ) : (
-              <Navigate to="/admin" replace />
+              <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="text-center space-y-4 p-8">
+                  <h2 className="text-xl font-display font-semibold text-foreground">Nenhum dado encontrado</h2>
+                  <p className="text-muted-foreground max-w-md">
+                    Nenhum dado encontrado para este período. Use "Atualizar Dados" para importar uma planilha.
+                  </p>
+                </div>
+              </div>
             )}
           </ProtectedRoute>
         } 
