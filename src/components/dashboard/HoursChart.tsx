@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend } from "recharts";
 import { ClientData } from "@/lib/data-parser";
 
@@ -15,8 +16,9 @@ function formatCurrency(value: number, show: boolean = true): string {
 }
 
 export function HoursChart({ data, showValues = true }: HoursChartProps) {
+  const [expanded, setExpanded] = useState(false);
   const allData = [...data].sort((a, b) => b.horasMensal - a.horasMensal);
-  const chartData = allData.filter(c => c.horasMensal > 0).map(client => {
+  const allChartData = allData.filter(c => c.horasMensal > 0).map(client => {
     // Estimate contracted hours: valorCredito / average lawyer rate
     let creditoHoras = 0;
     if (client.creditUsage && client.horasMensal > 0 && client.valorMensal > 0) {
@@ -33,7 +35,9 @@ export function HoursChart({ data, showValues = true }: HoursChartProps) {
     };
   });
 
+  const DEFAULT_LIMIT = 10;
   const totalClients = data.length;
+  const chartData = expanded ? allChartData : allChartData.slice(0, DEFAULT_LIMIT);
   const barHeight = 32;
   const chartHeight = Math.max(400, chartData.length * barHeight + 80);
 
@@ -113,63 +117,71 @@ export function HoursChart({ data, showValues = true }: HoursChartProps) {
 
   return (
     <div className="w-full animate-fade-in" style={{ animationDelay: '300ms' }}>
-      <div className="overflow-y-auto" style={{ maxHeight: '550px' }}>
-        <div style={{ height: `${chartHeight}px` }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              layout="vertical"
-              margin={{ top: 10, right: 30, left: 120, bottom: 10 }}
-              barGap={-4}
-              barCategoryGap="20%"
+      <div style={{ height: `${chartHeight}px` }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={chartData}
+            layout="vertical"
+            margin={{ top: 10, right: 30, left: 120, bottom: 10 }}
+            barGap={-4}
+            barCategoryGap="20%"
+          >
+            <XAxis 
+              type="number" 
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis 
+              type="category" 
+              dataKey="name" 
+              stroke="hsl(var(--muted-foreground))"
+              fontSize={11}
+              tickLine={false}
+              axisLine={false}
+              width={115}
+              tick={<CustomYAxisTick />}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }} />
+            <Bar 
+              dataKey="credito" 
+              name="Crédito Contratado"
+              radius={[0, 4, 4, 0]}
+              maxBarSize={20}
+              fill="hsl(var(--primary) / 0.25)"
+            />
+            <Bar 
+              dataKey="horas" 
+              name="Horas Consumidas"
+              radius={[0, 4, 4, 0]}
+              maxBarSize={20}
+              fill="hsl(var(--primary))"
             >
-              <XAxis 
-                type="number" 
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis 
-                type="category" 
-                dataKey="name" 
-                stroke="hsl(var(--muted-foreground))"
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-                width={115}
-                tick={<CustomYAxisTick />}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }} />
-              <Bar 
-                dataKey="credito" 
-                name="Crédito Contratado"
-                radius={[0, 4, 4, 0]}
-                maxBarSize={20}
-                fill="hsl(var(--primary) / 0.25)"
-              />
-              <Bar 
-                dataKey="horas" 
-                name="Horas Consumidas"
-                radius={[0, 4, 4, 0]}
-                maxBarSize={20}
-                fill="hsl(var(--primary))"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={index < 3 ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.7)'}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+              {chartData.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={index < 3 ? 'hsl(var(--primary))' : 'hsl(var(--primary) / 0.7)'}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
       {renderLegend()}
-      <p className="text-xs text-muted-foreground/60 text-center mt-2">
-        Exibindo {chartData.length} de {totalClients} clientes
-      </p>
+      <div className="flex items-center justify-center gap-4 mt-2">
+        <p className="text-xs text-muted-foreground/60">
+          Exibindo {chartData.length} de {allChartData.length} clientes
+        </p>
+        {allChartData.length > DEFAULT_LIMIT && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs text-primary hover:underline cursor-pointer font-medium"
+          >
+            {expanded ? "Mostrar menos ▲" : `Ver todos os ${allChartData.length} clientes ▼`}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,24 +1,23 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Upload, UsersRound, Settings, Monitor } from "lucide-react";
-import { DashboardData, ClientData } from "@/lib/data-parser";
-import { generateTopClientPhrase } from "@/lib/month-progress";
+import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Upload, UsersRound, Settings, Monitor, Target } from "lucide-react";
+import { DashboardData } from "@/lib/data-parser";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientValueTable, ClientValueTableHandle } from "@/components/dashboard/ClientValueTable";
-import { EnhancedCreditWarningBanner } from "@/components/dashboard/EnhancedCreditWarningBanner";
+import { CompactAlertStrip } from "@/components/dashboard/CompactAlertStrip";
 import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndicator";
 import { MonthSelector } from "@/components/dashboard/MonthSelector";
 import { UserProfileDropdown } from "@/components/dashboard/UserProfileDropdown";
 import { ExecutiveSummary } from "@/components/dashboard/ExecutiveSummary";
-import { RevenueProjection } from "@/components/dashboard/RevenueProjection";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePresentationMode } from "@/hooks/use-presentation-mode";
-import { useMonthlySnapshots, ClientSnapshotData } from "@/hooks/use-monthly-snapshots";
+import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
+import { useFilteredKPIs } from "@/hooks/useFilteredKPIs";
 import { PresentationMode } from "@/components/dashboard/PresentationMode";
 import { cn } from "@/lib/utils";
 import wsaLogo from "@/assets/wsa-logo.png";
@@ -45,109 +44,68 @@ export function Dashboard({ data }: DashboardProps) {
   const tableRef = useRef<ClientValueTableHandle>(null);
   const { getPreviousMonthSnapshot } = useMonthlySnapshots();
 
-  // Previous month data
-  const prevSnapshot = useMemo(() => {
+  const prevSnapshot = (() => {
     return getPreviousMonthSnapshot(selectedMonth, selectedYear);
-  }, [getPreviousMonthSnapshot, selectedMonth, selectedYear]);
+  })();
 
-  const prevMonthName = useMemo(() => {
+  const prevMonthName = (() => {
     let pm = selectedMonth - 1;
     if (pm < 0) pm = 11;
     return MONTH_NAMES[pm];
-  }, [selectedMonth]);
+  })();
 
-  // Compact header on scroll
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 40);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 40);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const filteredData = useMemo<ClientData[]>(() => {
-    let filtered = data.clients;
-    if (selectedClient !== "all") {
-      filtered = filtered.filter(c => c.project === selectedClient);
-    }
-    return filtered;
-  }, [data.clients, selectedClient]);
-
-  const clientList = useMemo(() => {
-    return data.clients.map(c => c.project);
-  }, [data.clients]);
-
-  // Compute KPIs from filtered data
-  const filteredKPIs = useMemo(() => {
-    const clients = filteredData;
-    const totalHoras = clients.reduce((sum, c) => sum + c.horasMensal, 0);
-    const totalValor = clients.reduce((sum, c) => sum + c.valorMensal, 0);
-    const avgHourlyRate = totalHoras > 0 ? totalValor / totalHoras : 0;
-
-    let topClient = '';
-    let topClientHours = 0;
-    let topClientValor = 0;
-    clients.forEach(c => {
-      if (c.horasMensal > topClientHours) {
-        topClientHours = c.horasMensal;
-        topClientValor = c.valorMensal;
-        topClient = c.project;
-      }
-    });
-
-    let clientsAtWarning = 0;
-    let clientsAtCritical = 0;
-    let clientsAtRisk = 0;
-    let clientsAtOverflow = 0;
-    clients.forEach(c => {
-      if (c.creditUsage) {
-        const pct = c.creditUsage.percentualUsado;
-        if (pct >= 100) { clientsAtOverflow++; clientsAtCritical++; }
-        else if (pct >= 80) { clientsAtRisk++; clientsAtCritical++; }
-        else if (pct >= 60) { clientsAtWarning++; }
-      }
-    });
-
-    return { totalHoras, totalValor, avgHourlyRate, topClient, topClientHours, topClientValor, clientsAtWarning, clientsAtCritical, clientsAtRisk, clientsAtOverflow };
-  }, [filteredData]);
-
-  // Compute variations
-  const horasVariation = useMemo(() => {
-    if (!prevSnapshot || prevSnapshot.total_horas <= 0) return null;
-    return ((filteredKPIs.totalHoras - prevSnapshot.total_horas) / prevSnapshot.total_horas) * 100;
-  }, [prevSnapshot, filteredKPIs.totalHoras]);
-
-  const valorVariation = useMemo(() => {
-    if (!prevSnapshot || prevSnapshot.total_valor <= 0) return null;
-    return ((filteredKPIs.totalValor - prevSnapshot.total_valor) / prevSnapshot.total_valor) * 100;
-  }, [prevSnapshot, filteredKPIs.totalValor]);
-
-  // Client-level variations from previous month
-  const clientVariations = useMemo(() => {
-    if (!prevSnapshot) return {};
-    const map: Record<string, number | null> = {};
-    const prevClients = prevSnapshot.client_data as ClientSnapshotData[];
-    if (!Array.isArray(prevClients)) return {};
-    
-    prevClients.forEach(pc => {
-      map[pc.project] = pc.horasMensal;
-    });
-    return map;
-  }, [prevSnapshot]);
+  const { filteredData, filteredKPIs, clientList, horasVariation, valorVariation, clientVariations, projected } =
+    useFilteredKPIs(data, selectedClient, prevSnapshot ?? null);
 
   const formatCurrency = (value: number) => {
     if (!showValues) return "—";
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-  };
+  const handleLogout = async () => { await signOut(); navigate('/auth'); };
 
   const handleAlertClientClick = useCallback((clientName: string) => {
     tableRef.current?.scrollToClient(clientName);
   }, []);
+
+  // Top client simplified subtitle
+  const topClientSubtitle = (() => {
+    const tc = filteredData.find(c => c.project === filteredKPIs.topClient);
+    if (!tc?.creditUsage) {
+      return showValues
+        ? `${formatCurrency(filteredKPIs.topClientValor)} (${filteredKPIs.topClientHours.toFixed(1)}h)`
+        : `${filteredKPIs.topClientHours.toFixed(1)}h`;
+    }
+    const pct = tc.creditUsage.percentualUsado;
+    return `${pct.toFixed(0)}% do crédito em ${data.monthProgress.currentDay}/${data.monthProgress.totalDays} dias`;
+  })();
+
+  // Top client detailed tooltip
+  const topClientTooltip = (() => {
+    const tc = filteredData.find(c => c.project === filteredKPIs.topClient);
+    if (!tc?.creditUsage) return null;
+    const pct = tc.creditUsage.percentualUsado;
+    const analysis = tc.creditUsage.analysis;
+    let text = `${filteredKPIs.topClient}: ${pct.toFixed(0)}% do crédito consumido`;
+    text += ` | ${filteredKPIs.topClientHours.toFixed(1)}h`;
+    if (showValues) text += ` | ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(filteredKPIs.topClientValor)}`;
+    if (analysis?.isAheadOfSchedule) {
+      text += ` | Ritmo ${analysis.consumptionRate.toFixed(1)}x acima do esperado`;
+      if (analysis.projectedEndOfMonth > 100) text += ` | Projeção: ${analysis.projectedEndOfMonth.toFixed(0)}%`;
+    }
+    return text;
+  })();
+
+  // Projection variation vs previous month
+  const projectedVariation = prevSnapshot && prevSnapshot.total_valor > 0
+    ? ((projected - prevSnapshot.total_valor) / prevSnapshot.total_valor) * 100
+    : null;
 
   if (presentation.isActive) {
     return (
@@ -165,16 +123,15 @@ export function Dashboard({ data }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header - compact on scroll */}
+      {/* Header */}
       <header className={cn(
         "border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 transition-all duration-300",
       )}>
         <div className="container py-3">
-          {/* Navbar row */}
           <div className="flex items-center justify-between">
-            <img 
-              src={wsaLogo} 
-              alt="Wolff e Scripes Advogados" 
+            <img
+              src={wsaLogo}
+              alt="Wolff e Scripes Advogados"
               className={cn("object-contain transition-all duration-300", isScrolled ? "h-7" : "h-10")}
             />
             <div className="flex items-center gap-2">
@@ -226,8 +183,7 @@ export function Dashboard({ data }: DashboardProps) {
               <UserProfileDropdown email={user?.email || ''} onLogout={handleLogout} />
             </div>
           </div>
-          
-          {/* Title row - hidden when scrolled */}
+
           <div className={cn(
             "overflow-hidden transition-all duration-300",
             isScrolled ? "max-h-0 opacity-0 mt-0" : "max-h-24 opacity-100 mt-3"
@@ -243,30 +199,28 @@ export function Dashboard({ data }: DashboardProps) {
       </header>
 
       <main className="container py-8 space-y-6">
-        {/* Executive Summary */}
+        {/* Executive Summary — collapsed by default */}
         <ExecutiveSummary
           data={data}
           previousMonthTotalValor={prevSnapshot?.total_valor ?? null}
           previousMonthTotalHoras={prevSnapshot?.total_horas ?? null}
           previousMonthName={prevSnapshot ? prevMonthName : null}
           showValues={showValues}
+          defaultExpanded={false}
         />
 
-        {/* Month Progress Indicator */}
+        {/* Month Progress */}
         <MonthProgressIndicator monthProgress={data.monthProgress} />
-        
-        {/* Enhanced Credit Warning Banner */}
-        <EnhancedCreditWarningBanner 
-          clientsAtWarning={data.clientsAtWarning}
-          clientsAtRisk={data.clientsAtRisk}
-          clientsAtOverflow={data.clientsAtOverflow}
-          monthProgress={data.monthProgress}
+
+        {/* Compact Alert Strip */}
+        <CompactAlertStrip
           clients={data.clients}
+          monthProgress={data.monthProgress}
           onClientClick={handleAlertClientClick}
         />
 
-        {/* KPI Cards */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* KPI Cards — 6 cards: 2x3 grid on desktop */}
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <KPICard
             title="Total Horas Recorrentes"
             value={`${filteredKPIs.totalHoras.toFixed(1)}h`}
@@ -283,26 +237,27 @@ export function Dashboard({ data }: DashboardProps) {
             icon={<DollarSign className="w-5 h-5 text-primary" />}
             delay={50}
           />
-          <KPICard
-            title="Top Cliente"
-            value={filteredKPIs.topClient || "—"}
-            subtitle={
-              filteredKPIs.topClient && filteredData.find(c => c.project === filteredKPIs.topClient)?.creditUsage
-                ? generateTopClientPhrase(
-                    filteredKPIs.topClient,
-                    filteredData.find(c => c.project === filteredKPIs.topClient)?.creditUsage?.percentualUsado || 0,
-                    filteredKPIs.topClientHours,
-                    filteredKPIs.topClientValor,
-                    data.monthProgress
-                  )
-                : showValues 
-                  ? `${formatCurrency(filteredKPIs.topClientValor)} (${filteredKPIs.topClientHours.toFixed(1)}h)`
-                  : `${filteredKPIs.topClientHours.toFixed(1)}h`
-            }
-            icon={<Users className="w-5 h-5 text-muted-foreground" />}
-            variant="highlight"
-            delay={100}
-          />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <KPICard
+                    title="Top Cliente"
+                    value={filteredKPIs.topClient || "—"}
+                    subtitle={topClientSubtitle}
+                    icon={<Users className="w-5 h-5 text-muted-foreground" />}
+                    variant="highlight"
+                    delay={100}
+                  />
+                </div>
+              </TooltipTrigger>
+              {topClientTooltip && (
+                <TooltipContent side="bottom" className="max-w-sm">
+                  <p className="text-xs">{topClientTooltip}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
           <KPICard
             title="Média Valor/Hora"
             value={showValues ? formatCurrency(filteredKPIs.avgHourlyRate) : "—"}
@@ -314,7 +269,7 @@ export function Dashboard({ data }: DashboardProps) {
             title="Clientes em Alerta"
             value={`${filteredKPIs.clientsAtWarning + filteredKPIs.clientsAtCritical}`}
             subtitle={
-              filteredKPIs.clientsAtOverflow > 0 
+              filteredKPIs.clientsAtOverflow > 0
                 ? `🚨 ${filteredKPIs.clientsAtOverflow} estouro, ⚠️ ${filteredKPIs.clientsAtRisk} risco, 🔔 ${filteredKPIs.clientsAtWarning} atenção`
                 : filteredKPIs.clientsAtRisk > 0
                   ? `⚠️ ${filteredKPIs.clientsAtRisk} risco, 🔔 ${filteredKPIs.clientsAtWarning} atenção`
@@ -324,18 +279,19 @@ export function Dashboard({ data }: DashboardProps) {
             variant="accent"
             delay={200}
           />
+          {showValues && (
+            <KPICard
+              title="Projeção Mensal"
+              value={formatCurrency(projected)}
+              subtitle="Estimativa para fim do mês"
+              variationPercent={selectedClient === "all" ? projectedVariation : undefined}
+              icon={<Target className="w-5 h-5 text-primary" />}
+              delay={250}
+            />
+          )}
         </section>
 
-        {/* Revenue Projection */}
-        <RevenueProjection
-          totalValorAtual={filteredKPIs.totalValor}
-          monthProgress={data.monthProgress}
-          previousMonthValor={prevSnapshot?.total_valor ?? null}
-          metaMensal={null}
-          showValues={showValues}
-        />
-
-        {/* Filters with Month Selector */}
+        {/* Filters */}
         <section className="flex flex-wrap items-end gap-4 p-4 bg-card rounded-lg border border-border animate-fade-in">
           <div className="flex items-center gap-2 text-muted-foreground">
             <span className="text-sm font-medium">Filtros:</span>
@@ -360,7 +316,7 @@ export function Dashboard({ data }: DashboardProps) {
           />
         </section>
 
-        {/* Main Chart */}
+        {/* Hours Chart */}
         <section className="bg-card rounded-lg border border-border p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -390,16 +346,15 @@ export function Dashboard({ data }: DashboardProps) {
               </p>
             </div>
           </div>
-          <ClientValueTable 
-            ref={tableRef} 
-            data={filteredData} 
-            showValues={showValues} 
+          <ClientValueTable
+            ref={tableRef}
+            data={filteredData}
+            showValues={showValues}
             clientVariations={clientVariations}
           />
         </section>
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-border bg-card/50 py-6">
         <div className="container text-center text-sm text-muted-foreground">
           Wolff e Scripes Advogados • Dashboard de Clientes Recorrentes
