@@ -96,7 +96,7 @@ export function PresentationMode({
           />
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Monitor className="w-4 h-4 text-primary" />
-            <span className="font-medium">Modo Apresentação</span>
+            <span className="font-medium" translate="no">Modo TV</span>
           </div>
         </div>
 
