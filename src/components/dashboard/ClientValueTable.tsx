@@ -208,7 +208,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                             {index + 1}
                           </span>
                         )}
-                        <span className={cn(
+                        <span translate="no" className={cn(
                           client.creditUsage?.isCritical && "text-destructive font-semibold",
                           client.creditUsage?.isWarning && !client.creditUsage?.isCritical && "text-amber-600 font-semibold"
                         )}>
