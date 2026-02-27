@@ -175,7 +175,7 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
                 style={{ backgroundColor: '#FB7435' }}
               >
                 <BarChart3 className="w-5 h-5" />
-                Acessar Dashboard
+                ← Voltar ao Dashboard
               </button>
             </div>
           )}

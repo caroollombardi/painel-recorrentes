@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from "react";
 import { ClientData, HealthStatus } from "@/lib/data-parser";
 import {
   Table,
@@ -13,6 +13,10 @@ import { cn } from "@/lib/utils";
 import { CreditUsageBar } from "./CreditUsageBar";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+
+export interface ClientValueTableHandle {
+  scrollToClient: (clientName: string) => void;
+}
 
 interface ClientValueTableProps {
   data: ClientData[];
@@ -44,10 +48,12 @@ const badgeTooltips: Record<string, string> = {
   'Estouro': 'Acima de 100% do crédito consumido',
 };
 
-export function ClientValueTable({ data, showValues = true }: ClientValueTableProps) {
+export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTableProps>(
+  function ClientValueTable({ data, showValues = true }, ref) {
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -57,6 +63,26 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
       setSortDir('desc');
     }
   };
+
+  const scrollToClient = useCallback((clientName: string) => {
+    // Expand the client row
+    setExpandedClients(prev => {
+      const next = new Set(prev);
+      next.add(clientName);
+      return next;
+    });
+    // Scroll after a tick to allow render
+    setTimeout(() => {
+      const el = rowRefs.current.get(clientName);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-primary', 'ring-offset-1');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-1'), 2000);
+      }
+    }, 100);
+  }, []);
+
+  useImperativeHandle(ref, () => ({ scrollToClient }), [scrollToClient]);
 
   const sortedData = useMemo(() => {
     let sorted = [...data].sort((a, b) => b.valorMensal - a.valorMensal);
@@ -148,9 +174,10 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
               return (
                 <>
                   <TableRow 
-                    key={client.project} 
+                    key={client.project}
+                    ref={(el) => { if (el) rowRefs.current.set(client.project, el); }}
                     className={cn(
-                      "border-border hover:bg-muted/50 transition-colors cursor-pointer",
+                      "border-border hover:bg-muted/50 transition-all cursor-pointer",
                       isExpanded && "bg-muted/30",
                       isOverflow && "bg-destructive/5 hover:bg-destructive/10"
                     )}
@@ -294,7 +321,7 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span>{sortedData.length} clientes recorrentes</span>
           <span>•</span>
-          <span>{totalHours.toFixed(1)}h totais</span>
+          <span>{totalHours.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h totais</span>
         </div>
         <div className="text-right">
           <span className="text-sm text-muted-foreground">Valor Total Recorrente: </span>
@@ -308,4 +335,4 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
       </p>
     </div>
   );
-}
+});

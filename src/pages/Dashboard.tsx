@@ -1,11 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Upload, UsersRound, Settings, Monitor, Filter } from "lucide-react";
+import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Upload, UsersRound, Settings, Monitor } from "lucide-react";
 import { DashboardData, ClientData } from "@/lib/data-parser";
 import { generateTopClientPhrase } from "@/lib/month-progress";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { HoursChart } from "@/components/dashboard/HoursChart";
-import { ClientValueTable } from "@/components/dashboard/ClientValueTable";
+import { ClientValueTable, ClientValueTableHandle } from "@/components/dashboard/ClientValueTable";
 import { EnhancedCreditWarningBanner } from "@/components/dashboard/EnhancedCreditWarningBanner";
 import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndicator";
 import { MonthSelector } from "@/components/dashboard/MonthSelector";
@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { useAuth } from "@/contexts/AuthContext";
 import { usePresentationMode } from "@/hooks/use-presentation-mode";
 import { PresentationMode } from "@/components/dashboard/PresentationMode";
+import { cn } from "@/lib/utils";
 import wsaLogo from "@/assets/wsa-logo.png";
 
 interface DashboardProps {
@@ -31,7 +32,18 @@ export function Dashboard({ data }: DashboardProps) {
   const [showValues, setShowValues] = useState<boolean>(true);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [isScrolled, setIsScrolled] = useState(false);
   const presentation = usePresentationMode();
+  const tableRef = useRef<ClientValueTableHandle>(null);
+
+  // Compact header on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 40);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const filteredData = useMemo<ClientData[]>(() => {
     let filtered = data.clients;
@@ -89,6 +101,10 @@ export function Dashboard({ data }: DashboardProps) {
     navigate('/auth');
   };
 
+  const handleAlertClientClick = useCallback((clientName: string) => {
+    tableRef.current?.scrollToClient(clientName);
+  }, []);
+
   if (presentation.isActive) {
     return (
       <PresentationMode
@@ -102,15 +118,17 @@ export function Dashboard({ data }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container py-4">
-          {/* Top row: Logo left, actions right */}
-          <div className="flex items-center justify-between mb-4">
+      {/* Header - compact on scroll */}
+      <header className={cn(
+        "border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 transition-all duration-300",
+      )}>
+        <div className="container py-3">
+          {/* Navbar row: Logo left, actions right */}
+          <div className="flex items-center justify-between">
             <img 
               src={wsaLogo} 
               alt="Wolff e Scripes Advogados" 
-              className="h-10 object-contain"
+              className={cn("object-contain transition-all duration-300", isScrolled ? "h-7" : "h-10")}
             />
             <div className="flex items-center gap-2">
               {isAdmin && (
@@ -122,7 +140,7 @@ export function Dashboard({ data }: DashboardProps) {
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <Upload className="w-4 h-4 mr-2" />
-                    Atualizar Dados
+                    <span className="hidden md:inline">Atualizar Dados</span>
                   </Button>
                   <Button
                     variant="ghost"
@@ -131,7 +149,7 @@ export function Dashboard({ data }: DashboardProps) {
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <UsersRound className="w-4 h-4 mr-2" />
-                    Usuários
+                    <span className="hidden md:inline">Usuários</span>
                   </Button>
                   <Button
                     variant="ghost"
@@ -140,7 +158,7 @@ export function Dashboard({ data }: DashboardProps) {
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <Settings className="w-4 h-4 mr-2" />
-                    Configurações
+                    <span className="hidden md:inline">Configurações</span>
                   </Button>
                 </>
               )}
@@ -152,7 +170,7 @@ export function Dashboard({ data }: DashboardProps) {
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <Settings className="w-4 h-4 mr-2" />
-                  Configurações
+                  <span className="hidden md:inline">Configurações</span>
                 </Button>
               )}
 
@@ -183,7 +201,7 @@ export function Dashboard({ data }: DashboardProps) {
                       className="text-muted-foreground hover:text-foreground"
                     >
                       <Monitor className="w-4 h-4 mr-2" />
-                      Modo TV
+                      <span className="hidden md:inline">Modo TV</span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -197,22 +215,17 @@ export function Dashboard({ data }: DashboardProps) {
             </div>
           </div>
           
-          {/* Title row */}
-          <div className="mb-4">
+          {/* Title row - hidden when scrolled */}
+          <div className={cn(
+            "overflow-hidden transition-all duration-300",
+            isScrolled ? "max-h-0 opacity-0 mt-0" : "max-h-24 opacity-100 mt-3"
+          )}>
             <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight">
               Análise <span style={{ color: '#FB7435' }}>Clientes Recorrentes</span>
             </h1>
             <p className="text-muted-foreground mt-1">
               Análise de horas e valores por advogado
             </p>
-          </div>
-          
-          {/* Controls row */}
-          <div className="flex items-center gap-4 pt-4 border-t border-border/50">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="w-4 h-4" />
-              <span>Dados atualizados</span>
-            </div>
           </div>
         </div>
       </header>
@@ -227,6 +240,8 @@ export function Dashboard({ data }: DashboardProps) {
           clientsAtRisk={data.clientsAtRisk}
           clientsAtOverflow={data.clientsAtOverflow}
           monthProgress={data.monthProgress}
+          clients={data.clients}
+          onClientClick={handleAlertClientClick}
         />
 
         {/* KPI Cards */}
@@ -347,7 +362,7 @@ export function Dashboard({ data }: DashboardProps) {
               </p>
             </div>
           </div>
-          <ClientValueTable data={filteredData} showValues={showValues} />
+          <ClientValueTable ref={tableRef} data={filteredData} showValues={showValues} />
         </section>
       </main>
 

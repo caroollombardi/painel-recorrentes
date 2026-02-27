@@ -115,7 +115,7 @@ export default function Settings() {
       if (error) throw error;
       
       toast({
-        title: "Sucesso",
+        title: "Sucesso ✓",
         description: "Configurações salvas com sucesso.",
       });
     } catch (error) {

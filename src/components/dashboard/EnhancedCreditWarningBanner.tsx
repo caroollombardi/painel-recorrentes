@@ -1,19 +1,24 @@
-import { AlertTriangle, AlertCircle, TrendingUp, Calendar } from "lucide-react";
+import { AlertTriangle, AlertCircle, Calendar } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MonthProgress } from "@/lib/month-progress";
+import { ClientData } from "@/lib/data-parser";
 
 interface EnhancedCreditWarningBannerProps {
-  clientsAtWarning: number;   // 60-79%
-  clientsAtRisk: number;      // 80-99%
-  clientsAtOverflow: number;  // 100%+
+  clientsAtWarning: number;
+  clientsAtRisk: number;
+  clientsAtOverflow: number;
   monthProgress: MonthProgress;
+  clients?: ClientData[];
+  onClientClick?: (clientName: string) => void;
 }
 
 export function EnhancedCreditWarningBanner({ 
   clientsAtWarning, 
   clientsAtRisk, 
   clientsAtOverflow,
-  monthProgress 
+  monthProgress,
+  clients = [],
+  onClientClick,
 }: EnhancedCreditWarningBannerProps) {
   const totalAlerts = clientsAtWarning + clientsAtRisk + clientsAtOverflow;
   
@@ -21,9 +26,29 @@ export function EnhancedCreditWarningBanner({
     return null;
   }
 
+  const overflowClients = clients.filter(c => c.creditUsage && c.creditUsage.percentualUsado >= 100);
+  const riskClients = clients.filter(c => c.creditUsage && c.creditUsage.percentualUsado >= 80 && c.creditUsage.percentualUsado < 100);
+  const warningClients = clients.filter(c => c.creditUsage && c.creditUsage.percentualUsado >= 60 && c.creditUsage.percentualUsado < 80);
+
+  const ClientList = ({ items }: { items: ClientData[] }) => {
+    if (items.length === 0 || !onClientClick) return null;
+    return (
+      <div className="flex flex-wrap gap-1.5 mt-2">
+        {items.map(c => (
+          <button
+            key={c.project}
+            onClick={(e) => { e.stopPropagation(); onClientClick(c.project); }}
+            className="text-xs px-2 py-0.5 rounded-full bg-background/50 border border-current/20 hover:bg-background/80 transition-colors cursor-pointer underline-offset-2 hover:underline"
+          >
+            {c.project} ({c.creditUsage?.percentualUsado.toFixed(0)}%)
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-3">
-      {/* Nível 3 - Estouro (100%+) - Vermelho crítico */}
       {clientsAtOverflow > 0 && (
         <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
           <AlertCircle className="h-4 w-4" />
@@ -35,11 +60,11 @@ export function EnhancedCreditWarningBanner({
             <span className="block text-xs mt-1 opacity-80">
               Faturamento adicional necessário.
             </span>
+            <ClientList items={overflowClients} />
           </AlertDescription>
         </Alert>
       )}
       
-      {/* Nível 2 - Risco de estouro (80-99%) - Laranja/Vermelho */}
       {clientsAtRisk > 0 && (
         <Alert className="border-orange-500/50 bg-orange-500/10">
           <AlertTriangle className="h-4 w-4 text-orange-600" />
@@ -51,11 +76,11 @@ export function EnhancedCreditWarningBanner({
             <span className="block text-xs mt-1 opacity-80">
               Avaliar cobrança adicional ou ajuste de escopo.
             </span>
+            <ClientList items={riskClients} />
           </AlertDescription>
         </Alert>
       )}
       
-      {/* Nível 1 - Atenção interna (60-79%) - Amarelo */}
       {clientsAtWarning > 0 && (
         <Alert className="border-amber-500/50 bg-amber-500/10">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -68,6 +93,7 @@ export function EnhancedCreditWarningBanner({
               <Calendar className="w-3 h-3" />
               {monthProgress.percentElapsed.toFixed(0)}% do mês decorrido (dia {monthProgress.currentDay}/{monthProgress.totalDays})
             </span>
+            <ClientList items={warningClients} />
           </AlertDescription>
         </Alert>
       )}
