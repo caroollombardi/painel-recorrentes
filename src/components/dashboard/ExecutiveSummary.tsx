@@ -25,7 +25,7 @@ export function ExecutiveSummary({
   previousMonthTotalHoras,
   previousMonthName,
   showValues,
-  defaultExpanded = true,
+  defaultExpanded = false,
 }: ExecutiveSummaryProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
