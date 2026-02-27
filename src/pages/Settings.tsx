@@ -236,7 +236,7 @@ export default function Settings() {
         <div className="container py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+              <Button variant="ghost" size="icon" onClick={() => navigate('/', { replace: true })}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <img src={wsaLogo} alt="WSA" className="h-8 object-contain" />
@@ -366,7 +366,7 @@ export default function Settings() {
                       />
                       <span className="text-muted-foreground">%</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">Pacote excedido</p>
+                    <p className="text-xs text-muted-foreground">Faturamento adicional obrigatório</p>
                   </div>
                 </div>
                 

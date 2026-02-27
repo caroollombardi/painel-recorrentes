@@ -205,7 +205,7 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
                       )}
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
-                      {client.horasMensal.toFixed(1)}h
+                      {client.horasMensal.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h
                     </TableCell>
                     <TableCell className="text-center">
                       {client.creditUsage && client.horasMensal > 0 ? (
@@ -275,7 +275,7 @@ export function ClientValueTable({ data, showValues = true }: ClientValueTablePr
                       </TableCell>
                       <TableCell></TableCell>
                       <TableCell className="text-right text-muted-foreground">
-                        {lawyer.hours.toFixed(1)}h
+                        {lawyer.hours.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h
                       </TableCell>
                       <TableCell className="text-right text-foreground">
                         {formatCurrency(lawyer.value, showValues)}

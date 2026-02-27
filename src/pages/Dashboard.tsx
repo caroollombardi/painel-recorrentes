@@ -45,6 +45,40 @@ export function Dashboard({ data }: DashboardProps) {
     return data.clients.map(c => c.project);
   }, [data.clients]);
 
+  // Compute KPIs from filtered data
+  const filteredKPIs = useMemo(() => {
+    const clients = filteredData;
+    const totalHoras = clients.reduce((sum, c) => sum + c.horasMensal, 0);
+    const totalValor = clients.reduce((sum, c) => sum + c.valorMensal, 0);
+    const avgHourlyRate = totalHoras > 0 ? totalValor / totalHoras : 0;
+
+    let topClient = '';
+    let topClientHours = 0;
+    let topClientValor = 0;
+    clients.forEach(c => {
+      if (c.horasMensal > topClientHours) {
+        topClientHours = c.horasMensal;
+        topClientValor = c.valorMensal;
+        topClient = c.project;
+      }
+    });
+
+    let clientsAtWarning = 0;
+    let clientsAtCritical = 0;
+    let clientsAtRisk = 0;
+    let clientsAtOverflow = 0;
+    clients.forEach(c => {
+      if (c.creditUsage) {
+        const pct = c.creditUsage.percentualUsado;
+        if (pct >= 100) { clientsAtOverflow++; clientsAtCritical++; }
+        else if (pct >= 80) { clientsAtRisk++; clientsAtCritical++; }
+        else if (pct >= 60) { clientsAtWarning++; }
+      }
+    });
+
+    return { totalHoras, totalValor, avgHourlyRate, topClient, topClientHours, topClientValor, clientsAtWarning, clientsAtCritical, clientsAtRisk, clientsAtOverflow };
+  }, [filteredData]);
+
   const formatCurrency = (value: number) => {
     if (!showValues) return "—";
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -199,7 +233,7 @@ export function Dashboard({ data }: DashboardProps) {
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <KPICard
             title="Total Horas Recorrentes"
-            value={`${data.totalHoras.toFixed(1)}h`}
+            value={`${filteredKPIs.totalHoras.toFixed(1)}h`}
             subtitle="Contratos fixos mensais"
             variation="— vs. mês anterior"
             icon={<Clock className="w-5 h-5 text-primary" />}
@@ -208,7 +242,7 @@ export function Dashboard({ data }: DashboardProps) {
           />
           <KPICard
             title="Valor Total Recorrente"
-            value={showValues ? formatCurrency(data.totalValor) : "—"}
+            value={showValues ? formatCurrency(filteredKPIs.totalValor) : "—"}
             subtitle={showValues ? "Calculado pelo valor/hora de cada advogado" : "Valores ocultos"}
             variation="— vs. mês anterior"
             icon={<DollarSign className="w-5 h-5 text-primary" />}
@@ -217,19 +251,19 @@ export function Dashboard({ data }: DashboardProps) {
           />
           <KPICard
             title="Top Cliente"
-            value={data.topClient || "—"}
+            value={filteredKPIs.topClient || "—"}
             subtitle={
-              data.topClient && data.clients.find(c => c.project === data.topClient)?.creditUsage
+              filteredKPIs.topClient && filteredData.find(c => c.project === filteredKPIs.topClient)?.creditUsage
                 ? generateTopClientPhrase(
-                    data.topClient,
-                    data.clients.find(c => c.project === data.topClient)?.creditUsage?.percentualUsado || 0,
-                    data.topClientHours,
-                    data.topClientValor,
+                    filteredKPIs.topClient,
+                    filteredData.find(c => c.project === filteredKPIs.topClient)?.creditUsage?.percentualUsado || 0,
+                    filteredKPIs.topClientHours,
+                    filteredKPIs.topClientValor,
                     data.monthProgress
                   )
                 : showValues 
-                  ? `${formatCurrency(data.topClientValor)} (${data.topClientHours.toFixed(1)}h)`
-                  : `${data.topClientHours.toFixed(1)}h`
+                  ? `${formatCurrency(filteredKPIs.topClientValor)} (${filteredKPIs.topClientHours.toFixed(1)}h)`
+                  : `${filteredKPIs.topClientHours.toFixed(1)}h`
             }
             icon={<Users className="w-5 h-5 text-muted-foreground" />}
             variant="highlight"
@@ -237,23 +271,23 @@ export function Dashboard({ data }: DashboardProps) {
           />
           <KPICard
             title="Média Valor/Hora"
-            value={showValues ? formatCurrency(data.avgHourlyRate) : "—"}
+            value={showValues ? formatCurrency(filteredKPIs.avgHourlyRate) : "—"}
             subtitle={showValues ? "Média ponderada por hora" : "Valores ocultos"}
             icon={<TrendingUp className="w-5 h-5 text-muted-foreground" />}
             delay={150}
           />
           <KPICard
             title="Clientes em Alerta"
-            value={`${data.clientsAtWarning + data.clientsAtCritical}`}
+            value={`${filteredKPIs.clientsAtWarning + filteredKPIs.clientsAtCritical}`}
             subtitle={
-              data.clientsAtOverflow > 0 
-                ? `🚨 ${data.clientsAtOverflow} estouro, ⚠️ ${data.clientsAtRisk} risco, 🔔 ${data.clientsAtWarning} atenção`
-                : data.clientsAtRisk > 0
-                  ? `⚠️ ${data.clientsAtRisk} risco, 🔔 ${data.clientsAtWarning} atenção`
-                  : `🔔 ${data.clientsAtWarning} em atenção`
+              filteredKPIs.clientsAtOverflow > 0 
+                ? `🚨 ${filteredKPIs.clientsAtOverflow} estouro, ⚠️ ${filteredKPIs.clientsAtRisk} risco, 🔔 ${filteredKPIs.clientsAtWarning} atenção`
+                : filteredKPIs.clientsAtRisk > 0
+                  ? `⚠️ ${filteredKPIs.clientsAtRisk} risco, 🔔 ${filteredKPIs.clientsAtWarning} atenção`
+                  : `🔔 ${filteredKPIs.clientsAtWarning} em atenção`
             }
             icon={<AlertTriangle className="w-5 h-5 text-primary" />}
-            variant={(data.clientsAtCritical > 0) ? "accent" : undefined}
+            variant={(filteredKPIs.clientsAtCritical > 0) ? "accent" : undefined}
             delay={200}
           />
         </section>

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -110,6 +111,9 @@ export default function Metas2026() {
   } = useMetasData();
 
   const [accessConfirmed, setAccessConfirmed] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState(false);
+  const METAS_PIN = '2026'; // PIN padrão configurável
   const [selectedSocio, setSelectedSocio] = useState<string>("all");
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddClienteModal, setShowAddClienteModal] = useState(false);
@@ -261,13 +265,53 @@ export default function Metas2026() {
             <p className="text-muted-foreground">
               Indicadores de metas e faturamento. Uso exclusivo de sócios e gestão.
             </p>
-            <div className="flex gap-3 justify-center">
-              <Button variant="outline" onClick={() => navigate("/settings")}>
-                Cancelar
-              </Button>
-              <Button onClick={() => setAccessConfirmed(true)}>
-                Entrar
-              </Button>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="pin-input" className="text-sm text-muted-foreground">
+                  Digite o PIN de acesso
+                </Label>
+                <Input
+                  id="pin-input"
+                  type="password"
+                  maxLength={4}
+                  placeholder="••••"
+                  value={pinInput}
+                  onChange={(e) => {
+                    setPinInput(e.target.value.replace(/\D/g, ''));
+                    setPinError(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      if (pinInput === METAS_PIN) {
+                        setAccessConfirmed(true);
+                      } else {
+                        setPinError(true);
+                      }
+                    }
+                  }}
+                  className={cn("text-center text-lg tracking-[0.5em] max-w-[160px] mx-auto", pinError && "border-destructive")}
+                />
+                {pinError && (
+                  <p className="text-xs text-destructive">PIN incorreto. Tente novamente.</p>
+                )}
+              </div>
+              <div className="flex gap-3 justify-center">
+                <Button variant="outline" onClick={() => navigate("/settings")}>
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={() => {
+                    if (pinInput === METAS_PIN) {
+                      setAccessConfirmed(true);
+                    } else {
+                      setPinError(true);
+                    }
+                  }}
+                  disabled={pinInput.length < 4}
+                >
+                  Entrar
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
