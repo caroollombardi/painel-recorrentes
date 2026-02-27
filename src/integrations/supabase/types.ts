@@ -143,6 +143,39 @@ export type Database = {
         }
         Relationships: []
       }
+      monthly_snapshots: {
+        Row: {
+          client_data: Json
+          created_at: string
+          id: string
+          month: number
+          total_horas: number
+          total_valor: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          client_data?: Json
+          created_at?: string
+          id?: string
+          month: number
+          total_horas?: number
+          total_valor?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          client_data?: Json
+          created_at?: string
+          id?: string
+          month?: number
+          total_horas?: number
+          total_valor?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
       notification_history: {
         Row: {
           alert_level: string

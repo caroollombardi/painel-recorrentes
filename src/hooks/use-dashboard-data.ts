@@ -31,7 +31,6 @@ export function useDashboardData() {
         }
       } catch (err) {
         console.error("Error loading dashboard data:", err);
-        // Fallback to bundled CSV on error
         try {
           const parsed = parseCSVData(asanaData);
           setDashboardData(parsed);
@@ -46,7 +45,7 @@ export function useDashboardData() {
     loadData();
   }, []);
 
-  // Save data to database and update state
+  // Save data to database, update state, and save monthly snapshot
   const updateData = useCallback(async (data: DashboardData, fileName?: string) => {
     setDashboardData(data);
 
@@ -82,6 +81,30 @@ export function useDashboardData() {
             uploaded_by: userId || null,
           }]);
       }
+
+      // Also save a monthly snapshot
+      const now = new Date();
+      const month = now.getMonth() + 1; // 1-indexed
+      const year = now.getFullYear();
+      
+      const clientSnapshotData = data.clients
+        .filter(c => c.valorMensal > 0)
+        .map(c => ({
+          project: c.project,
+          horasMensal: c.horasMensal,
+          valorMensal: c.valorMensal,
+        }));
+
+      await supabase
+        .from("monthly_snapshots")
+        .upsert({
+          month,
+          year,
+          total_horas: data.totalHoras,
+          total_valor: data.totalValor,
+          client_data: clientSnapshotData as any,
+        }, { onConflict: "month,year" });
+
     } catch (err) {
       console.error("Error saving dashboard data:", err);
     }
