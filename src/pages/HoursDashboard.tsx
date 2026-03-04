@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Clock, Calendar, User, Target, FolderOpen, CheckCircle, Upload, BarChart3 } from "lucide-react";
+import { Clock, Calendar, User, Target, FolderOpen, CheckCircle, Upload, BarChart3, AlertTriangle } from "lucide-react";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { MonthSelector } from "@/components/dashboard/MonthSelector";
 import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndicator";
@@ -12,6 +12,7 @@ import { HoursCSVImport } from "@/components/hours/HoursCSVImport";
 import { HoursExecutiveSummary } from "@/components/hours/HoursExecutiveSummary";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { getMonthProgress } from "@/lib/month-progress";
+import { DAILY_TARGET_HOURS, DAILY_ALERT_THRESHOLD } from "@/lib/hours-constants";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -52,10 +53,8 @@ export default function HoursDashboard() {
     return ((dashboardData.totalHours - previousMonthHours) / previousMonthHours) * 100;
   }, [dashboardData, previousMonthHours]);
 
-  // Avg hours/day variation (approximate: assume same business days)
   const avgHoursVariation = useMemo(() => {
     if (!dashboardData || !previousMonthHours || previousMonthHours === 0) return null;
-    // Use same ratio as total hours since business days are similar
     return hoursVariation;
   }, [dashboardData, previousMonthHours, hoursVariation]);
 
@@ -64,7 +63,6 @@ export default function HoursDashboard() {
     if (success) setShowImport(false);
   };
 
-  // Filter count
   const activeFilterCount = [memberFilter, projectFilter, activityFilter].filter(f => f !== "all").length;
 
   const clearFilters = () => {
@@ -72,6 +70,35 @@ export default function HoursDashboard() {
     setProjectFilter("all");
     setActivityFilter("all");
   };
+
+  // --- Meta calculations ---
+  const activeMemberCount = memberFilter !== "all" ? 1 : (dashboardData?.memberCount ?? 0);
+  const businessDaysInMonth = dashboardData?.businessDaysInMonth ?? 0;
+  const businessDaysElapsed = dashboardData?.businessDaysElapsed ?? 0;
+  const businessDaysRemaining = dashboardData?.businessDaysRemaining ?? 0;
+  const totalHoursLaunched = dashboardData?.totalHours ?? 0;
+
+  const monthlyTarget = businessDaysInMonth * DAILY_TARGET_HOURS * activeMemberCount;
+  const hoursExpectedSoFar = businessDaysElapsed * DAILY_TARGET_HOURS * activeMemberCount;
+  const hoursRemaining = Math.max(0, monthlyTarget - totalHoursLaunched);
+  const hoursPerRemainingDayPerMember = businessDaysRemaining > 0 && activeMemberCount > 0
+    ? hoursRemaining / businessDaysRemaining / activeMemberCount
+    : 0;
+  const progressPercent = monthlyTarget > 0 ? (totalHoursLaunched / monthlyTarget) * 100 : 0;
+  const expectedProgressPercent = businessDaysInMonth > 0 ? (businessDaysElapsed / businessDaysInMonth) * 100 : 0;
+  const needsAcceleration = hoursPerRemainingDayPerMember > DAILY_ALERT_THRESHOLD;
+
+  // Daily target for the daily chart
+  const dailyChartTarget = DAILY_TARGET_HOURS * activeMemberCount;
+
+  // Avg hours/day meta comparison
+  const avgDayMeta = DAILY_TARGET_HOURS * activeMemberCount;
+  const avgHoursValue = dashboardData?.avgHoursPerDay ?? 0;
+  const avgMetaRatio = avgDayMeta > 0 ? avgHoursValue / avgDayMeta : 0;
+  const avgValueColor = avgMetaRatio >= 1 ? "text-emerald-600" : avgMetaRatio >= 0.8 ? "text-[#F97316]" : "text-destructive";
+
+  // Individual target for member chart
+  const individualTargetForPeriod = businessDaysElapsed * DAILY_TARGET_HOURS;
 
   if (isLoading) {
     return (
@@ -99,13 +126,26 @@ export default function HoursDashboard() {
           <MonthProgressIndicator monthProgress={monthProgress} />
           {dashboardData && (
             <div className="flex items-center gap-4 bg-muted/30 rounded-lg px-4 py-2">
-            <span className="text-sm font-semibold text-foreground" style={{ fontWeight: 600 }}>
-                {dashboardData.totalHours.toFixed(1)}h lançadas
+              <span className="text-sm font-semibold text-foreground" style={{ fontWeight: 600 }}>
+                {totalHoursLaunched.toFixed(1)}h lançadas
               </span>
               <div className="h-4 w-px bg-border" />
               <span className="text-sm font-semibold text-primary" style={{ fontWeight: 600 }}>
-                {monthProgress.percentElapsed.toFixed(0)}% concluído
+                {progressPercent.toFixed(0)}% da meta
               </span>
+              {/* Progress bar with expected marker */}
+              <div className="relative w-32 h-2 bg-muted rounded-full overflow-visible">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(progressPercent, 100)}%` }}
+                />
+                {/* Expected position marker */}
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-muted-foreground/60 rounded-full"
+                  style={{ left: `${Math.min(expectedProgressPercent, 100)}%` }}
+                  title={`Esperado: ${expectedProgressPercent.toFixed(0)}%`}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -114,7 +154,7 @@ export default function HoursDashboard() {
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <KPICard
             title="Total de Horas Lançadas"
-            value={dashboardData ? `${dashboardData.totalHours.toFixed(1)}h` : "0h"}
+            value={dashboardData ? `${totalHoursLaunched.toFixed(1)}h` : "0h"}
             subtitle="Soma de todas as horas no período"
             variationPercent={hoursVariation}
             variation={hoursVariation === null ? "— vs. mês anterior" : undefined}
@@ -125,14 +165,15 @@ export default function HoursDashboard() {
           />
           <KPICard
             title="Média de Horas/Dia"
-            value={dashboardData ? `${dashboardData.avgHoursPerDay.toFixed(1)}h` : "0h"}
-            subtitle="Por dia útil do período"
+            value={dashboardData ? `${avgHoursValue.toFixed(1)}h` : "0h"}
+            subtitle={`Meta: ${activeMemberCount} × ${DAILY_TARGET_HOURS}h = ${avgDayMeta}h/dia útil`}
             variationPercent={avgHoursVariation}
             variation={avgHoursVariation === null ? "— vs. mês anterior" : undefined}
             icon={<Calendar className="w-5 h-5 text-primary" />}
             delay={50}
             promoted
             tooltipText="Total de horas dividido pelo número de dias úteis com lançamento"
+            valueClassName={avgValueColor}
           />
           <KPICard
             title="Top Colaborador"
@@ -146,13 +187,16 @@ export default function HoursDashboard() {
           />
           <KPICard
             title="Horas Restantes no Mês"
-            value={dashboardData ? `${dashboardData.hoursPerRemainingDay.toFixed(1)}h` : "0h"}
-            subtitle={dashboardData && monthProgress.daysRemaining > 0
-              ? `≈ ${(dashboardData.hoursPerRemainingDay / monthProgress.daysRemaining).toFixed(1)}h por dia útil restante`
+            value={dashboardData ? `${hoursRemaining.toFixed(1)}h` : "0h"}
+            subtitle={businessDaysRemaining > 0
+              ? `≈ ${hoursPerRemainingDayPerMember.toFixed(1)}h por dia útil restante por membro`
               : "Sem dias úteis restantes"}
-            icon={<Target className="w-5 h-5 text-muted-foreground" />}
+            icon={needsAcceleration
+              ? <AlertTriangle className="w-5 h-5 text-amber-500" />
+              : <Target className="w-5 h-5 text-muted-foreground" />}
             delay={150}
-            tooltipText="Total de horas que faltam para atingir a meta mensal. O subtítulo mostra a média por dia útil restante."
+            tooltipText={`Meta mensal: ${monthlyTarget.toFixed(0)}h (${businessDaysInMonth} dias × ${DAILY_TARGET_HOURS}h × ${activeMemberCount} membro${activeMemberCount > 1 ? "s" : ""}). Restam ${hoursRemaining.toFixed(1)}h.`}
+            variant={needsAcceleration ? "accent" : "default"}
           />
           <KPICard
             title="Projetos Ativos"
@@ -271,10 +315,10 @@ export default function HoursDashboard() {
                   Horas por Membro do Time
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Ordenado do maior para o menor lançamento
+                  Ordenado do maior para o menor lançamento • Meta individual: {individualTargetForPeriod.toFixed(0)}h ({businessDaysElapsed} dias × {DAILY_TARGET_HOURS}h)
                 </p>
               </div>
-              <HoursMemberChart data={dashboardData.memberSummaries} />
+              <HoursMemberChart data={dashboardData.memberSummaries} individualTarget={individualTargetForPeriod} />
             </section>
 
             {/* Detail Table */}
@@ -292,7 +336,7 @@ export default function HoursDashboard() {
                   </p>
                 </div>
               </div>
-              <HoursDetailTable data={dashboardData.memberSummaries} totalHours={dashboardData.totalHours} />
+              <HoursDetailTable data={dashboardData.memberSummaries} totalHours={dashboardData.totalHours} individualTarget={individualTargetForPeriod} />
             </section>
 
             {/* Daily Evolution & Activity Distribution */}
@@ -301,7 +345,7 @@ export default function HoursDashboard() {
                 <h2 className="text-xl font-display font-semibold text-foreground mb-4">
                   Evolução Diária de Horas
                 </h2>
-                <DailyHoursChart data={dashboardData.dailyHours} />
+                <DailyHoursChart data={dashboardData.dailyHours} dailyTarget={dailyChartTarget} />
               </section>
 
               <section className="bg-card rounded-lg border border-border p-6 shadow-sm">
