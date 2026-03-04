@@ -40,15 +40,19 @@ export function MonthProgressIndicator({ monthProgress, className }: MonthProgre
           
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="w-20 h-2 bg-muted rounded-full overflow-hidden cursor-help">
+              <div className="w-20 h-2 bg-muted rounded-full overflow-hidden cursor-help relative">
                 <div 
-                  className="h-full bg-primary transition-all duration-500"
+                  className="h-full bg-primary transition-all duration-500 rounded-full"
                   style={{ width: `${percentElapsed}%` }}
+                />
+                <div 
+                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary border-2 border-background shadow-sm"
+                  style={{ left: `calc(${Math.min(percentElapsed, 100)}% - 6px)` }}
                 />
               </div>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">
-              {currentDay} dias úteis trabalhados / {totalDays} dias úteis totais
+              {currentDay} dias úteis trabalhados de {totalDays} dias úteis no mês
             </TooltipContent>
           </Tooltip>
           
@@ -61,8 +65,9 @@ export function MonthProgressIndicator({ monthProgress, className }: MonthProgre
         
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <TrendingUp className="w-3 h-3" />
-          <span>{daysRemaining} dias restantes</span>
+          <span className="font-semibold">{daysRemaining} dias restantes</span>
         </div>
+        
       </div>
     </TooltipProvider>
   );

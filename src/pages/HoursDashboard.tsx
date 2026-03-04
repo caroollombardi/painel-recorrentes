@@ -99,12 +99,12 @@ export default function HoursDashboard() {
           <MonthProgressIndicator monthProgress={monthProgress} />
           {dashboardData && (
             <div className="flex items-center gap-4 bg-muted/30 rounded-lg px-4 py-2">
-              <span className="text-sm font-semibold text-foreground">
+            <span className="text-sm font-semibold text-foreground" style={{ fontWeight: 600 }}>
                 {dashboardData.totalHours.toFixed(1)}h lançadas
               </span>
               <div className="h-4 w-px bg-border" />
-              <span className="text-sm font-semibold text-primary">
-                {((dashboardData.totalHours / (monthProgress.percentElapsed > 0 ? (dashboardData.totalHours / (monthProgress.percentElapsed / 100)) : 1)) * 100).toFixed(0)}% concluído
+              <span className="text-sm font-semibold text-primary" style={{ fontWeight: 600 }}>
+                {monthProgress.percentElapsed.toFixed(0)}% concluído
               </span>
             </div>
           )}
@@ -117,6 +117,7 @@ export default function HoursDashboard() {
             value={dashboardData ? `${dashboardData.totalHours.toFixed(1)}h` : "0h"}
             subtitle="Soma de todas as horas no período"
             variationPercent={hoursVariation}
+            variation={hoursVariation === null ? "— vs. mês anterior" : undefined}
             icon={<Clock className="w-5 h-5 text-primary" />}
             delay={0}
             promoted
@@ -127,6 +128,7 @@ export default function HoursDashboard() {
             value={dashboardData ? `${dashboardData.avgHoursPerDay.toFixed(1)}h` : "0h"}
             subtitle="Por dia útil do período"
             variationPercent={avgHoursVariation}
+            variation={avgHoursVariation === null ? "— vs. mês anterior" : undefined}
             icon={<Calendar className="w-5 h-5 text-primary" />}
             delay={50}
             promoted
@@ -143,12 +145,14 @@ export default function HoursDashboard() {
             tooltipText="Membro com maior volume de horas lançadas no período"
           />
           <KPICard
-            title="Horas/Dia Útil Restante"
+            title="Horas Restantes no Mês"
             value={dashboardData ? `${dashboardData.hoursPerRemainingDay.toFixed(1)}h` : "0h"}
-            subtitle="Projeção distribuída nos dias restantes"
+            subtitle={dashboardData && monthProgress.daysRemaining > 0
+              ? `≈ ${(dashboardData.hoursPerRemainingDay / monthProgress.daysRemaining).toFixed(1)}h por dia útil restante`
+              : "Sem dias úteis restantes"}
             icon={<Target className="w-5 h-5 text-muted-foreground" />}
             delay={150}
-            tooltipText="Horas necessárias por dia útil restante para atingir a meta mensal"
+            tooltipText="Total de horas que faltam para atingir a meta mensal. O subtítulo mostra a média por dia útil restante."
           />
           <KPICard
             title="Projetos Ativos"
@@ -186,7 +190,7 @@ export default function HoursDashboard() {
               onChange={(e) => setMemberFilter(e.target.value)}
               className={cn(
                 "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
-                memberFilter !== "all" ? "border-primary" : "border-border"
+                memberFilter !== "all" ? "border-[#F97316] bg-[#F97316]/5" : "border-border"
               )}
             >
               <option value="all">Todos os membros</option>
@@ -202,7 +206,7 @@ export default function HoursDashboard() {
               onChange={(e) => setProjectFilter(e.target.value)}
               className={cn(
                 "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
-                projectFilter !== "all" ? "border-primary" : "border-border"
+                projectFilter !== "all" ? "border-[#F97316] bg-[#F97316]/5" : "border-border"
               )}
             >
               <option value="all">Todos os projetos</option>
@@ -218,7 +222,7 @@ export default function HoursDashboard() {
               onChange={(e) => setActivityFilter(e.target.value)}
               className={cn(
                 "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
-                activityFilter !== "all" ? "border-primary" : "border-border"
+                activityFilter !== "all" ? "border-[#F97316] bg-[#F97316]/5" : "border-border"
               )}
             >
               <option value="all">Todas as atividades</option>
@@ -237,9 +241,9 @@ export default function HoursDashboard() {
               variant="ghost"
               size="sm"
               onClick={clearFilters}
-              className="text-muted-foreground hover:text-foreground text-xs"
+              className="text-destructive hover:text-destructive/80 text-xs"
             >
-              Limpar filtros
+              ✕ Limpar filtros
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => setShowImport(true)} className="ml-auto">
@@ -330,7 +334,7 @@ export default function HoursDashboard() {
 
       <footer className="border-t border-border bg-card/50 py-6">
         <div className="container text-center text-sm text-muted-foreground">
-          Wolff e Scripes Advogados • Dashboard de Lançamento de Horas
+          <a href="https://wolffescripes.com.br" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Wolff e Scripes Advogados</a> • Dashboard de Lançamento de Horas • <span className="text-muted-foreground/50">v1.0</span>
         </div>
       </footer>
     </div>

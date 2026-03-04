@@ -230,7 +230,7 @@ export function Dashboard({ data }: DashboardProps) {
               onChange={(e) => setSelectedClient(e.target.value)}
               className={cn(
                 "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
-                selectedClient !== "all" ? "border-primary" : "border-border"
+                selectedClient !== "all" ? "border-[#F97316] bg-[#F97316]/5" : "border-border"
               )}
             >
               <option value="all">Todos os clientes</option>
@@ -297,7 +297,7 @@ export function Dashboard({ data }: DashboardProps) {
 
       <footer className="border-t border-border bg-card/50 py-6">
         <div className="container text-center text-sm text-muted-foreground">
-          Wolff e Scripes Advogados • Dashboard de Clientes Recorrentes
+          <a href="https://wolffescripes.com.br" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Wolff e Scripes Advogados</a> • Dashboard de Clientes Recorrentes • <span className="text-muted-foreground/50">v1.0</span>
         </div>
       </footer>
     </div>
