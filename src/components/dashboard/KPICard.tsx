@@ -1,15 +1,18 @@
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, HelpCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface KPICardProps {
   title: string;
   value: string | number;
   subtitle?: string;
   variation?: string;
-  variationPercent?: number | null; // positive = up, negative = down
+  variationPercent?: number | null;
   icon?: React.ReactNode;
   variant?: "default" | "accent" | "highlight";
   delay?: number;
+  promoted?: boolean; // larger value + subtle gradient background
+  tooltipText?: string; // info tooltip
 }
 
 export function KPICard({ 
@@ -20,7 +23,9 @@ export function KPICard({
   variationPercent,
   icon,
   variant = "default",
-  delay = 0 
+  delay = 0,
+  promoted = false,
+  tooltipText,
 }: KPICardProps) {
   const hasVariation = variationPercent !== undefined && variationPercent !== null;
 
@@ -30,10 +35,30 @@ export function KPICard({
         "relative overflow-hidden rounded-lg p-6 shadow-sm transition-all duration-300 hover:shadow-md animate-fade-in",
         variant === "default" && "bg-card border border-border",
         variant === "accent" && "bg-primary text-primary-foreground",
-        variant === "highlight" && "bg-card border-2 border-primary"
+        variant === "highlight" && "bg-card border-2 border-primary",
+        promoted && variant !== "accent" && "bg-gradient-to-br from-card to-primary/5"
       )}
       style={{ animationDelay: `${delay}ms` }}
     >
+      {/* Info tooltip */}
+      {tooltipText && (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className="absolute top-3 right-3 p-0.5 rounded-full hover:bg-muted/50 transition-colors">
+                <HelpCircle className={cn(
+                  "w-3.5 h-3.5",
+                  variant === "accent" ? "text-primary-foreground/40" : "text-muted-foreground/40"
+                )} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs text-xs">
+              {tooltipText}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <p className={cn(
@@ -43,7 +68,8 @@ export function KPICard({
             {title}
           </p>
           <p className={cn(
-            "text-3xl font-display font-bold tracking-tight",
+            "font-display font-bold tracking-tight",
+            promoted ? "text-4xl" : "text-3xl",
             variant === "accent" ? "text-primary-foreground" : "text-foreground"
           )}>
             {value}

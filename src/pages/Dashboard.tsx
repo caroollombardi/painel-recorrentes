@@ -14,6 +14,8 @@ import { usePresentationMode } from "@/hooks/use-presentation-mode";
 import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
 import { useFilteredKPIs } from "@/hooks/useFilteredKPIs";
 import { PresentationMode } from "@/components/dashboard/PresentationMode";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const MONTH_NAMES = [
@@ -52,13 +54,10 @@ export function Dashboard({ data }: DashboardProps) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  
-
   const handleAlertClientClick = useCallback((clientName: string) => {
     tableRef.current?.scrollToClient(clientName);
   }, []);
 
-  // Top client simplified subtitle
   const topClientSubtitle = (() => {
     const tc = filteredData.find(c => c.project === filteredKPIs.topClient);
     if (!tc?.creditUsage) {
@@ -70,7 +69,6 @@ export function Dashboard({ data }: DashboardProps) {
     return `${pct.toFixed(0)}% do crédito em ${data.monthProgress.currentDay}/${data.monthProgress.totalDays} dias`;
   })();
 
-  // Top client detailed tooltip
   const topClientTooltip = (() => {
     const tc = filteredData.find(c => c.project === filteredKPIs.topClient);
     if (!tc?.creditUsage) return null;
@@ -86,10 +84,12 @@ export function Dashboard({ data }: DashboardProps) {
     return text;
   })();
 
-  // Projection variation vs previous month
   const projectedVariation = prevSnapshot && prevSnapshot.total_valor > 0
     ? ((projected - prevSnapshot.total_valor) / prevSnapshot.total_valor) * 100
     : null;
+
+  // Filter state
+  const activeFilterCount = (selectedClient !== "all" ? 1 : 0);
 
   if (presentation.isActive) {
     return (
@@ -107,7 +107,6 @@ export function Dashboard({ data }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <DashboardHeader
         activeTab="recorrentes"
         showValues={showValues}
@@ -116,7 +115,6 @@ export function Dashboard({ data }: DashboardProps) {
       />
 
       <main className="container py-8 space-y-6">
-        {/* Executive Summary — collapsed by default */}
         <ExecutiveSummary
           data={data}
           previousMonthTotalValor={prevSnapshot?.total_valor ?? null}
@@ -126,17 +124,15 @@ export function Dashboard({ data }: DashboardProps) {
           defaultExpanded={false}
         />
 
-        {/* Month Progress */}
         <MonthProgressIndicator monthProgress={data.monthProgress} />
 
-        {/* Compact Alert Strip */}
         <CompactAlertStrip
           clients={data.clients}
           monthProgress={data.monthProgress}
           onClientClick={handleAlertClientClick}
         />
 
-        {/* KPI Cards — 6 cards: 2x3 grid on desktop */}
+        {/* KPI Cards */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <KPICard
             title="Total Horas Recorrentes"
@@ -145,6 +141,8 @@ export function Dashboard({ data }: DashboardProps) {
             variationPercent={selectedClient === "all" ? horasVariation : undefined}
             icon={<Clock className="w-5 h-5 text-primary" />}
             delay={0}
+            promoted
+            tooltipText="Soma de todas as horas registradas em contratos recorrentes no período selecionado"
           />
           <KPICard
             title="Valor Total Recorrente"
@@ -153,6 +151,8 @@ export function Dashboard({ data }: DashboardProps) {
             variationPercent={selectedClient === "all" && showValues ? valorVariation : undefined}
             icon={<DollarSign className="w-5 h-5 text-primary" />}
             delay={50}
+            promoted
+            tooltipText="Soma dos valores calculados (horas × valor/hora) de todos os contratos recorrentes"
           />
           <TooltipProvider>
             <Tooltip>
@@ -165,6 +165,8 @@ export function Dashboard({ data }: DashboardProps) {
                     icon={<Users className="w-5 h-5 text-muted-foreground" />}
                     variant="highlight"
                     delay={100}
+                    promoted
+                    tooltipText="Cliente recorrente com maior volume de horas consumidas no período"
                   />
                 </div>
               </TooltipTrigger>
@@ -181,6 +183,7 @@ export function Dashboard({ data }: DashboardProps) {
             subtitle={showValues ? "Média ponderada por hora" : "Valores ocultos"}
             icon={<TrendingUp className="w-5 h-5 text-muted-foreground" />}
             delay={150}
+            tooltipText="Valor total recorrente dividido pelo total de horas — média ponderada por advogado"
           />
           <KPICard
             title="Clientes em Alerta"
@@ -195,6 +198,7 @@ export function Dashboard({ data }: DashboardProps) {
             icon={<AlertTriangle className="w-5 h-5 text-primary" />}
             variant="accent"
             delay={200}
+            tooltipText="Número de clientes com consumo de crédito acima de 60% (atenção), 80% (risco) ou 100% (estouro)"
           />
           {showValues && (
             <KPICard
@@ -204,6 +208,7 @@ export function Dashboard({ data }: DashboardProps) {
               variationPercent={selectedClient === "all" ? projectedVariation : undefined}
               icon={<Target className="w-5 h-5 text-primary" />}
               delay={250}
+              tooltipText="Projeção do valor total recorrente para o fim do mês, baseada no ritmo de consumo atual"
             />
           )}
         </section>
@@ -212,13 +217,21 @@ export function Dashboard({ data }: DashboardProps) {
         <section className="flex flex-wrap items-end gap-4 p-4 bg-card rounded-lg border border-border animate-fade-in">
           <div className="flex items-center gap-2 text-muted-foreground">
             <span className="text-sm font-medium">Filtros:</span>
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/20">
+                {activeFilterCount} filtro{activeFilterCount > 1 ? "s" : ""} ativo{activeFilterCount > 1 ? "s" : ""}
+              </Badge>
+            )}
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground">Cliente Recorrente</label>
             <select
               value={selectedClient}
               onChange={(e) => setSelectedClient(e.target.value)}
-              className="h-9 w-[200px] rounded-md border border-border bg-background px-3 text-sm"
+              className={cn(
+                "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
+                selectedClient !== "all" ? "border-primary" : "border-border"
+              )}
             >
               <option value="all">Todos os clientes</option>
               {clientList.map((client) => (
@@ -231,6 +244,16 @@ export function Dashboard({ data }: DashboardProps) {
             currentYear={selectedYear}
             onChange={(m, y) => { setSelectedMonth(m); setSelectedYear(y); }}
           />
+          {activeFilterCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedClient("all")}
+              className="text-muted-foreground hover:text-foreground text-xs"
+            >
+              Limpar filtros
+            </Button>
+          )}
         </section>
 
         {/* Hours Chart */}

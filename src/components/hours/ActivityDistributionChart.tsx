@@ -5,15 +5,29 @@ interface ActivityDistributionChartProps {
 }
 
 const COLORS = [
-  "hsl(20, 95%, 60%)",    // primary orange
-  "hsl(20, 85%, 45%)",    // darker orange
-  "hsl(30, 90%, 55%)",    // amber
-  "hsl(40, 85%, 50%)",    // gold
-  "hsl(220, 14%, 55%)",   // muted
-  "hsl(220, 14%, 70%)",   // lighter muted
-  "hsl(10, 80%, 55%)",    // red-orange
-  "hsl(50, 80%, 50%)",    // yellow
+  "hsl(20, 95%, 60%)",
+  "hsl(20, 85%, 45%)",
+  "hsl(30, 90%, 55%)",
+  "hsl(40, 85%, 50%)",
+  "hsl(220, 14%, 55%)",
+  "hsl(220, 14%, 70%)",
+  "hsl(10, 80%, 55%)",
+  "hsl(50, 80%, 50%)",
 ];
+
+const RADIAN = Math.PI / 180;
+
+function renderCustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
+  if (percent < 0.08) return null; // Don't show label for small slices
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
+      {(percent * 100).toFixed(0)}%
+    </text>
+  );
+}
 
 export function ActivityDistributionChart({ data }: ActivityDistributionChartProps) {
   if (data.length === 0) {
@@ -34,18 +48,20 @@ export function ActivityDistributionChart({ data }: ActivityDistributionChartPro
   };
 
   return (
-    <div className="w-full h-[300px]">
+    <div className="w-full h-[400px]">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
             data={data}
             cx="50%"
-            cy="50%"
-            innerRadius={60}
-            outerRadius={100}
+            cy="45%"
+            innerRadius={70}
+            outerRadius={130}
             dataKey="hours"
             nameKey="type"
             paddingAngle={2}
+            label={renderCustomLabel}
+            labelLine={false}
           >
             {data.map((_, i) => (
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
@@ -53,7 +69,17 @@ export function ActivityDistributionChart({ data }: ActivityDistributionChartPro
           </Pie>
           <Tooltip content={<CustomTooltip />} />
           <Legend
-            formatter={(value: string) => <span className="text-sm text-foreground">{value}</span>}
+            layout="horizontal"
+            verticalAlign="bottom"
+            align="center"
+            formatter={(value: string, entry: any) => {
+              const item = data.find(d => d.type === value);
+              return (
+                <span className="text-sm text-foreground">
+                  {value} {item ? `(${item.percent.toFixed(0)}%)` : ''}
+                </span>
+              );
+            }}
             iconType="circle"
             iconSize={8}
           />

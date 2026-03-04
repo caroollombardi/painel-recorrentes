@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Upload, UsersRound, Settings, Eye, EyeOff, Monitor } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Upload, UsersRound, Settings, Eye, EyeOff, Monitor, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { UserProfileDropdown } from "@/components/dashboard/UserProfileDropdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,16 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
   }, []);
 
   const handleLogout = async () => { await signOut(); navigate("/auth"); };
+
+  // Admin action items for dropdown on small screens
+  const adminActions = [];
+  if (isAdmin) {
+    adminActions.push({ label: "Atualizar Dados", icon: Upload, action: () => navigate("/admin") });
+    adminActions.push({ label: "Usuários", icon: UsersRound, action: () => navigate("/users") });
+    adminActions.push({ label: "Configurações", icon: Settings, action: () => navigate("/settings") });
+  } else if (canAccessMetas) {
+    adminActions.push({ label: "Configurações", icon: Settings, action: () => navigate("/settings") });
+  }
 
   return (
     <header className={cn(
@@ -71,27 +82,51 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Full buttons for wide screens */}
             {isAdmin && (
-              <>
+              <div className="hidden xl:flex items-center gap-1">
                 <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} className="text-muted-foreground hover:text-foreground">
                   <Upload className="w-4 h-4 mr-2" />
-                  <span className="hidden md:inline">Atualizar Dados</span>
+                  Atualizar Dados
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => navigate("/users")} className="text-muted-foreground hover:text-foreground">
                   <UsersRound className="w-4 h-4 mr-2" />
-                  <span className="hidden md:inline">Usuários</span>
+                  Usuários
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => navigate("/settings")} className="text-muted-foreground hover:text-foreground">
                   <Settings className="w-4 h-4 mr-2" />
-                  <span className="hidden md:inline">Configurações</span>
+                  Configurações
                 </Button>
-              </>
+              </div>
             )}
             {!isAdmin && canAccessMetas && (
-              <Button variant="ghost" size="sm" onClick={() => navigate("/settings")} className="text-muted-foreground hover:text-foreground">
-                <Settings className="w-4 h-4 mr-2" />
-                <span className="hidden md:inline">Configurações</span>
-              </Button>
+              <div className="hidden xl:flex items-center gap-1">
+                <Button variant="ghost" size="sm" onClick={() => navigate("/settings")} className="text-muted-foreground hover:text-foreground">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Configurações
+                </Button>
+              </div>
+            )}
+
+            {/* Collapsed dropdown for narrow screens */}
+            {adminActions.length > 0 && (
+              <div className="xl:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {adminActions.map((item) => (
+                      <DropdownMenuItem key={item.label} onClick={item.action}>
+                        <item.icon className="w-4 h-4 mr-2" />
+                        {item.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             )}
 
             {onShowValuesChange && (
