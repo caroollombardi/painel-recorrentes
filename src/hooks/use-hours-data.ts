@@ -104,13 +104,12 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
 
       const { data: prevData } = await supabase
         .from("time_entries")
-        .select("hours_logged,assignee")
+        .select("hours_logged")
         .eq("month", prevMonth + 1)
         .eq("year", prevYear);
 
       if (prevData && prevData.length > 0) {
-        const filtered = prevData.filter(e => !isExcludedMember(e.assignee || ""));
-        setPreviousMonthHours(filtered.length > 0 ? filtered.reduce((s, e) => s + Number(e.hours_logged), 0) : null);
+        setPreviousMonthHours(prevData.reduce((s, e) => s + Number(e.hours_logged), 0));
       } else {
         setPreviousMonthHours(null);
       }
@@ -127,10 +126,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
   const dashboardData = useMemo((): HoursDashboardData | null => {
     if (entries.length === 0) return null;
 
-    // Filter out excluded members
-    const includedEntries = entries.filter(e => !isExcludedMember(e.assignee || ""));
-
-    const totalHours = includedEntries.reduce((s, e) => s + Number(e.hours_logged), 0);
+    const totalHours = entries.reduce((s, e) => s + Number(e.hours_logged), 0);
     const businessDays = getBusinessDaysInMonth(selectedMonth, selectedYear);
     const businessDaysElapsed = getBusinessDaysElapsed(selectedMonth, selectedYear);
     const businessDaysRemaining = getBusinessDaysRemaining(selectedMonth, selectedYear);
@@ -144,7 +140,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     const activityMap = new Map<string, number>();
     const daysWithEntries = new Set<string>();
 
-    includedEntries.forEach(e => {
+    entries.forEach(e => {
       const assignee = e.assignee || "Sem responsável";
       if (!memberMap.has(assignee)) memberMap.set(assignee, { hours: 0, projects: new Map() });
       const m = memberMap.get(assignee)!;
@@ -213,7 +209,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     const hoursPerRemainingDay = businessDaysRemaining > 0 ? (totalHours / businessDaysElapsed) * businessDaysRemaining : 0;
 
     return {
-      entries: includedEntries,
+      entries,
       totalHours: Math.round(totalHours * 100) / 100,
       avgHoursPerDay: Math.round(avgHoursPerDay * 100) / 100,
       topContributor,
