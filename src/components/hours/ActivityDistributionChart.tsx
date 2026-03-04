@@ -18,7 +18,7 @@ const COLORS = [
 const RADIAN = Math.PI / 180;
 
 function renderCustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
-  if (percent < 0.08) return null; // Don't show label for small slices
+  if (percent < 0.10) return null; // Don't show label for small slices (<10%)
   const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
