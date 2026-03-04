@@ -11,8 +11,9 @@ interface KPICardProps {
   icon?: React.ReactNode;
   variant?: "default" | "accent" | "highlight";
   delay?: number;
-  promoted?: boolean; // larger value + subtle gradient background
-  tooltipText?: string; // info tooltip
+  promoted?: boolean;
+  tooltipText?: string;
+  valueClassName?: string; // custom color class for value
 }
 
 export function KPICard({ 
@@ -26,6 +27,7 @@ export function KPICard({
   delay = 0,
   promoted = false,
   tooltipText,
+  valueClassName,
 }: KPICardProps) {
   const hasVariation = variationPercent !== undefined && variationPercent !== null;
 
@@ -72,7 +74,9 @@ export function KPICard({
           <p className={cn(
             "font-display font-bold tracking-tight",
             promoted ? "text-4xl" : "text-3xl",
-            variant === "accent" ? "text-primary-foreground" : "text-foreground"
+            valueClassName
+              ? valueClassName
+              : variant === "accent" ? "text-primary-foreground" : "text-foreground"
           )}>
             {value}
           </p>

@@ -37,6 +37,10 @@ export interface HoursDashboardData {
   members: string[];
   projects: string[];
   activityTypes: string[];
+  businessDaysInMonth: number;
+  businessDaysElapsed: number;
+  businessDaysRemaining: number;
+  memberCount: number;
 }
 
 function getBusinessDaysInMonth(month: number, year: number): number {
@@ -213,6 +217,10 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
       members: Array.from(memberMap.keys()).sort(),
       projects: Array.from(projectSet).sort(),
       activityTypes: Array.from(activitySet).sort(),
+      businessDaysInMonth: businessDays,
+      businessDaysElapsed,
+      businessDaysRemaining,
+      memberCount: memberMap.size,
     };
   }, [entries, selectedMonth, selectedYear]);
 

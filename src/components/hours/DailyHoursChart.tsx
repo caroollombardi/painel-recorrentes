@@ -1,11 +1,12 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { DAILY_TARGET_HOURS } from "@/lib/hours-constants";
 
 interface DailyHoursChartProps {
   data: { date: string; hours: number }[];
   dailyTarget?: number;
 }
 
-export function DailyHoursChart({ data, dailyTarget = 6 }: DailyHoursChartProps) {
+export function DailyHoursChart({ data, dailyTarget = DAILY_TARGET_HOURS }: DailyHoursChartProps) {
   const chartData = data.map(d => ({
     ...d,
     label: new Date(d.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
@@ -18,6 +19,7 @@ export function DailyHoursChart({ data, dailyTarget = 6 }: DailyHoursChartProps)
         <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
           <p className="text-sm font-medium text-foreground">{d.label}</p>
           <p className="text-sm text-primary font-semibold">{d.hours.toFixed(1)}h</p>
+          <p className="text-xs text-muted-foreground">Meta: {dailyTarget}h</p>
         </div>
       );
     }
@@ -41,7 +43,12 @@ export function DailyHoursChart({ data, dailyTarget = 6 }: DailyHoursChartProps)
           <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
           <Tooltip content={<CustomTooltip />} />
-          <ReferenceLine y={dailyTarget} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5" label={{ value: `Meta: ${dailyTarget}h`, position: "right", fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+          <ReferenceLine
+            y={dailyTarget}
+            stroke="#EF4444"
+            strokeDasharray="5 5"
+            label={{ value: `Meta: ${dailyTarget}h/dia`, position: "right", fontSize: 10, fill: "#EF4444" }}
+          />
           <Area type="monotone" dataKey="hours" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#hoursGradient)" />
         </AreaChart>
       </ResponsiveContainer>
@@ -52,8 +59,8 @@ export function DailyHoursChart({ data, dailyTarget = 6 }: DailyHoursChartProps)
           <span className="text-xs text-muted-foreground">Horas lançadas</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-6 border-t-2 border-dashed" style={{ borderColor: "hsl(var(--muted-foreground))" }} />
-          <span className="text-xs text-muted-foreground">Meta diária</span>
+          <div className="w-6 border-t-2 border-dashed" style={{ borderColor: "#EF4444" }} />
+          <span className="text-xs text-muted-foreground">Meta diária ({dailyTarget}h)</span>
         </div>
       </div>
     </div>
