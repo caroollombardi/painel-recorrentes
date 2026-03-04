@@ -1,9 +1,8 @@
-import { useState, useRef, useMemo } from "react";
-import { Clock, Calendar, User, Target, FolderOpen, CheckCircle, TrendingUp, Upload } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Clock, Calendar, User, Target, FolderOpen, CheckCircle, Upload, BarChart3 } from "lucide-react";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { MonthSelector } from "@/components/dashboard/MonthSelector";
 import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndicator";
-import { ExecutiveSummary } from "@/components/dashboard/ExecutiveSummary";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { HoursMemberChart } from "@/components/hours/HoursMemberChart";
 import { HoursDetailTable } from "@/components/hours/HoursDetailTable";
@@ -14,6 +13,8 @@ import { HoursExecutiveSummary } from "@/components/hours/HoursExecutiveSummary"
 import { useHoursData } from "@/hooks/use-hours-data";
 import { getMonthProgress } from "@/lib/month-progress";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export default function HoursDashboard() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -27,7 +28,6 @@ export default function HoursDashboard() {
 
   const monthProgress = useMemo(() => getMonthProgress(), []);
 
-  // Filtered data
   const filteredData = useMemo(() => {
     if (!dashboardData) return null;
     if (memberFilter === "all" && projectFilter === "all" && activityFilter === "all") return dashboardData;
@@ -39,7 +39,6 @@ export default function HoursDashboard() {
       return true;
     });
 
-    // Recalculate
     const totalHours = filtered.reduce((s, e) => s + Number(e.hours_logged), 0);
 
     return {
@@ -53,9 +52,25 @@ export default function HoursDashboard() {
     return ((dashboardData.totalHours - previousMonthHours) / previousMonthHours) * 100;
   }, [dashboardData, previousMonthHours]);
 
+  // Avg hours/day variation (approximate: assume same business days)
+  const avgHoursVariation = useMemo(() => {
+    if (!dashboardData || !previousMonthHours || previousMonthHours === 0) return null;
+    // Use same ratio as total hours since business days are similar
+    return hoursVariation;
+  }, [dashboardData, previousMonthHours, hoursVariation]);
+
   const handleImport = async (csvText: string) => {
     const success = await importCSV(csvText, selectedMonth, selectedYear);
     if (success) setShowImport(false);
+  };
+
+  // Filter count
+  const activeFilterCount = [memberFilter, projectFilter, activityFilter].filter(f => f !== "all").length;
+
+  const clearFilters = () => {
+    setMemberFilter("all");
+    setProjectFilter("all");
+    setActivityFilter("all");
   };
 
   if (isLoading) {
@@ -84,11 +99,11 @@ export default function HoursDashboard() {
           <MonthProgressIndicator monthProgress={monthProgress} />
           {dashboardData && (
             <div className="flex items-center gap-4 bg-muted/30 rounded-lg px-4 py-2">
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm font-semibold text-foreground">
                 {dashboardData.totalHours.toFixed(1)}h lançadas
               </span>
               <div className="h-4 w-px bg-border" />
-              <span className="text-sm font-medium text-primary">
+              <span className="text-sm font-semibold text-primary">
                 {((dashboardData.totalHours / (monthProgress.percentElapsed > 0 ? (dashboardData.totalHours / (monthProgress.percentElapsed / 100)) : 1)) * 100).toFixed(0)}% concluído
               </span>
             </div>
@@ -104,13 +119,18 @@ export default function HoursDashboard() {
             variationPercent={hoursVariation}
             icon={<Clock className="w-5 h-5 text-primary" />}
             delay={0}
+            promoted
+            tooltipText="Soma de todas as horas registradas no período selecionado"
           />
           <KPICard
             title="Média de Horas/Dia"
             value={dashboardData ? `${dashboardData.avgHoursPerDay.toFixed(1)}h` : "0h"}
             subtitle="Por dia útil do período"
+            variationPercent={avgHoursVariation}
             icon={<Calendar className="w-5 h-5 text-primary" />}
             delay={50}
+            promoted
+            tooltipText="Total de horas dividido pelo número de dias úteis com lançamento"
           />
           <KPICard
             title="Top Colaborador"
@@ -119,6 +139,8 @@ export default function HoursDashboard() {
             icon={<User className="w-5 h-5 text-muted-foreground" />}
             variant="highlight"
             delay={100}
+            promoted
+            tooltipText="Membro com maior volume de horas lançadas no período"
           />
           <KPICard
             title="Horas/Dia Útil Restante"
@@ -126,6 +148,7 @@ export default function HoursDashboard() {
             subtitle="Projeção distribuída nos dias restantes"
             icon={<Target className="w-5 h-5 text-muted-foreground" />}
             delay={150}
+            tooltipText="Horas necessárias por dia útil restante para atingir a meta mensal"
           />
           <KPICard
             title="Projetos Ativos"
@@ -133,6 +156,7 @@ export default function HoursDashboard() {
             subtitle="Com horas lançadas no período"
             icon={<FolderOpen className="w-5 h-5 text-primary" />}
             delay={200}
+            tooltipText="Projetos distintos que receberam lançamento de horas no período"
           />
           <KPICard
             title="Taxa de Preenchimento"
@@ -141,6 +165,7 @@ export default function HoursDashboard() {
             icon={<CheckCircle className="w-5 h-5 text-primary" />}
             variant={dashboardData && dashboardData.fillRate >= 80 ? "default" : "accent"}
             delay={250}
+            tooltipText="Percentual de dias úteis do período com pelo menos um lançamento"
           />
         </section>
 
@@ -148,13 +173,21 @@ export default function HoursDashboard() {
         <section className="flex flex-wrap items-end gap-4 p-4 bg-card rounded-lg border border-border animate-fade-in">
           <div className="flex items-center gap-2 text-muted-foreground">
             <span className="text-sm font-medium">Filtros:</span>
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/20">
+                {activeFilterCount} filtro{activeFilterCount > 1 ? "s" : ""} ativo{activeFilterCount > 1 ? "s" : ""}
+              </Badge>
+            )}
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-muted-foreground">Membro do Time</label>
             <select
               value={memberFilter}
               onChange={(e) => setMemberFilter(e.target.value)}
-              className="h-9 w-[200px] rounded-md border border-border bg-background px-3 text-sm"
+              className={cn(
+                "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
+                memberFilter !== "all" ? "border-primary" : "border-border"
+              )}
             >
               <option value="all">Todos os membros</option>
               {dashboardData?.members.map(m => (
@@ -167,7 +200,10 @@ export default function HoursDashboard() {
             <select
               value={projectFilter}
               onChange={(e) => setProjectFilter(e.target.value)}
-              className="h-9 w-[200px] rounded-md border border-border bg-background px-3 text-sm"
+              className={cn(
+                "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
+                projectFilter !== "all" ? "border-primary" : "border-border"
+              )}
             >
               <option value="all">Todos os projetos</option>
               {dashboardData?.projects.map(p => (
@@ -180,7 +216,10 @@ export default function HoursDashboard() {
             <select
               value={activityFilter}
               onChange={(e) => setActivityFilter(e.target.value)}
-              className="h-9 w-[200px] rounded-md border border-border bg-background px-3 text-sm"
+              className={cn(
+                "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
+                activityFilter !== "all" ? "border-primary" : "border-border"
+              )}
             >
               <option value="all">Todas as atividades</option>
               {dashboardData?.activityTypes.map(a => (
@@ -193,6 +232,16 @@ export default function HoursDashboard() {
             currentYear={selectedYear}
             onChange={(m, y) => { setSelectedMonth(m); setSelectedYear(y); }}
           />
+          {activeFilterCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="text-muted-foreground hover:text-foreground text-xs"
+            >
+              Limpar filtros
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setShowImport(true)} className="ml-auto">
             <Upload className="w-4 h-4 mr-2" />
             Importar CSV
@@ -260,15 +309,20 @@ export default function HoursDashboard() {
             </div>
           </>
         ) : (
-          <div className="text-center py-16 space-y-4">
-            <Clock className="w-12 h-12 mx-auto text-muted-foreground/30" />
-            <h2 className="text-xl font-display font-semibold text-foreground">Nenhum dado encontrado</h2>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              Nenhum dado de horas encontrado para este período. Clique em "Importar CSV" para importar dados do Asana.
-            </p>
-            <Button onClick={() => setShowImport(true)} className="mt-4">
+          /* Enhanced Empty State */
+          <div className="text-center py-20 space-y-6">
+            <div className="mx-auto w-24 h-24 rounded-2xl bg-muted/50 flex items-center justify-center">
+              <BarChart3 className="w-12 h-12 text-muted-foreground/30" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-display font-bold text-foreground">Nenhum dado encontrado</h2>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Importe uma planilha CSV clicando em "Importar Dados" para visualizar os dados do período.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => setShowImport(true)} className="mt-2">
               <Upload className="w-4 h-4 mr-2" />
-              Importar CSV
+              Importar Dados
             </Button>
           </div>
         )}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Calendar } from "lucide-react";
+import { Calendar, AlertTriangle as AlertTriangleIcon } from "lucide-react";
 import { ClientData } from "@/lib/data-parser";
 import { MonthProgress } from "@/lib/month-progress";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -58,7 +58,6 @@ export function CompactAlertStrip({ clients, monthProgress, onClientClick }: Com
 
   if (chips.length === 0) return null;
 
-  // Sort: overflow first, then risk, then warning; within each group by percent desc
   const order: Record<AlertLevel, number> = { overflow: 0, risk: 1, warning: 2 };
   chips.sort((a, b) => order[a.level] - order[b.level] || b.percent - a.percent);
 
@@ -88,7 +87,7 @@ export function CompactAlertStrip({ clients, monthProgress, onClientClick }: Com
                     config.border
                   )}
                 >
-                  <span>{config.emoji}</span>
+                  <AlertTriangleIcon className="w-3 h-3" />
                   <span className="truncate max-w-[120px]">{chip.client.project}</span>
                   <span className="opacity-80">({chip.percent.toFixed(0)}%)</span>
                 </button>
@@ -96,7 +95,11 @@ export function CompactAlertStrip({ clients, monthProgress, onClientClick }: Com
               <TooltipContent side="bottom" className="max-w-xs">
                 <div className="space-y-1.5">
                   <p className="font-semibold">{config.label}: {chip.client.project}</p>
-                  <p className="text-xs">Crédito consumido: {chip.percent.toFixed(1)}%</p>
+                  <p className="text-xs">
+                    Cliente {chip.client.project} consumiu {chip.percent.toFixed(1)}% do crédito contratado.
+                    {chip.level === "overflow" && " Risco de estouro."}
+                    {chip.level === "risk" && " Risco de estouro."}
+                  </p>
                   <p className="text-xs">Valor consumido: {formatCurrency(cu.valorConsumido)} / {formatCurrency(cu.valorCredito)}</p>
                   {chip.level === "overflow" && (
                     <p className="text-xs font-medium">Faturamento adicional necessário.</p>
