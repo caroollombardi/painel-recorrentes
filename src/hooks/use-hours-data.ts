@@ -217,23 +217,28 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
   }, [entries, selectedMonth, selectedYear]);
 
   const importCSV = useCallback(async (csvText: string, month: number, year: number) => {
-    const lines = csvText.split("\n");
-    if (lines.length < 2) {
+    // Parse CSV handling multiline quoted fields
+    const records = parseCSVRecords(csvText);
+    if (records.length < 2) {
       toast({ title: "Erro", description: "CSV vazio ou inválido.", variant: "destructive" });
       return false;
     }
 
-    // Parse header
-    const header = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
-    const findCol = (names: string[]) => header.findIndex(h => names.some(n => h.includes(n)));
+    // Parse header (first record), remove BOM
+    const header = records[0].map(h => h.replace(/^\uFEFF/, "").toLowerCase().trim());
+    const findCol = (names: string[]) => header.findIndex(h => h != null && names.some(n => h.includes(n)));
 
     const taskCol = findCol(["nome da tarefa", "task name", "name"]);
     const assigneeCol = findCol(["responsável", "assignee", "responsavel"]);
     const projectCol = findCol(["projeto", "project"]);
-    const dateCol = findCol(["data de conclusão", "completed", "data", "date"]);
-    const hoursCol = findCol(["horas", "hours", "actual time", "time"]);
+    const dateCol = findCol(["data de conclusão", "completed at", "completed", "data"]);
+    const hoursCol = findCol(["horas lançadas", "horas", "hours", "actual time"]);
     const clientCol = findCol(["cliente", "client"]);
-    const activityCol = findCol(["tipo de atividade", "tipo", "activity", "type"]);
+    const activityCol = findCol(["tipo de atividade", "tipo", "activity", "tags"]);
+    const descCol = findCol(["descrição", "descrição ts", "description", "notes"]);
+
+    console.log("CSV columns detected:", { taskCol, assigneeCol, projectCol, dateCol, hoursCol, clientCol, activityCol, descCol });
+    console.log("CSV header:", header);
 
     if (taskCol === -1 && assigneeCol === -1) {
       toast({ title: "Erro", description: "CSV não possui colunas reconhecidas (Nome da Tarefa, Responsável).", variant: "destructive" });
@@ -244,12 +249,11 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     const { data: session } = await supabase.auth.getSession();
     const userId = session?.session?.user?.id;
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      const fields = parseCSVLine(line);
+    for (let i = 1; i < records.length; i++) {
+      const fields = records[i];
+      if (fields.length <= 1 && !fields[0]?.trim()) continue;
 
-      const hoursStr = hoursCol >= 0 ? fields[hoursCol] : "";
+      const hoursStr = hoursCol >= 0 ? (fields[hoursCol] || "") : "";
       let hours = 0;
       if (hoursStr.includes(":")) {
         const parts = hoursStr.split(":");
@@ -262,22 +266,32 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
       let dateStr: string | null = null;
       if (dateCol >= 0 && fields[dateCol]) {
         const raw = fields[dateCol].trim();
-        // Try ISO format or common formats
         const d = new Date(raw);
         if (!isNaN(d.getTime())) {
           dateStr = d.toISOString().split("T")[0];
         }
       }
 
+      // Extract activity type from Tags or dedicated column
+      let activityType: string | null = null;
+      if (activityCol >= 0 && fields[activityCol]) {
+        activityType = fields[activityCol].trim() || null;
+      }
+
+      // Use description column as fallback context
+      const taskName = taskCol >= 0 ? (fields[taskCol] || "Sem título").trim() : "Sem título";
+      const assignee = assigneeCol >= 0 ? (fields[assigneeCol] || "Sem responsável").trim() : "Sem responsável";
+      const project = projectCol >= 0 ? (fields[projectCol] || "Sem projeto").trim() : "Sem projeto";
+
       newEntries.push({
-        task_name: taskCol >= 0 ? fields[taskCol] || "Sem título" : "Sem título",
-        assignee: assigneeCol >= 0 ? fields[assigneeCol] || "Sem responsável" : "Sem responsável",
-        project: projectCol >= 0 ? fields[projectCol] || "Sem projeto" : "Sem projeto",
+        task_name: taskName,
+        assignee,
+        project,
         completed_date: dateStr,
         hours_logged: Math.round(hours * 100) / 100,
-        client: clientCol >= 0 ? fields[clientCol] || null : null,
-        activity_type: activityCol >= 0 ? fields[activityCol] || null : null,
-        month: month + 1, // 1-12
+        client: clientCol >= 0 ? (fields[clientCol] || "").trim() || null : null,
+        activity_type: activityType,
+        month: month + 1,
         year,
         uploaded_by: userId || null,
       });
@@ -289,7 +303,10 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     }
 
     // Delete existing entries for this month/year, then insert new
-    await supabase.from("time_entries").delete().eq("month", month + 1).eq("year", year);
+    const { error: delError } = await supabase.from("time_entries").delete().eq("month", month + 1).eq("year", year);
+    if (delError) {
+      console.error("Error deleting old entries:", delError);
+    }
     
     // Insert in batches of 500
     for (let i = 0; i < newEntries.length; i += 500) {
@@ -297,7 +314,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
       const { error } = await supabase.from("time_entries").insert(batch);
       if (error) {
         console.error("Error inserting time entries:", error);
-        toast({ title: "Erro", description: "Falha ao salvar dados. Verifique as permissões.", variant: "destructive" });
+        toast({ title: "Erro", description: `Falha ao salvar dados: ${error.message}`, variant: "destructive" });
         return false;
       }
     }
@@ -310,16 +327,51 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
   return { dashboardData, isLoading, importCSV, previousMonthHours, reload: loadData };
 }
 
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
+/** Parse full CSV text handling multiline quoted fields */
+function parseCSVRecords(csvText: string): string[][] {
+  const records: string[][] = [];
   let current = "";
   let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') { inQuotes = !inQuotes; }
-    else if (char === "," && !inQuotes) { result.push(current.trim()); current = ""; }
-    else { current += char; }
+  const fields: string[] = [];
+
+  for (let i = 0; i < csvText.length; i++) {
+    const char = csvText[i];
+    const next = csvText[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      fields.push(current.trim());
+      current = "";
+    } else if ((char === '\n' || (char === '\r' && next === '\n')) && !inQuotes) {
+      if (char === '\r') i++;
+      fields.push(current.trim());
+      if (fields.some(f => f !== "")) {
+        records.push([...fields]);
+      }
+      fields.length = 0;
+      current = "";
+    } else if (char === '\r' && !inQuotes) {
+      fields.push(current.trim());
+      if (fields.some(f => f !== "")) {
+        records.push([...fields]);
+      }
+      fields.length = 0;
+      current = "";
+    } else {
+      current += char;
+    }
   }
-  result.push(current.trim());
-  return result;
+
+  fields.push(current.trim());
+  if (fields.some(f => f !== "")) {
+    records.push([...fields]);
+  }
+
+  return records;
 }
