@@ -317,6 +317,54 @@ export type Database = {
         }
         Relationships: []
       }
+      time_entries: {
+        Row: {
+          activity_type: string | null
+          assignee: string
+          client: string | null
+          completed_date: string | null
+          created_at: string
+          hours_logged: number
+          id: string
+          month: number
+          project: string
+          task_name: string
+          updated_at: string
+          uploaded_by: string | null
+          year: number
+        }
+        Insert: {
+          activity_type?: string | null
+          assignee: string
+          client?: string | null
+          completed_date?: string | null
+          created_at?: string
+          hours_logged?: number
+          id?: string
+          month: number
+          project: string
+          task_name: string
+          updated_at?: string
+          uploaded_by?: string | null
+          year: number
+        }
+        Update: {
+          activity_type?: string | null
+          assignee?: string
+          client?: string | null
+          completed_date?: string | null
+          created_at?: string
+          hours_logged?: number
+          id?: string
+          month?: number
+          project?: string
+          task_name?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           assigned_by: string | null

@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Eye, EyeOff, Upload, UsersRound, Settings, Monitor, Target } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { Clock, Users, DollarSign, TrendingUp, AlertTriangle, Target } from "lucide-react";
 import { DashboardData } from "@/lib/data-parser";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { HoursChart } from "@/components/dashboard/HoursChart";
@@ -8,19 +7,14 @@ import { ClientValueTable, ClientValueTableHandle } from "@/components/dashboard
 import { CompactAlertStrip } from "@/components/dashboard/CompactAlertStrip";
 import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndicator";
 import { MonthSelector } from "@/components/dashboard/MonthSelector";
-import { UserProfileDropdown } from "@/components/dashboard/UserProfileDropdown";
 import { ExecutiveSummary } from "@/components/dashboard/ExecutiveSummary";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "@/contexts/AuthContext";
 import { usePresentationMode } from "@/hooks/use-presentation-mode";
 import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
 import { useFilteredKPIs } from "@/hooks/useFilteredKPIs";
 import { PresentationMode } from "@/components/dashboard/PresentationMode";
 import { cn } from "@/lib/utils";
-import wsaLogo from "@/assets/wsa-logo.png";
 
 const MONTH_NAMES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -32,14 +26,10 @@ interface DashboardProps {
 }
 
 export function Dashboard({ data }: DashboardProps) {
-  const navigate = useNavigate();
-  const { isAdmin, signOut, user, hasRole } = useAuth();
-  const canAccessMetas = hasRole('socio') || hasRole('gestao');
   const [selectedClient, setSelectedClient] = useState<string>("all");
   const [showValues, setShowValues] = useState<boolean>(true);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [isScrolled, setIsScrolled] = useState(false);
   const presentation = usePresentationMode();
   const tableRef = useRef<ClientValueTableHandle>(null);
   const { getPreviousMonthSnapshot } = useMonthlySnapshots();
@@ -54,12 +44,6 @@ export function Dashboard({ data }: DashboardProps) {
     return MONTH_NAMES[pm];
   })();
 
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 40);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
   const { filteredData, filteredKPIs, clientList, horasVariation, valorVariation, clientVariations, projected } =
     useFilteredKPIs(data, selectedClient, prevSnapshot ?? null);
 
@@ -68,7 +52,7 @@ export function Dashboard({ data }: DashboardProps) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  const handleLogout = async () => { await signOut(); navigate('/auth'); };
+  
 
   const handleAlertClientClick = useCallback((clientName: string) => {
     tableRef.current?.scrollToClient(clientName);
@@ -124,79 +108,12 @@ export function Dashboard({ data }: DashboardProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className={cn(
-        "border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 transition-all duration-300",
-      )}>
-        <div className="container py-3">
-          <div className="flex items-center justify-between">
-            <img
-              src={wsaLogo}
-              alt="Wolff e Scripes Advogados"
-              className={cn("object-contain transition-all duration-300", isScrolled ? "h-7" : "h-10")}
-            />
-            <div className="flex items-center gap-2">
-              {isAdmin && (
-                <>
-                  <Button variant="ghost" size="sm" onClick={() => navigate('/admin')} className="text-muted-foreground hover:text-foreground">
-                    <Upload className="w-4 h-4 mr-2" />
-                    <span className="hidden md:inline">Atualizar Dados</span>
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => navigate('/users')} className="text-muted-foreground hover:text-foreground">
-                    <UsersRound className="w-4 h-4 mr-2" />
-                    <span className="hidden md:inline">Usuários</span>
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="text-muted-foreground hover:text-foreground">
-                    <Settings className="w-4 h-4 mr-2" />
-                    <span className="hidden md:inline">Configurações</span>
-                  </Button>
-                </>
-              )}
-              {!isAdmin && canAccessMetas && (
-                <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="text-muted-foreground hover:text-foreground">
-                  <Settings className="w-4 h-4 mr-2" />
-                  <span className="hidden md:inline">Configurações</span>
-                </Button>
-              )}
-
-              <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
-                {showValues ? <Eye className="w-4 h-4 text-muted-foreground" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
-                <Label htmlFor="show-values" className="text-sm text-muted-foreground cursor-pointer hidden md:inline">
-                  Exibir valores (R$)
-                </Label>
-                <Switch id="show-values" checked={showValues} onCheckedChange={setShowValues} />
-              </div>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={presentation.toggle} className="text-muted-foreground hover:text-foreground">
-                      <Monitor className="w-4 h-4 mr-2" />
-                      <span className="hidden md:inline">Modo TV</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Atalho: tecla <kbd className="px-1 py-0.5 bg-muted rounded text-xs font-mono">F</kbd></p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <UserProfileDropdown email={user?.email || ''} onLogout={handleLogout} />
-            </div>
-          </div>
-
-          <div className={cn(
-            "overflow-hidden transition-all duration-300",
-            isScrolled ? "max-h-0 opacity-0 mt-0" : "max-h-24 opacity-100 mt-3"
-          )}>
-            <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight">
-              Análise <span className="text-primary">Clientes Recorrentes</span>
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Análise de horas e valores por advogado
-            </p>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        activeTab="recorrentes"
+        showValues={showValues}
+        onShowValuesChange={setShowValues}
+        onPresentationToggle={presentation.toggle}
+      />
 
       <main className="container py-8 space-y-6">
         {/* Executive Summary — collapsed by default */}
