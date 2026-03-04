@@ -12,7 +12,7 @@ import { HoursCSVImport } from "@/components/hours/HoursCSVImport";
 import { HoursExecutiveSummary } from "@/components/hours/HoursExecutiveSummary";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { getMonthProgress } from "@/lib/month-progress";
-import { DAILY_TARGET_HOURS, DAILY_ALERT_THRESHOLD } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, DAILY_ALERT_THRESHOLD, TARGET_MEMBER_COUNT } from "@/lib/hours-constants";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -78,7 +78,7 @@ export default function HoursDashboard() {
   };
 
   // --- Meta calculations ---
-  const activeMemberCount = memberFilter !== "all" ? 1 : (dashboardData?.memberCount ?? 0);
+  const activeMemberCount = memberFilter !== "all" ? 1 : TARGET_MEMBER_COUNT;
   const businessDaysInMonth = dashboardData?.businessDaysInMonth ?? 0;
   const businessDaysElapsed = dashboardData?.businessDaysElapsed ?? 0;
   const businessDaysRemaining = dashboardData?.businessDaysRemaining ?? 0;
