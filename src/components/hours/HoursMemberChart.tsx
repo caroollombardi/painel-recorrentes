@@ -5,9 +5,11 @@ import { MemberSummary } from "@/hooks/use-hours-data";
 interface HoursMemberChartProps {
   data: MemberSummary[];
   individualTarget?: number;
+  businessDaysElapsed?: number;
+  dailyTargetHours?: number;
 }
 
-export function HoursMemberChart({ data, individualTarget }: HoursMemberChartProps) {
+export function HoursMemberChart({ data, individualTarget, businessDaysElapsed = 0, dailyTargetHours = 6 }: HoursMemberChartProps) {
   const [expanded, setExpanded] = useState(false);
   const DEFAULT_LIMIT = 10;
 
@@ -22,6 +24,10 @@ export function HoursMemberChart({ data, individualTarget }: HoursMemberChartPro
   const visibleData = expanded ? chartData : chartData.slice(0, DEFAULT_LIMIT);
   const barHeight = 32;
   const chartHeight = Math.max(300, visibleData.length * barHeight + 80);
+
+  const targetLabel = individualTarget && businessDaysElapsed > 0
+    ? `Meta: ${individualTarget.toFixed(0)}h (${dailyTargetHours}h × ${businessDaysElapsed} dias)`
+    : individualTarget ? `Meta: ${individualTarget.toFixed(0)}h` : "";
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload?.length) {
@@ -55,7 +61,7 @@ export function HoursMemberChart({ data, individualTarget }: HoursMemberChartPro
                 x={individualTarget}
                 stroke="#6B7280"
                 strokeDasharray="5 5"
-                label={{ value: `Meta: ${individualTarget.toFixed(0)}h`, position: "top", fontSize: 11, fill: "#6B7280" }}
+                label={{ value: targetLabel, position: "top", fontSize: 10, fill: "#6B7280" }}
               />
             )}
             <Bar dataKey="horas" radius={[0, 4, 4, 0]} maxBarSize={20}>
@@ -86,7 +92,7 @@ export function HoursMemberChart({ data, individualTarget }: HoursMemberChartPro
         {individualTarget && individualTarget > 0 && (
           <div className="flex items-center gap-2">
             <div className="w-6 border-t-2 border-dashed" style={{ borderColor: "#6B7280" }} />
-            <span className="text-xs text-muted-foreground">Meta individual ({individualTarget.toFixed(0)}h)</span>
+            <span className="text-xs text-muted-foreground">Meta individual ({individualTarget.toFixed(0)}h — {dailyTargetHours}h × {businessDaysElapsed} dias)</span>
           </div>
         )}
       </div>

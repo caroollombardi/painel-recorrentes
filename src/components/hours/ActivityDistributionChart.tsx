@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 interface ActivityDistributionChartProps {
@@ -16,9 +17,11 @@ const COLORS = [
 ];
 
 const RADIAN = Math.PI / 180;
+const SMALL_THRESHOLD = 5; // % - suppress labels below this
+const GROUP_THRESHOLD = 3; // % - group into "Outros" below this
 
 function renderCustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
-  if (percent < 0.10) return null; // Don't show label for small slices (<10%)
+  if (percent < SMALL_THRESHOLD / 100) return null;
   const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -30,6 +33,19 @@ function renderCustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent
 }
 
 export function ActivityDistributionChart({ data }: ActivityDistributionChartProps) {
+  // #9 - Group small slices into "Outros"
+  const processedData = useMemo(() => {
+    const main = data.filter(d => d.percent >= GROUP_THRESHOLD);
+    const small = data.filter(d => d.percent < GROUP_THRESHOLD);
+    if (small.length <= 1) return data;
+    const othersHours = small.reduce((s, d) => s + d.hours, 0);
+    const othersPercent = small.reduce((s, d) => s + d.percent, 0);
+    return [
+      ...main,
+      { type: `Outros (${small.length})`, hours: Math.round(othersHours * 100) / 100, percent: Math.round(othersPercent * 10) / 10 },
+    ];
+  }, [data]);
+
   if (data.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-8">Sem dados de atividades disponíveis.</p>;
   }
@@ -40,7 +56,8 @@ export function ActivityDistributionChart({ data }: ActivityDistributionChartPro
       return (
         <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
           <p className="text-sm font-medium text-foreground">{d.type}</p>
-          <p className="text-sm text-primary font-semibold">{d.hours.toFixed(1)}h ({d.percent.toFixed(0)}%)</p>
+          <p className="text-sm text-primary font-semibold">{d.hours.toFixed(1)}h</p>
+          <p className="text-xs text-muted-foreground">{d.percent.toFixed(1)}% do total</p>
         </div>
       );
     }
@@ -52,7 +69,7 @@ export function ActivityDistributionChart({ data }: ActivityDistributionChartPro
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
-            data={data}
+            data={processedData}
             cx="50%"
             cy="45%"
             innerRadius={70}
@@ -63,7 +80,7 @@ export function ActivityDistributionChart({ data }: ActivityDistributionChartPro
             label={renderCustomLabel}
             labelLine={false}
           >
-            {data.map((_, i) => (
+            {processedData.map((_, i) => (
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
             ))}
           </Pie>
@@ -72,8 +89,8 @@ export function ActivityDistributionChart({ data }: ActivityDistributionChartPro
             layout="horizontal"
             verticalAlign="bottom"
             align="center"
-            formatter={(value: string, entry: any) => {
-              const item = data.find(d => d.type === value);
+            formatter={(value: string) => {
+              const item = processedData.find(d => d.type === value);
               return (
                 <span className="text-sm text-foreground">
                   {value} {item ? `(${item.percent.toFixed(0)}%)` : ''}

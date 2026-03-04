@@ -6,6 +6,7 @@ interface KPICardProps {
   title: string;
   value: string | number;
   subtitle?: string;
+  subtitleClassName?: string;
   variation?: string;
   variationPercent?: number | null;
   icon?: React.ReactNode;
@@ -13,13 +14,16 @@ interface KPICardProps {
   delay?: number;
   promoted?: boolean;
   tooltipText?: string;
-  valueClassName?: string; // custom color class for value
+  valueClassName?: string;
+  extraLine?: string;
+  extraLineClassName?: string;
 }
 
 export function KPICard({ 
   title, 
   value, 
   subtitle,
+  subtitleClassName,
   variation,
   variationPercent,
   icon,
@@ -28,6 +32,8 @@ export function KPICard({
   promoted = false,
   tooltipText,
   valueClassName,
+  extraLine,
+  extraLineClassName,
 }: KPICardProps) {
   const hasVariation = variationPercent !== undefined && variationPercent !== null;
 
@@ -83,9 +89,19 @@ export function KPICard({
           {subtitle && (
             <p className={cn(
               "text-sm",
-              variant === "accent" ? "text-primary-foreground/70" : "text-muted-foreground"
+              subtitleClassName
+                ? subtitleClassName
+                : variant === "accent" ? "text-primary-foreground/70" : "text-muted-foreground"
             )}>
               {subtitle}
+            </p>
+          )}
+          {extraLine && (
+            <p className={cn(
+              "text-xs font-medium",
+              extraLineClassName || (variant === "accent" ? "text-primary-foreground/60" : "text-muted-foreground/80")
+            )}>
+              {extraLine}
             </p>
           )}
           {hasVariation && (
