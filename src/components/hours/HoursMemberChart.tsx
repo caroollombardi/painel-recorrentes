@@ -11,7 +11,7 @@ export function HoursMemberChart({ data }: HoursMemberChartProps) {
   const DEFAULT_LIMIT = 10;
 
   const chartData = data.map(m => ({
-    name: m.name.length > 22 ? m.name.substring(0, 22) + "…" : m.name,
+    name: m.name,
     fullName: m.name,
     horas: m.totalHours,
     projects: m.projects.length,
@@ -40,7 +40,7 @@ export function HoursMemberChart({ data }: HoursMemberChartProps) {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={visibleData} layout="vertical" margin={{ top: 10, right: 30, left: 120, bottom: 10 }}>
             <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-            <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} width={115} />
+            <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} width={160} tick={{ fontSize: 11, width: 155 }} />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.5)" }} />
             <Bar dataKey="horas" radius={[0, 4, 4, 0]} maxBarSize={20} fill="hsl(var(--primary))">
               {visibleData.map((_, i) => (

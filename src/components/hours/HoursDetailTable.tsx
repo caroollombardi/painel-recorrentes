@@ -39,7 +39,7 @@ export function HoursDetailTable({ data, totalHours }: HoursDetailTableProps) {
               <TableHead className="text-muted-foreground font-semibold text-center">Projeto/Cliente</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">Horas Lançadas</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-center">% do Total</TableHead>
-              <TableHead className="text-muted-foreground font-semibold text-center">Tipo de Atividade</TableHead>
+              
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -73,7 +73,6 @@ export function HoursDetailTable({ data, totalHours }: HoursDetailTableProps) {
                         <span className="text-xs text-muted-foreground font-medium">{member.percentOfTotal.toFixed(0)}%</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center text-muted-foreground">—</TableCell>
                   </TableRow>
 
                   {isExpanded && member.projects.map(proj => {

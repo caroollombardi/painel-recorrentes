@@ -45,6 +45,17 @@ export function DailyHoursChart({ data, dailyTarget = 6 }: DailyHoursChartProps)
           <Area type="monotone" dataKey="hours" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#hoursGradient)" />
         </AreaChart>
       </ResponsiveContainer>
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-6 mt-3">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "hsl(var(--primary))" }} />
+          <span className="text-xs text-muted-foreground">Horas lançadas</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-6 border-t-2 border-dashed" style={{ borderColor: "hsl(var(--muted-foreground))" }} />
+          <span className="text-xs text-muted-foreground">Meta diária</span>
+        </div>
+      </div>
     </div>
   );
 }
