@@ -142,25 +142,30 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
                           <TableCell className="text-right text-muted-foreground">{proj.hours.toFixed(1)}h</TableCell>
                           {individualTarget !== undefined && <TableCell></TableCell>}
                           <TableCell className="text-center">
-                            {proj.dates && proj.dates.length > 0 ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-help">
-                                    <Calendar className="w-3 h-3" />
-                                    <span>
-                                      {proj.dates.length === 1
-                                        ? format(parseISO(proj.dates[0]), "dd/MM", { locale: ptBR })
-                                        : `${format(parseISO(proj.dates[0]), "dd/MM", { locale: ptBR })} — ${format(parseISO(proj.dates[proj.dates.length - 1]), "dd/MM", { locale: ptBR })}`}
-                                    </span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="text-xs max-w-xs">
-                                  {proj.dates.map(d => format(parseISO(d), "dd/MM/yyyy (EEE)", { locale: ptBR })).join(", ")}
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
+                            <div className="flex flex-col items-center gap-0.5">
+                              {proj.dates && proj.dates.length > 0 ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="inline-flex items-center gap-1 text-xs text-foreground font-medium cursor-help">
+                                      <Calendar className="w-3 h-3 text-primary" />
+                                      <span>
+                                        {proj.dates.length === 1
+                                          ? format(parseISO(proj.dates[0]), "dd/MM/yyyy", { locale: ptBR })
+                                          : `${format(parseISO(proj.dates[0]), "dd/MM", { locale: ptBR })} — ${format(parseISO(proj.dates[proj.dates.length - 1]), "dd/MM", { locale: ptBR })}`}
+                                      </span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="text-xs max-w-xs">
+                                    Datas: {proj.dates.map(d => format(parseISO(d), "dd/MM/yyyy (EEE)", { locale: ptBR })).join(", ")}
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                              {proj.activityType && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{proj.activityType}</span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <span className="text-xs text-muted-foreground">{pct.toFixed(0)}%</span>
