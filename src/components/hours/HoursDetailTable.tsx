@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, User, FolderOpen, TrendingUp, TrendingDown, CircleAlert, CircleCheck, Circle } from "lucide-react";
+import { ChevronDown, ChevronRight, User, FolderOpen, TrendingUp, TrendingDown, CircleAlert, CircleCheck, Circle, Calendar } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -140,8 +142,22 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
                           <TableCell className="text-right text-muted-foreground">{proj.hours.toFixed(1)}h</TableCell>
                           {individualTarget !== undefined && <TableCell></TableCell>}
                           <TableCell className="text-center">
-                            {proj.activityType ? (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">{proj.activityType}</span>
+                            {proj.dates && proj.dates.length > 0 ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-help">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>
+                                      {proj.dates.length === 1
+                                        ? format(parseISO(proj.dates[0]), "dd/MM", { locale: ptBR })
+                                        : `${format(parseISO(proj.dates[0]), "dd/MM", { locale: ptBR })} — ${format(parseISO(proj.dates[proj.dates.length - 1]), "dd/MM", { locale: ptBR })}`}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs max-w-xs">
+                                  {proj.dates.map(d => format(parseISO(d), "dd/MM/yyyy (EEE)", { locale: ptBR })).join(", ")}
+                                </TooltipContent>
+                              </Tooltip>
                             ) : (
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
