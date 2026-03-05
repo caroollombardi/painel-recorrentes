@@ -12,7 +12,7 @@ import { HoursCSVImport } from "@/components/hours/HoursCSVImport";
 import { HoursExecutiveSummary } from "@/components/hours/HoursExecutiveSummary";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { getMonthProgress } from "@/lib/month-progress";
-import { DAILY_TARGET_HOURS, DAILY_ALERT_THRESHOLD, TARGET_MEMBER_COUNT } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, DAILY_ALERT_THRESHOLD, TARGET_MEMBER_COUNT, getMemberDailyTarget } from "@/lib/hours-constants";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -163,9 +163,12 @@ export default function HoursDashboard() {
 
   // #10 - Quick filter: below target members
   const belowTargetMembers = useMemo(() => {
-    if (!dashboardData || individualTargetForPeriod <= 0) return [];
-    return dashboardData.memberSummaries.filter(m => m.totalHours < individualTargetForPeriod);
-  }, [dashboardData, individualTargetForPeriod]);
+    if (!dashboardData || businessDaysElapsed <= 0) return [];
+    return dashboardData.memberSummaries.filter(m => {
+      const memberTarget = businessDaysElapsed * getMemberDailyTarget(m.name);
+      return m.totalHours < memberTarget;
+    });
+  }, [dashboardData, businessDaysElapsed]);
 
   const [showBelowTargetOnly, setShowBelowTargetOnly] = useState(false);
 
@@ -449,7 +452,7 @@ export default function HoursDashboard() {
                 </p>
               </div>
               <HoursMemberChart
-                data={showBelowTargetOnly ? dashboardData.memberSummaries.filter(m => m.totalHours < individualTargetForPeriod) : dashboardData.memberSummaries}
+                data={showBelowTargetOnly ? belowTargetMembers : dashboardData.memberSummaries}
                 individualTarget={individualTargetForPeriod}
                 businessDaysElapsed={businessDaysElapsed}
                 dailyTargetHours={DAILY_TARGET_HOURS}
@@ -472,7 +475,7 @@ export default function HoursDashboard() {
                 </div>
               </div>
               <HoursDetailTable
-                data={showBelowTargetOnly ? dashboardData.memberSummaries.filter(m => m.totalHours < individualTargetForPeriod) : dashboardData.memberSummaries}
+                data={showBelowTargetOnly ? belowTargetMembers : dashboardData.memberSummaries}
                 totalHours={dashboardData.totalHours}
                 individualTarget={individualTargetForPeriod}
                 businessDaysElapsed={businessDaysElapsed}
