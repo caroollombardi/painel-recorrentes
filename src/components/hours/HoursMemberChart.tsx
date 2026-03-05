@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 import { MemberSummary } from "@/hooks/use-hours-data";
+import { getMemberDailyTarget } from "@/lib/hours-constants";
 
 interface HoursMemberChartProps {
   data: MemberSummary[];
@@ -13,13 +14,17 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
   const [expanded, setExpanded] = useState(false);
   const DEFAULT_LIMIT = 10;
 
-  const chartData = data.map(m => ({
-    name: m.name,
-    fullName: m.name,
-    horas: m.totalHours,
-    projects: m.projects.length,
-    aboveMeta: individualTarget ? m.totalHours >= individualTarget : true,
-  }));
+  const chartData = data.map(m => {
+    const memberTarget = businessDaysElapsed > 0 ? businessDaysElapsed * getMemberDailyTarget(m.name) : individualTarget;
+    return {
+      name: m.name,
+      fullName: m.name,
+      horas: m.totalHours,
+      projects: m.projects.length,
+      aboveMeta: memberTarget ? m.totalHours >= memberTarget : true,
+      memberTarget,
+    };
+  });
 
   const visibleData = expanded ? chartData : chartData.slice(0, DEFAULT_LIMIT);
   const barHeight = 32;
@@ -32,7 +37,7 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload?.length) {
       const d = payload[0].payload;
-      const diff = individualTarget ? d.horas - individualTarget : null;
+      const diff = d.memberTarget ? d.horas - d.memberTarget : null;
       return (
         <div className="bg-card border border-border rounded-lg p-4 shadow-lg">
           <p className="font-display font-semibold text-foreground mb-1">{d.fullName}</p>
@@ -61,7 +66,7 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
                 x={individualTarget}
                 stroke="#6B7280"
                 strokeDasharray="5 5"
-                label={{ value: targetLabel, position: "top", fontSize: 10, fill: "#6B7280" }}
+                label={{ value: `Meta padrão: ${individualTarget.toFixed(0)}h (${dailyTargetHours}h × ${businessDaysElapsed} dias)`, position: "top", fontSize: 10, fill: "#6B7280" }}
               />
             )}
             <Bar dataKey="horas" radius={[0, 4, 4, 0]} maxBarSize={20}>
@@ -92,7 +97,7 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
         {individualTarget && individualTarget > 0 && (
           <div className="flex items-center gap-2">
             <div className="w-6 border-t-2 border-dashed" style={{ borderColor: "#6B7280" }} />
-            <span className="text-xs text-muted-foreground">Meta individual ({individualTarget.toFixed(0)}h — {dailyTargetHours}h × {businessDaysElapsed} dias)</span>
+            <span className="text-xs text-muted-foreground">Meta padrão ({individualTarget.toFixed(0)}h — {dailyTargetHours}h × {businessDaysElapsed} dias). Metas individuais podem variar.</span>
           </div>
         )}
       </div>

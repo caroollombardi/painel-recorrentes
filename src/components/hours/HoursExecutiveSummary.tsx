@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { ChevronDown, ChevronUp, FileText, AlertTriangle } from "lucide-react";
 import { HoursDashboardData } from "@/hooks/use-hours-data";
-import { DAILY_TARGET_HOURS } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, getMemberDailyTarget } from "@/lib/hours-constants";
 import { cn } from "@/lib/utils";
 
 interface HoursExecutiveSummaryProps {
@@ -65,19 +65,24 @@ export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget 
 
   // #11 - Members furthest from target
   const membersBelow = useMemo(() => {
-    if (individualTargetForPeriod <= 0) return [];
+    if (data.businessDaysElapsed <= 0) return [];
     return data.memberSummaries
-      .map(m => ({
-        name: m.name,
-        diff: m.totalHours - individualTargetForPeriod,
-        needed: businessDaysRemaining > 0
-          ? (individualTargetForPeriod + (data.businessDaysInMonth - data.businessDaysElapsed) * DAILY_TARGET_HOURS - m.totalHours) / businessDaysRemaining
-          : 0,
-      }))
+      .map(m => {
+        const memberDailyTarget = getMemberDailyTarget(m.name);
+        const memberTargetForPeriod = data.businessDaysElapsed * memberDailyTarget;
+        const totalTargetMonth = data.businessDaysInMonth * memberDailyTarget;
+        return {
+          name: m.name,
+          diff: m.totalHours - memberTargetForPeriod,
+          needed: businessDaysRemaining > 0
+            ? (totalTargetMonth - m.totalHours) / businessDaysRemaining
+            : 0,
+        };
+      })
       .filter(m => m.diff < 0)
       .sort((a, b) => a.diff - b.diff)
       .slice(0, 3);
-  }, [data.memberSummaries, individualTargetForPeriod, businessDaysRemaining, data.businessDaysInMonth, data.businessDaysElapsed]);
+  }, [data.memberSummaries, data.businessDaysElapsed, data.businessDaysInMonth, businessDaysRemaining]);
 
   if (membersBelow.length > 0) {
     alerts.push(`Os ${membersBelow.length} membros mais distantes da meta: ${membersBelow.map(m => `${m.name} (${m.diff.toFixed(1)}h, precisa de ${m.needed.toFixed(1)}h/dia)`).join("; ")}.`);

@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { MemberSummary } from "@/hooks/use-hours-data";
 import { cn } from "@/lib/utils";
-import { DAILY_TARGET_HOURS } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, getMemberDailyTarget } from "@/lib/hours-constants";
 
 interface HoursDetailTableProps {
   data: MemberSummary[];
@@ -36,18 +36,26 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
     );
   }
 
+  // Per-member individual target (supports custom daily targets like Laura 3.5h)
+  const getMemberTarget = (memberName: string) => {
+    if (!businessDaysElapsed || businessDaysElapsed <= 0) return individualTarget;
+    return businessDaysElapsed * getMemberDailyTarget(memberName);
+  };
+
   // Pace indicator for a member
-  const getPaceIcon = (memberHours: number) => {
-    if (!individualTarget || individualTarget <= 0) return null;
-    const ratio = memberHours / individualTarget;
+  const getPaceIcon = (memberHours: number, memberName: string) => {
+    const target = getMemberTarget(memberName);
+    if (!target || target <= 0) return null;
+    const ratio = memberHours / target;
     if (ratio >= 1) return <CircleCheck className="w-4 h-4 text-emerald-500" />;
     if (ratio >= 0.7) return <Circle className="w-4 h-4 text-amber-500" />;
     return <CircleAlert className="w-4 h-4 text-destructive" />;
   };
 
-  const getPaceLabel = (memberHours: number) => {
-    if (!individualTarget || individualTarget <= 0) return "";
-    const ratio = memberHours / individualTarget;
+  const getPaceLabel = (memberHours: number, memberName: string) => {
+    const target = getMemberTarget(memberName);
+    if (!target || target <= 0) return "";
+    const ratio = memberHours / target;
     if (ratio >= 1) return "No ritmo";
     if (ratio >= 0.7) return "Atenção";
     return "Atrasado";
@@ -73,8 +81,10 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
             <TableBody>
               {data.map(member => {
                 const isExpanded = expanded.has(member.name);
-                const diff = individualTarget !== undefined && individualTarget > 0 ? member.totalHours - individualTarget : null;
-                const diffPercent = individualTarget && individualTarget > 0 ? ((member.totalHours - individualTarget) / individualTarget) * 100 : null;
+                const memberTarget = getMemberTarget(member.name);
+                const memberDailyTargetVal = getMemberDailyTarget(member.name);
+                const diff = memberTarget !== undefined && memberTarget > 0 ? member.totalHours - memberTarget : null;
+                const diffPercent = memberTarget && memberTarget > 0 ? ((member.totalHours - memberTarget) / memberTarget) * 100 : null;
                 return (
                   <React.Fragment key={member.name}>
                     <TableRow
@@ -109,15 +119,15 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-xs max-w-xs">
-                              Meta individual: {individualTarget?.toFixed(0)}h ({businessDaysElapsed} dias × {dailyTargetHours}h). Lançado: {member.totalHours.toFixed(1)}h.
+                              Meta individual: {memberTarget?.toFixed(0)}h ({businessDaysElapsed} dias × {memberDailyTargetVal}h). Lançado: {member.totalHours.toFixed(1)}h.
                             </TooltipContent>
                           </Tooltip>
                         </TableCell>
                       )}
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1.5">
-                          {getPaceIcon(member.totalHours)}
-                          <span className="text-xs text-muted-foreground">{getPaceLabel(member.totalHours)}</span>
+                          {getPaceIcon(member.totalHours, member.name)}
+                          <span className="text-xs text-muted-foreground">{getPaceLabel(member.totalHours, member.name)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
