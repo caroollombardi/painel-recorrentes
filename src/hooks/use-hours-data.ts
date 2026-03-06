@@ -1,12 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { EXCLUDED_MEMBERS } from "@/lib/hours-constants";
-
-function isExcludedMember(name: string): boolean {
-  const lower = name.toLowerCase();
-  return EXCLUDED_MEMBERS.some(ex => lower.includes(ex.toLowerCase()));
-}
+import { EXCLUDED_MEMBERS, isExcludedMember } from "@/lib/hours-constants";
 
 export interface TimeEntry {
   id: string;
