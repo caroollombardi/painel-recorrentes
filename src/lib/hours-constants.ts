@@ -13,6 +13,12 @@ export const EXCLUDED_MEMBERS = [
   "Carol",
 ];
 
+/** Verifica se um membro é excluído da meta */
+export function isExcludedMember(name: string): boolean {
+  const lower = name.toLowerCase();
+  return EXCLUDED_MEMBERS.some(ex => lower.includes(ex.toLowerCase()));
+}
+
 /** Número fixo de membros considerados para a meta */
 export const TARGET_MEMBER_COUNT = 8;
 

@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { MemberSummary } from "@/hooks/use-hours-data";
 import { cn } from "@/lib/utils";
-import { DAILY_TARGET_HOURS, getMemberDailyTarget } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
 
 interface HoursDetailTableProps {
   data: MemberSummary[];
@@ -44,6 +44,7 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
 
   // Pace indicator for a member
   const getPaceIcon = (memberHours: number, memberName: string) => {
+    if (isExcludedMember(memberName)) return <Circle className="w-4 h-4 text-muted-foreground/50" />;
     const target = getMemberTarget(memberName);
     if (!target || target <= 0) return null;
     const ratio = memberHours / target;
@@ -53,6 +54,7 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
   };
 
   const getPaceLabel = (memberHours: number, memberName: string) => {
+    if (isExcludedMember(memberName)) return "Sem meta";
     const target = getMemberTarget(memberName);
     if (!target || target <= 0) return "";
     const ratio = memberHours / target;
@@ -81,10 +83,11 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
             <TableBody>
               {data.map(member => {
                 const isExpanded = expanded.has(member.name);
-                const memberTarget = getMemberTarget(member.name);
-                const memberDailyTargetVal = getMemberDailyTarget(member.name);
-                const diff = memberTarget !== undefined && memberTarget > 0 ? member.totalHours - memberTarget : null;
-                const diffPercent = memberTarget && memberTarget > 0 ? ((member.totalHours - memberTarget) / memberTarget) * 100 : null;
+                const excluded = isExcludedMember(member.name);
+                const memberTarget = excluded ? undefined : getMemberTarget(member.name);
+                const memberDailyTargetVal = excluded ? 0 : getMemberDailyTarget(member.name);
+                const diff = !excluded && memberTarget !== undefined && memberTarget > 0 ? member.totalHours - memberTarget : null;
+                const diffPercent = !excluded && memberTarget && memberTarget > 0 ? ((member.totalHours - memberTarget) / memberTarget) * 100 : null;
                 return (
                   <React.Fragment key={member.name}>
                     <TableRow

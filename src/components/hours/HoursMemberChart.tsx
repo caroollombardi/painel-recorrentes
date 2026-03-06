@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 import { MemberSummary } from "@/hooks/use-hours-data";
-import { getMemberDailyTarget } from "@/lib/hours-constants";
+import { getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
 
 interface HoursMemberChartProps {
   data: MemberSummary[];
@@ -15,14 +15,16 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
   const DEFAULT_LIMIT = 10;
 
   const chartData = data.map(m => {
-    const memberTarget = businessDaysElapsed > 0 ? businessDaysElapsed * getMemberDailyTarget(m.name) : individualTarget;
+    const excluded = isExcludedMember(m.name);
+    const memberTarget = excluded ? undefined : (businessDaysElapsed > 0 ? businessDaysElapsed * getMemberDailyTarget(m.name) : individualTarget);
     return {
       name: m.name,
       fullName: m.name,
       horas: m.totalHours,
       projects: m.projects.length,
-      aboveMeta: memberTarget ? m.totalHours >= memberTarget : true,
+      aboveMeta: excluded ? true : (memberTarget ? m.totalHours >= memberTarget : true),
       memberTarget,
+      excluded,
     };
   });
 
