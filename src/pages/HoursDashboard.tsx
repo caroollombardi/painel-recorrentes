@@ -164,7 +164,8 @@ export default function HoursDashboard() {
   // #10 - Quick filter: below target members
   const belowTargetMembers = useMemo(() => {
     if (!dashboardData || businessDaysElapsed <= 0) return [];
-    return dashboardData.memberSummaries.filter(m => {
+   return dashboardData.memberSummaries.filter(m => {
+      if (isExcludedMember(m.name)) return false;
       const memberTarget = businessDaysElapsed * getMemberDailyTarget(m.name);
       return m.totalHours < memberTarget;
     });
