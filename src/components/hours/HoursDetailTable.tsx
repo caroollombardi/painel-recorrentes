@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { MemberSummary } from "@/hooks/use-hours-data";
 import { cn } from "@/lib/utils";
-import { DAILY_TARGET_HOURS, getMemberDailyTarget } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
 
 interface HoursDetailTableProps {
   data: MemberSummary[];
