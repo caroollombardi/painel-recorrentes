@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { ChevronDown, ChevronUp, FileText, AlertTriangle } from "lucide-react";
 import { HoursDashboardData } from "@/hooks/use-hours-data";
-import { DAILY_TARGET_HOURS, getMemberDailyTarget } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
 import { cn } from "@/lib/utils";
 
 interface HoursExecutiveSummaryProps {
