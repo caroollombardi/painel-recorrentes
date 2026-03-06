@@ -67,6 +67,7 @@ export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget 
   const membersBelow = useMemo(() => {
     if (data.businessDaysElapsed <= 0) return [];
     return data.memberSummaries
+      .filter(m => !isExcludedMember(m.name))
       .map(m => {
         const memberDailyTarget = getMemberDailyTarget(m.name);
         const memberTargetForPeriod = data.businessDaysElapsed * memberDailyTarget;

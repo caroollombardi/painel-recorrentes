@@ -12,7 +12,7 @@ import { HoursCSVImport } from "@/components/hours/HoursCSVImport";
 import { HoursExecutiveSummary } from "@/components/hours/HoursExecutiveSummary";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { getMonthProgress } from "@/lib/month-progress";
-import { DAILY_TARGET_HOURS, DAILY_ALERT_THRESHOLD, TARGET_MEMBER_COUNT, getMemberDailyTarget } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, DAILY_ALERT_THRESHOLD, TARGET_MEMBER_COUNT, getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
