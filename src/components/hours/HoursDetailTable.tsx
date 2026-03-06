@@ -44,6 +44,7 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
 
   // Pace indicator for a member
   const getPaceIcon = (memberHours: number, memberName: string) => {
+    if (isExcludedMember(memberName)) return <Circle className="w-4 h-4 text-muted-foreground/50" />;
     const target = getMemberTarget(memberName);
     if (!target || target <= 0) return null;
     const ratio = memberHours / target;
@@ -53,6 +54,7 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
   };
 
   const getPaceLabel = (memberHours: number, memberName: string) => {
+    if (isExcludedMember(memberName)) return "Sem meta";
     const target = getMemberTarget(memberName);
     if (!target || target <= 0) return "";
     const ratio = memberHours / target;
