@@ -81,10 +81,11 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
             <TableBody>
               {data.map(member => {
                 const isExpanded = expanded.has(member.name);
-                const memberTarget = getMemberTarget(member.name);
-                const memberDailyTargetVal = getMemberDailyTarget(member.name);
-                const diff = memberTarget !== undefined && memberTarget > 0 ? member.totalHours - memberTarget : null;
-                const diffPercent = memberTarget && memberTarget > 0 ? ((member.totalHours - memberTarget) / memberTarget) * 100 : null;
+                const excluded = isExcludedMember(member.name);
+                const memberTarget = excluded ? undefined : getMemberTarget(member.name);
+                const memberDailyTargetVal = excluded ? 0 : getMemberDailyTarget(member.name);
+                const diff = !excluded && memberTarget !== undefined && memberTarget > 0 ? member.totalHours - memberTarget : null;
+                const diffPercent = !excluded && memberTarget && memberTarget > 0 ? ((member.totalHours - memberTarget) / memberTarget) * 100 : null;
                 return (
                   <React.Fragment key={member.name}>
                     <TableRow
