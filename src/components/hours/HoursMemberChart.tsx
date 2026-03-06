@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 import { MemberSummary } from "@/hooks/use-hours-data";
-import { getMemberDailyTarget } from "@/lib/hours-constants";
+import { getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
 
 interface HoursMemberChartProps {
   data: MemberSummary[];
