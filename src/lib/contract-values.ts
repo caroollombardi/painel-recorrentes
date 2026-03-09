@@ -30,6 +30,7 @@ export const contractValues: ContractValue[] = [
   { cliente: "KPEX São Carlos", valorMensalPago: 1100.00, valorMensalCredito: 2200.00 },
   { cliente: "KPEX Ribeirão Preto", valorMensalPago: 1100.00, valorMensalCredito: 2200.00 },
   { cliente: "KPEX Louveira", valorMensalPago: 1100.00, valorMensalCredito: 2200.00 },
+  { cliente: "DATA SOUL", valorMensalPago: 4900.00, valorMensalCredito: 9800.00 },
 ];
 
 // Create a map for quick lookup by client name (normalized)
