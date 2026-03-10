@@ -54,10 +54,17 @@ function getBusinessDaysInMonth(month: number, year: number): number {
   return businessDays;
 }
 
+/**
+ * Retorna dias úteis decorridos usando D-1 (ontem) para o mês corrente,
+ * pois as horas de hoje ainda não foram lançadas.
+ */
 function getBusinessDaysElapsed(month: number, year: number): number {
   const now = new Date();
   const isCurrentMonth = now.getMonth() === month && now.getFullYear() === year;
-  const lastDay = isCurrentMonth ? now.getDate() : new Date(year, month + 1, 0).getDate();
+  // D-1: para o mês corrente, considerar até ontem
+  const lastDay = isCurrentMonth
+    ? Math.max(now.getDate() - 1, 1)
+    : new Date(year, month + 1, 0).getDate();
   let businessDays = 0;
   for (let d = 1; d <= lastDay; d++) {
     const day = new Date(year, month, d).getDay();
