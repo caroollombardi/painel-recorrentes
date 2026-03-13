@@ -8,6 +8,7 @@ interface HoursCSVImportProps {
   onClose: () => void;
   selectedMonth: number;
   selectedYear: number;
+  embedded?: boolean;
 }
 
 const MONTH_NAMES = [
