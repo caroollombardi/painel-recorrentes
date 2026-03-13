@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Clock, Calendar, User, Target, FolderOpen, CheckCircle, Upload, BarChart3, AlertTriangle, Download, Filter } from "lucide-react";
+import { Clock, Calendar, User, Target, FolderOpen, CheckCircle, BarChart3, AlertTriangle, Download, Filter } from "lucide-react";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { MonthSelector } from "@/components/dashboard/MonthSelector";
 import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndicator";
@@ -8,7 +8,7 @@ import { HoursMemberChart } from "@/components/hours/HoursMemberChart";
 import { HoursDetailTable } from "@/components/hours/HoursDetailTable";
 import { DailyHoursChart } from "@/components/hours/DailyHoursChart";
 import { ActivityDistributionChart } from "@/components/hours/ActivityDistributionChart";
-import { HoursCSVImport } from "@/components/hours/HoursCSVImport";
+
 import { HoursExecutiveSummary } from "@/components/hours/HoursExecutiveSummary";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { getMonthProgress } from "@/lib/month-progress";
@@ -29,9 +29,9 @@ export default function HoursDashboard() {
   const [memberFilter, setMemberFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
   const [activityFilter, setActivityFilter] = useState("all");
-  const [showImport, setShowImport] = useState(false);
+  
 
-  const { dashboardData, isLoading, importCSV, previousMonthHours } = useHoursData(selectedMonth, selectedYear);
+  const { dashboardData, isLoading, previousMonthHours } = useHoursData(selectedMonth, selectedYear);
 
   const monthProgress = useMemo(() => getMonthProgress(), []);
 
@@ -64,10 +64,8 @@ export default function HoursDashboard() {
     return hoursVariation;
   }, [dashboardData, previousMonthHours, hoursVariation]);
 
-  const handleImport = async (csvText: string) => {
-    const success = await importCSV(csvText, selectedMonth, selectedYear);
-    if (success) setShowImport(false);
-  };
+
+
 
   const activeFilterCount = [memberFilter, projectFilter, activityFilter].filter(f => f !== "all").length;
 
@@ -401,10 +399,8 @@ export default function HoursDashboard() {
                 <Download className="w-4 h-4 mr-2" />
                 Exportar
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
-                <Upload className="w-4 h-4 mr-2" />
-                Importar CSV
-              </Button>
+
+
             </div>
           </div>
           {/* Result count & quick filter chips */}
@@ -430,15 +426,10 @@ export default function HoursDashboard() {
           )}
         </section>
 
-        {/* CSV Import Dialog */}
-        {showImport && (
-          <HoursCSVImport
-            onImport={handleImport}
-            onClose={() => setShowImport(false)}
-            selectedMonth={selectedMonth}
-            selectedYear={selectedYear}
-          />
-        )}
+
+
+
+
 
         {dashboardData ? (
           <>
@@ -511,13 +502,9 @@ export default function HoursDashboard() {
             <div className="space-y-2">
               <h2 className="text-xl font-display font-bold text-foreground">Nenhum dado encontrado</h2>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Importe uma planilha CSV clicando em "Importar Dados" para visualizar os dados do período.
+                Importe a planilha do Asana em "Atualizar Dados" para visualizar os dados do período.
               </p>
             </div>
-            <Button variant="outline" onClick={() => setShowImport(true)} className="mt-2">
-              <Upload className="w-4 h-4 mr-2" />
-              Importar Dados
-            </Button>
           </div>
         )}
       </main>
