@@ -1,12 +1,15 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Clock, Database, ArrowLeft, UsersRound, LogOut, Calendar } from "lucide-react";
+import { BarChart3, Clock, Database, ArrowLeft, UsersRound, LogOut, Calendar, FileText } from "lucide-react";
 import { FileUpload } from "@/components/dashboard/FileUpload";
+import { HoursCSVImport } from "@/components/hours/HoursCSVImport";
 import { parseXLSXData } from "@/lib/xlsx-parser";
 import { DashboardData } from "@/lib/data-parser";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
+import { useHoursData } from "@/hooks/use-hours-data";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import wsaLogo from "@/assets/wsa-logo.png";
 
 interface HomeProps {
@@ -14,44 +17,61 @@ interface HomeProps {
   hasData: boolean;
 }
 
+const MONTH_NAMES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+const MONTH_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
 export function Home({ onDataUpdate, hasData }: HomeProps) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { availableMonths } = useMonthlySnapshots();
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  
-  const MONTH_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+  // Hours import state
+  const now = new Date();
+  const [hoursMonth, setHoursMonth] = useState(now.getMonth());
+  const [hoursYear, setHoursYear] = useState(now.getFullYear());
+  const { importCSV } = useHoursData(hoursMonth, hoursYear);
+  const [lastHoursUpdate, setLastHoursUpdate] = useState<Date | null>(null);
 
   const handleFileSelect = useCallback(async (file: File) => {
     setIsProcessing(true);
-    
     try {
       const buffer = await file.arrayBuffer();
       const data = parseXLSXData(buffer);
-      
       onDataUpdate(data, file.name);
       setLastUpdate(new Date());
-      
-      // Small delay for UX feedback
       setTimeout(() => {
         setIsProcessing(false);
-        navigate('/');
       }, 800);
     } catch (error) {
       console.error('Error processing file:', error);
       setIsProcessing(false);
     }
-  }, [onDataUpdate, navigate]);
+  }, [onDataUpdate]);
+
+  const handleHoursImport = useCallback(async (csvText: string) => {
+    const success = await importCSV(csvText, hoursMonth, hoursYear);
+    if (success) {
+      setLastHoursUpdate(new Date());
+    }
+  }, [importCSV, hoursMonth, hoursYear]);
 
   const handleLogout = async () => {
     await signOut();
     navigate('/auth');
   };
 
+  // Generate year options
+  const yearOptions = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header with WSA Logo - left aligned */}
+      {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="container py-4">
           <div className="flex items-center justify-between">
@@ -96,43 +116,101 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
       </header>
 
       <main className="container py-12">
-        <div className="max-w-2xl mx-auto space-y-8">
+        <div className="max-w-3xl mx-auto space-y-8">
           {/* Title Section */}
           <div className="text-center space-y-3">
             <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight">
-              Análise <span style={{ color: '#FB7435' }}>Clientes Recorrentes</span>
+              Atualizar <span className="text-primary">Dados</span>
             </h1>
             <p className="text-muted-foreground text-lg">
-              Faça upload da planilha do Asana para atualizar o dashboard
+              Importe as planilhas para manter os dashboards atualizados
             </p>
           </div>
 
-          {/* Upload Card */}
-          <div className="bg-card rounded-xl border border-border p-8 shadow-sm">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Database className="w-5 h-5 text-primary" />
+          {/* Two upload sections side by side on larger screens */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Section 1: Recurring Clients */}
+            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Database className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Clientes Recorrentes
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Planilha do Asana (XLSX/CSV)
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">
-                  Atualizar Dados
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Importe a planilha exportada do Asana
+
+              <FileUpload 
+                onFileSelect={handleFileSelect}
+                isProcessing={isProcessing}
+              />
+
+              {lastUpdate && (
+                <p className="text-xs text-muted-foreground text-center mt-4">
+                  Atualizado: {lastUpdate.toLocaleString('pt-BR')}
                 </p>
-              </div>
+              )}
             </div>
 
-            <FileUpload 
-              onFileSelect={handleFileSelect}
-              isProcessing={isProcessing}
-            />
+            {/* Section 2: Hours */}
+            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <FileText className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Lançamento de Horas
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    CSV exportado do Asana
+                  </p>
+                </div>
+              </div>
 
-            {lastUpdate && (
-              <p className="text-xs text-muted-foreground text-center mt-4">
-                Última atualização: {lastUpdate.toLocaleString('pt-BR')}
-              </p>
-            )}
+              {/* Month/Year selector */}
+              <div className="flex items-center gap-2 mb-4">
+                <Select value={String(hoursMonth)} onValueChange={(v) => setHoursMonth(Number(v))}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTH_NAMES.map((name, i) => (
+                      <SelectItem key={i} value={String(i)}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={String(hoursYear)} onValueChange={(v) => setHoursYear(Number(v))}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearOptions.map(y => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <HoursCSVImport
+                onImport={handleHoursImport}
+                onClose={() => {}}
+                selectedMonth={hoursMonth}
+                selectedYear={hoursYear}
+                embedded
+              />
+
+              {lastHoursUpdate && (
+                <p className="text-xs text-muted-foreground text-center mt-4">
+                  Atualizado: {lastHoursUpdate.toLocaleString('pt-BR')}
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Available Historical Data */}
@@ -158,48 +236,12 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
             </div>
           )}
 
-          {/* Info Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-card rounded-lg border border-border p-5">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-muted">
-                  <BarChart3 className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-foreground">
-                    Visualização Automática
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Após o upload, todos os gráficos e métricas são atualizados automaticamente.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-card rounded-lg border border-border p-5">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-muted">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-foreground">
-                    Atualização Diária
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Recomendamos atualizar a planilha diariamente para manter os dados precisos.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Quick Access */}
           {hasData && (
             <div className="text-center">
               <button
                 onClick={() => navigate('/')}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium transition-transform hover:scale-105"
-                style={{ backgroundColor: '#FB7435' }}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-white font-medium transition-transform hover:scale-105 bg-primary"
               >
                 <BarChart3 className="w-5 h-5" />
                 ← Voltar ao Dashboard
