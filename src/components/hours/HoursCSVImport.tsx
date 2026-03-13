@@ -41,22 +41,26 @@ export function HoursCSVImport({ onImport, onClose, selectedMonth, selectedYear,
   };
 
   return (
-    <div className="bg-card rounded-lg border border-border p-6 shadow-sm animate-fade-in">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-primary" />
-          <h3 className="text-lg font-display font-semibold text-foreground">
-            Importar CSV — {MONTH_NAMES[selectedMonth]} {selectedYear}
-          </h3>
+    <div className={cn(embedded ? "" : "bg-card rounded-lg border border-border p-6 shadow-sm animate-fade-in")}>
+      {!embedded && (
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary" />
+            <h3 className="text-lg font-display font-semibold text-foreground">
+              Importar CSV — {MONTH_NAMES[selectedMonth]} {selectedYear}
+            </h3>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="w-4 h-4" />
+          </Button>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="w-4 h-4" />
-        </Button>
-      </div>
+      )}
 
-      <p className="text-sm text-muted-foreground mb-4">
-        Arraste um CSV exportado do Asana com as colunas: Nome da Tarefa, Responsável, Projeto, Data de Conclusão, Horas Lançadas, Cliente, Tipo de Atividade.
-      </p>
+      {!embedded && (
+        <p className="text-sm text-muted-foreground mb-4">
+          Arraste um CSV exportado do Asana com as colunas: Nome da Tarefa, Responsável, Projeto, Data de Conclusão, Horas Lançadas, Cliente, Tipo de Atividade.
+        </p>
+      )}
 
       <div
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
