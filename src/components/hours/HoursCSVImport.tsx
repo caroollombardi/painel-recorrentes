@@ -16,7 +16,7 @@ const MONTH_NAMES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-export function HoursCSVImport({ onImport, onClose, selectedMonth, selectedYear }: HoursCSVImportProps) {
+export function HoursCSVImport({ onImport, onClose, selectedMonth, selectedYear, embedded = false }: HoursCSVImportProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
