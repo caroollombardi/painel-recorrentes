@@ -401,10 +401,8 @@ export default function HoursDashboard() {
                 <Download className="w-4 h-4 mr-2" />
                 Exportar
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
-                <Upload className="w-4 h-4 mr-2" />
-                Importar CSV
-              </Button>
+
+
             </div>
           </div>
           {/* Result count & quick filter chips */}
