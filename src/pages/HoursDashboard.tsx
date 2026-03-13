@@ -31,7 +31,7 @@ export default function HoursDashboard() {
   const [activityFilter, setActivityFilter] = useState("all");
   
 
-  const { dashboardData, isLoading, importCSV, previousMonthHours } = useHoursData(selectedMonth, selectedYear);
+  const { dashboardData, isLoading, previousMonthHours } = useHoursData(selectedMonth, selectedYear);
 
   const monthProgress = useMemo(() => getMonthProgress(), []);
 
