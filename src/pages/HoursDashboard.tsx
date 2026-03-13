@@ -8,7 +8,7 @@ import { HoursMemberChart } from "@/components/hours/HoursMemberChart";
 import { HoursDetailTable } from "@/components/hours/HoursDetailTable";
 import { DailyHoursChart } from "@/components/hours/DailyHoursChart";
 import { ActivityDistributionChart } from "@/components/hours/ActivityDistributionChart";
-import { HoursCSVImport } from "@/components/hours/HoursCSVImport";
+
 import { HoursExecutiveSummary } from "@/components/hours/HoursExecutiveSummary";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { getMonthProgress } from "@/lib/month-progress";
