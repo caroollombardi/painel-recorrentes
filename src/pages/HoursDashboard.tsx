@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Clock, Calendar, User, Target, FolderOpen, CheckCircle, Upload, BarChart3, AlertTriangle, Download, Filter } from "lucide-react";
+import { Clock, Calendar, User, Target, FolderOpen, CheckCircle, BarChart3, AlertTriangle, Download, Filter } from "lucide-react";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { MonthSelector } from "@/components/dashboard/MonthSelector";
 import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndicator";
