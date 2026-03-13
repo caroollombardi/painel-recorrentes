@@ -502,13 +502,9 @@ export default function HoursDashboard() {
             <div className="space-y-2">
               <h2 className="text-xl font-display font-bold text-foreground">Nenhum dado encontrado</h2>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Importe uma planilha CSV clicando em "Importar Dados" para visualizar os dados do período.
+                Importe a planilha do Asana em "Atualizar Dados" para visualizar os dados do período.
               </p>
             </div>
-            <Button variant="outline" onClick={() => setShowImport(true)} className="mt-2">
-              <Upload className="w-4 h-4 mr-2" />
-              Importar Dados
-            </Button>
           </div>
         )}
       </main>
