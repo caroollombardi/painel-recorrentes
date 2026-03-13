@@ -428,14 +428,8 @@ export default function HoursDashboard() {
           )}
         </section>
 
-        {/* CSV Import Dialog */}
-        {showImport && (
-          <HoursCSVImport
-            onImport={handleImport}
-            onClose={() => setShowImport(false)}
-            selectedMonth={selectedMonth}
-            selectedYear={selectedYear}
-          />
+
+
         )}
 
         {dashboardData ? (
