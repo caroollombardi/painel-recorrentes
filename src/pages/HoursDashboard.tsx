@@ -29,7 +29,7 @@ export default function HoursDashboard() {
   const [memberFilter, setMemberFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
   const [activityFilter, setActivityFilter] = useState("all");
-  const [showImport, setShowImport] = useState(false);
+  
 
   const { dashboardData, isLoading, importCSV, previousMonthHours } = useHoursData(selectedMonth, selectedYear);
 
