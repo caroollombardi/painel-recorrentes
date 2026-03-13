@@ -64,10 +64,8 @@ export default function HoursDashboard() {
     return hoursVariation;
   }, [dashboardData, previousMonthHours, hoursVariation]);
 
-  const handleImport = async (csvText: string) => {
-    const success = await importCSV(csvText, selectedMonth, selectedYear);
-    if (success) setShowImport(false);
-  };
+
+
 
   const activeFilterCount = [memberFilter, projectFilter, activityFilter].filter(f => f !== "all").length;
 
