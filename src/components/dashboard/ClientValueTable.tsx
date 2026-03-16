@@ -242,7 +242,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                   const pctChange = ((client.horasMensal - prevHoras) / prevHoras) * 100;
                   if (Math.abs(pctChange) >= 0.5) {
                     return (
-                      <span className={cn("text-[10px] font-semibold", pctChange >= 0 ? "text-emerald-600" : "text-destructive")}>
+                      <span className={cn("text-[10px] font-semibold", pctChange >= 0 ? "text-success-foreground" : "text-destructive")}>
                         {pctChange >= 0 ? "↑" : "↓"}{Math.abs(pctChange).toFixed(0)}%
                       </span>
                     );
