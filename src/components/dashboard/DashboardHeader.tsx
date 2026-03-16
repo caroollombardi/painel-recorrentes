@@ -103,7 +103,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
               </div>
             )}
             {!isAdmin && canAccessMetas && (
-              <div className="hidden xl:flex items-center gap-1">
+              <div className="hidden 2xl:flex items-center gap-1">
                 <Button variant="ghost" size="sm" onClick={() => navigate("/settings")} className="text-muted-foreground hover:text-foreground">
                   <Settings className="w-4 h-4 mr-2" />
                   Configurações
