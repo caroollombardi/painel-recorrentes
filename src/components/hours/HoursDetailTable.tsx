@@ -48,8 +48,8 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
     const target = getMemberTarget(memberName);
     if (!target || target <= 0) return null;
     const ratio = memberHours / target;
-    if (ratio >= 1) return <CircleCheck className="w-4 h-4 text-emerald-500" />;
-    if (ratio >= 0.7) return <Circle className="w-4 h-4 text-amber-500" />;
+     if (ratio >= 1) return <CircleCheck className="w-4 h-4 text-success" />;
+    if (ratio >= 0.7) return <Circle className="w-4 h-4 text-warning" />;
     return <CircleAlert className="w-4 h-4 text-destructive" />;
   };
 
