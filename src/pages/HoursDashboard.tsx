@@ -332,14 +332,14 @@ export default function HoursDashboard() {
                 </Badge>
               )}
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-xs text-muted-foreground">Membro do Time</label>
               <select
                 value={memberFilter}
                 onChange={(e) => { setMemberFilter(e.target.value); setShowBelowTargetOnly(false); }}
                 className={cn(
-                  "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
-                  memberFilter !== "all" ? "border-[#F97316] bg-[#F97316]/5" : "border-border"
+                  "h-9 w-full sm:w-[200px] rounded-md border bg-background px-3 text-sm",
+                  memberFilter !== "all" ? "border-primary bg-primary/5" : "border-border"
                 )}
               >
                 <option value="all">Todos os membros</option>
