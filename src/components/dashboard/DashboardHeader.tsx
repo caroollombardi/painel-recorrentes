@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { UserProfileDropdown } from "@/components/dashboard/UserProfileDropdown";
+import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
 import wsaLogo from "@/assets/wsa-logo.png";
 
@@ -19,13 +21,14 @@ interface DashboardHeaderProps {
 }
 
 const tabs = [
-  { id: "recorrentes" as const, label: "Clientes Recorrentes", path: "/" },
-  { id: "horas" as const, label: "Lançamento de Horas", path: "/horas" },
+  { id: "recorrentes" as const, label: "Clientes Recorrentes", shortLabel: "Recorrentes", path: "/" },
+  { id: "horas" as const, label: "Lançamento de Horas", shortLabel: "Horas", path: "/horas" },
 ];
 
 export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onPresentationToggle }: DashboardHeaderProps) {
   const navigate = useNavigate();
   const { isAdmin, signOut, user, hasRole } = useAuth();
+  const { isDark, toggle: toggleTheme } = useTheme();
   const canAccessMetas = hasRole("socio") || hasRole("gestao");
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -37,7 +40,6 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
 
   const handleLogout = async () => { await signOut(); navigate("/auth"); };
 
-  // Admin action items for dropdown on small screens
   const adminActions = [];
   if (isAdmin) {
     adminActions.push({ label: "Atualizar Dados", icon: Upload, action: () => navigate("/admin") });
@@ -53,26 +55,27 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
     )}>
       <div className="container py-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 sm:gap-6 min-w-0">
             <img
               src={wsaLogo}
               alt="Wolff e Scripes Advogados"
-              className={cn("object-contain transition-all duration-300", isScrolled ? "h-7" : "h-10")}
+              className={cn("object-contain transition-all duration-300 shrink-0", isScrolled ? "h-7" : "h-8 sm:h-10")}
             />
             {/* Tabs */}
-            <nav className="flex items-center gap-1">
+            <nav className="flex items-center gap-1 min-w-0">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => navigate(tab.path)}
                   className={cn(
-                    "relative px-3 py-2 text-sm font-medium transition-colors rounded-md",
+                    "relative px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors rounded-md whitespace-nowrap",
                     activeTab === tab.id
                       ? "text-primary"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
-                  {tab.label}
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.shortLabel}</span>
                   {activeTab === tab.id && (
                     <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />
                   )}
@@ -81,7 +84,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
             </nav>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* Full buttons for wide screens */}
             {isAdmin && (
               <div className="hidden xl:flex items-center gap-1">
@@ -130,9 +133,9 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
             )}
 
             {onShowValuesChange && (
-              <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-lg">
+              <div className="flex items-center gap-2 bg-muted/50 px-2 sm:px-3 py-1.5 rounded-lg">
                 {showValues ? <Eye className="w-4 h-4 text-muted-foreground" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
-                <Label htmlFor="show-values" className="text-sm text-muted-foreground cursor-pointer hidden md:inline">
+                <Label htmlFor="show-values" className="text-sm text-muted-foreground cursor-pointer hidden lg:inline">
                   Exibir valores (R$)
                 </Label>
                 <Switch id="show-values" checked={showValues} onCheckedChange={onShowValuesChange} />
@@ -144,7 +147,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="sm" onClick={onPresentationToggle} className="text-muted-foreground hover:text-foreground">
-                      <Monitor className="w-4 h-4 mr-2" />
+                      <Monitor className="w-4 h-4 sm:mr-2" />
                       <span className="hidden md:inline">Modo TV</span>
                     </Button>
                   </TooltipTrigger>
@@ -155,6 +158,8 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
               </TooltipProvider>
             )}
 
+            <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
+
             <UserProfileDropdown email={user?.email || ""} onLogout={handleLogout} />
           </div>
         </div>
@@ -163,14 +168,14 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
           "overflow-hidden transition-all duration-300",
           isScrolled ? "max-h-0 opacity-0 mt-0" : "max-h-24 opacity-100 mt-3"
         )}>
-          <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold tracking-tight">
             {activeTab === "recorrentes" ? (
               <>Análise <span className="text-primary">Clientes Recorrentes</span></>
             ) : (
               <>Lançamento de <span className="text-primary">Horas</span></>
             )}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             {activeTab === "recorrentes"
               ? "Análise de horas e valores por advogado"
               : "Acompanhamento de horas lançadas pelo time"}

@@ -214,8 +214,8 @@ export function Dashboard({ data }: DashboardProps) {
         </section>
 
         {/* Filters */}
-        <section className="flex flex-wrap items-end gap-4 p-4 bg-card rounded-lg border border-border animate-fade-in">
-          <div className="flex items-center gap-2 text-muted-foreground">
+        <section className="flex flex-wrap items-end gap-3 sm:gap-4 p-4 bg-card rounded-lg border border-border animate-fade-in">
+          <div className="flex items-center gap-2 text-muted-foreground w-full sm:w-auto">
             <span className="text-sm font-medium">Filtros:</span>
             {activeFilterCount > 0 && (
               <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/20">
@@ -223,14 +223,14 @@ export function Dashboard({ data }: DashboardProps) {
               </Badge>
             )}
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full sm:w-auto">
             <label className="text-xs text-muted-foreground">Cliente Recorrente</label>
             <select
               value={selectedClient}
               onChange={(e) => setSelectedClient(e.target.value)}
               className={cn(
-                "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
-                selectedClient !== "all" ? "border-[#F97316] bg-[#F97316]/5" : "border-border"
+                "h-9 w-full sm:w-[200px] rounded-md border bg-background px-3 text-sm",
+                selectedClient !== "all" ? "border-primary bg-primary/5" : "border-border"
               )}
             >
               <option value="all">Todos os clientes</option>
