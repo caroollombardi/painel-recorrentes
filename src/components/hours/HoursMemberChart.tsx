@@ -45,7 +45,7 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
           <p className="font-display font-semibold text-foreground mb-1">{d.fullName}</p>
           <p className="text-sm text-muted-foreground">{d.horas.toFixed(1)}h • {d.projects} projeto{d.projects !== 1 ? "s" : ""}</p>
           {diff !== null && (
-            <p className={`text-sm font-semibold mt-1 ${diff >= 0 ? "text-emerald-600" : "text-destructive"}`}>
+            <p className={`text-sm font-semibold mt-1 ${diff >= 0 ? "text-success-foreground" : "text-destructive"}`}>
               {diff >= 0 ? "+" : ""}{diff.toFixed(1)}h vs. meta
             </p>
           )}
