@@ -108,11 +108,11 @@ export default function HoursDashboard() {
 
   // #1 - Progress bar risk color
   const progressRatio = expectedProgressPercent > 0 ? progressPercent / expectedProgressPercent : 1;
-  const progressBarColor = progressRatio >= 1 ? "bg-emerald-500" : progressRatio >= 0.7 ? "bg-amber-500" : "bg-destructive";
-  const progressBarTextColor = progressRatio >= 1 ? "text-emerald-600" : progressRatio >= 0.7 ? "text-amber-600" : "text-destructive";
+  const progressBarColor = progressRatio >= 1 ? "bg-success" : progressRatio >= 0.7 ? "bg-warning" : "bg-destructive";
+  const progressBarTextColor = progressRatio >= 1 ? "text-success-foreground" : progressRatio >= 0.7 ? "text-warning-foreground" : "text-destructive";
 
   // #2 - Total hours expected context
-  const expectedHoursColor = totalHoursLaunched >= hoursExpectedSoFar ? "text-emerald-600" : totalHoursLaunched >= hoursExpectedSoFar * 0.8 ? "text-amber-600" : "text-destructive";
+  const expectedHoursColor = totalHoursLaunched >= hoursExpectedSoFar ? "text-success-foreground" : totalHoursLaunched >= hoursExpectedSoFar * 0.8 ? "text-warning-foreground" : "text-destructive";
 
   // #4 - Horas restantes humanized
   const hoursRemainingFormatted = hoursRemaining.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
