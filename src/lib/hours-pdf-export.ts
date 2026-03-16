@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { HoursDashboardData } from "@/hooks/use-hours-data";
 import { DAILY_TARGET_HOURS, getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
+import wsaLogo from "@/assets/wsa-logo.png";
 
 const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -14,6 +15,16 @@ const MUTED_COLOR: [number, number, number] = [120, 120, 120];
 const SUCCESS_COLOR: [number, number, number] = [34, 139, 34];
 const DANGER_COLOR: [number, number, number] = [200, 40, 40];
 
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 interface ExportParams {
   data: HoursDashboardData;
   selectedMonth: number;
@@ -25,7 +36,7 @@ interface ExportParams {
   businessDaysRemaining: number;
 }
 
-export function exportHoursPDF(params: ExportParams) {
+export async function exportHoursPDF(params: ExportParams) {
   const {
     data,
     selectedMonth,
@@ -47,14 +58,23 @@ export function exportHoursPDF(params: ExportParams) {
   doc.setFillColor(...PRIMARY_COLOR);
   doc.rect(0, 0, pageWidth, 3, "F");
 
-  // Title
-  y = 18;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(...DARK_COLOR);
-  doc.text("Wolff e Scripes Advogados", margin, y);
+  // Logo
+  y = 12;
+  try {
+    const logoImg = await loadImage(wsaLogo);
+    const logoHeight = 12;
+    const logoWidth = logoHeight * (logoImg.width / logoImg.height);
+    doc.addImage(logoImg, "PNG", margin, y, logoWidth, logoHeight);
+    y += logoHeight + 4;
+  } catch {
+    // Fallback to text if image fails
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor(...DARK_COLOR);
+    doc.text("Wolff e Scripes Advogados", margin, y + 8);
+    y += 14;
+  }
 
-  y += 8;
   doc.setFontSize(13);
   doc.setTextColor(...PRIMARY_COLOR);
   doc.text("Relatório de Lançamento de Horas", margin, y);
