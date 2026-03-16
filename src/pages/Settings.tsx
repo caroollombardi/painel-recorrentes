@@ -331,7 +331,7 @@ export default function Settings() {
                   
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
+                      <Badge variant="outline" className="bg-risk/10 text-risk-foreground border-risk/20">
                         ⚠️ Risco
                       </Badge>
                     </Label>
