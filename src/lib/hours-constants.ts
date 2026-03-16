@@ -34,8 +34,8 @@ export const MEMBER_DAILY_TARGETS: Record<string, number> = {
  * Abatimentos de horas na meta por ausências (férias, folgas, etc).
  * Chave: "NomeMembro-YYYY-MM", Valor: horas a descontar da meta do período.
  */
-export const MEMBER_TARGET_ADJUSTMENTS: Record<string, number> = {
-  "Sabrina-2026-03": 6, // Férias dia 13/03
+export const MEMBER_TARGET_ADJUSTMENTS: Record<string, Record<string, number>> = {
+  "Sabrina": { "2026-03": 6 }, // Férias dia 13/03
 };
 
 /** Retorna a meta diária de um membro (customizada ou padrão) */
