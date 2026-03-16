@@ -6,7 +6,7 @@ interface RevenueProjectionProps {
   totalValorAtual: number;
   monthProgress: MonthProgress;
   previousMonthValor: number | null;
-  metaMensal: number | null; // from Metas 2026
+  metaMensal: number | null;
   showValues: boolean;
 }
 
@@ -20,7 +20,6 @@ export function RevenueProjection({
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
-  // Projeção = (valor atual / % mês decorrido) * 100
   const projected = monthProgress.percentElapsed > 0
     ? (totalValorAtual / (monthProgress.percentElapsed / 100))
     : totalValorAtual;
@@ -54,13 +53,13 @@ export function RevenueProjection({
           {projectedVariation !== null && (
             <div className="flex items-center gap-1.5">
               {projectedVariation >= 0 ? (
-                <TrendingUp className="w-4 h-4 text-emerald-600" />
+                <TrendingUp className="w-4 h-4 text-success-foreground" />
               ) : (
                 <TrendingDown className="w-4 h-4 text-destructive" />
               )}
               <span className={cn(
                 "text-sm font-semibold",
-                projectedVariation >= 0 ? "text-emerald-600" : "text-destructive"
+                projectedVariation >= 0 ? "text-success-foreground" : "text-destructive"
               )}>
                 {projectedVariation >= 0 ? "↑" : "↓"} {Math.abs(projectedVariation).toFixed(1)}%
               </span>
@@ -72,7 +71,7 @@ export function RevenueProjection({
             <div className="flex items-center gap-1.5 pl-4 border-l border-border">
               <span className={cn(
                 "text-sm font-semibold",
-                metaPercent >= 100 ? "text-emerald-600" : metaPercent >= 80 ? "text-amber-600" : "text-destructive"
+                metaPercent >= 100 ? "text-success-foreground" : metaPercent >= 80 ? "text-warning-foreground" : "text-destructive"
               )}>
                 {metaPercent.toFixed(0)}%
               </span>
