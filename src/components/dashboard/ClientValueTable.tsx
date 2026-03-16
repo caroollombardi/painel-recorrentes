@@ -212,7 +212,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
               )}
               <span translate="no" className={cn(
                 client.creditUsage?.isCritical && "text-destructive font-semibold",
-                client.creditUsage?.isWarning && !client.creditUsage?.isCritical && "text-amber-600 font-semibold"
+                client.creditUsage?.isWarning && !client.creditUsage?.isCritical && "text-warning-foreground font-semibold"
               )}>
                 {client.project}
               </span>
