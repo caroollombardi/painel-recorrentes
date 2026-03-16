@@ -311,7 +311,7 @@ export default function Settings() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                      <Badge variant="outline" className="bg-warning/10 text-warning-foreground border-warning/20">
                         🔔 Atenção
                       </Badge>
                     </Label>
