@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, User, FolderOpen, TrendingUp, TrendingDown, CircleAlert, CircleCheck, Circle, Calendar } from "lucide-react";
+import { ChevronDown, ChevronRight, User, FolderOpen, TrendingUp, TrendingDown, CircleAlert, CircleCheck, Circle, Calendar, FileText } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,11 +22,18 @@ interface HoursDetailTableProps {
 
 export function HoursDetailTable({ data, totalHours, individualTarget, businessDaysElapsed = 0, businessDaysRemaining = 0, dailyTargetHours = DAILY_TARGET_HOURS, month = new Date().getMonth(), year = new Date().getFullYear() }: HoursDetailTableProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
   const toggle = (name: string) => {
     const next = new Set(expanded);
     if (next.has(name)) next.delete(name); else next.add(name);
     setExpanded(next);
+  };
+
+  const toggleProject = (key: string) => {
+    const next = new Set(expandedProjects);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    setExpandedProjects(next);
   };
 
   if (data.length === 0) {
@@ -38,19 +45,17 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
     );
   }
 
-  // Per-member individual target (supports custom daily targets and adjustments)
   const getMemberTarget = (memberName: string) => {
     if (!businessDaysElapsed || businessDaysElapsed <= 0) return individualTarget;
     return getMemberPeriodTarget(memberName, businessDaysElapsed, month, year);
   };
 
-  // Pace indicator for a member
   const getPaceIcon = (memberHours: number, memberName: string) => {
     if (isExcludedMember(memberName)) return <Circle className="w-4 h-4 text-muted-foreground/50" />;
     const target = getMemberTarget(memberName);
     if (!target || target <= 0) return null;
     const ratio = memberHours / target;
-     if (ratio >= 1) return <CircleCheck className="w-4 h-4 text-success" />;
+    if (ratio >= 1) return <CircleCheck className="w-4 h-4 text-success" />;
     if (ratio >= 0.7) return <Circle className="w-4 h-4 text-warning" />;
     return <CircleAlert className="w-4 h-4 text-destructive" />;
   };
@@ -145,47 +150,92 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
 
                     {isExpanded && member.projects.map(proj => {
                       const pct = totalHours > 0 ? (proj.hours / totalHours) * 100 : 0;
+                      const projKey = `${member.name}::${proj.project}`;
+                      const isProjExpanded = expandedProjects.has(projKey);
+                      const hasTasks = proj.tasks && proj.tasks.length > 0;
                       return (
-                        <TableRow key={`${member.name}-${proj.project}`} className="bg-muted/20 border-border">
-                          <TableCell></TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2 pl-6 text-muted-foreground">
-                              <FolderOpen className="w-4 h-4" />
-                              <span className="font-medium text-foreground">{proj.project}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right text-muted-foreground">{proj.hours.toFixed(1)}h</TableCell>
-                          {individualTarget !== undefined && <TableCell></TableCell>}
-                          <TableCell className="text-center">
-                            <div className="flex flex-col items-center gap-0.5">
-                              {proj.dates && proj.dates.length > 0 ? (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div className="inline-flex items-center gap-1 text-xs text-foreground font-medium cursor-help">
-                                      <Calendar className="w-3 h-3 text-primary" />
-                                      <span>
-                                        {proj.dates.length === 1
-                                          ? format(parseISO(proj.dates[0]), "dd/MM/yyyy", { locale: ptBR })
-                                          : `${format(parseISO(proj.dates[0]), "dd/MM", { locale: ptBR })} — ${format(parseISO(proj.dates[proj.dates.length - 1]), "dd/MM", { locale: ptBR })}`}
-                                      </span>
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="text-xs max-w-xs">
-                                    Datas: {proj.dates.map(d => format(parseISO(d), "dd/MM/yyyy (EEE)", { locale: ptBR })).join(", ")}
-                                  </TooltipContent>
-                                </Tooltip>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
+                        <React.Fragment key={projKey}>
+                          <TableRow
+                            className={cn("bg-muted/20 border-border", hasTasks && "cursor-pointer hover:bg-muted/30")}
+                            onClick={() => hasTasks && toggleProject(projKey)}
+                          >
+                            <TableCell className="p-2 pl-4">
+                              {hasTasks && (
+                                isProjExpanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                               )}
-                              {proj.activityType && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{proj.activityType}</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="text-xs text-muted-foreground">{pct.toFixed(0)}%</span>
-                          </TableCell>
-                        </TableRow>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 pl-4 text-muted-foreground">
+                                <FolderOpen className="w-4 h-4" />
+                                <span className="font-medium text-foreground">{proj.project}</span>
+                                {hasTasks && (
+                                  <span className="text-[10px] text-muted-foreground">({proj.tasks.length} tarefa{proj.tasks.length !== 1 ? "s" : ""})</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">{proj.hours.toFixed(1)}h</TableCell>
+                            {individualTarget !== undefined && <TableCell></TableCell>}
+                            <TableCell className="text-center">
+                              <div className="flex flex-col items-center gap-0.5">
+                                {proj.dates && proj.dates.length > 0 ? (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="inline-flex items-center gap-1 text-xs text-foreground font-medium cursor-help">
+                                        <Calendar className="w-3 h-3 text-primary" />
+                                        <span>
+                                          {proj.dates.length === 1
+                                            ? format(parseISO(proj.dates[0]), "dd/MM/yyyy", { locale: ptBR })
+                                            : `${format(parseISO(proj.dates[0]), "dd/MM", { locale: ptBR })} — ${format(parseISO(proj.dates[proj.dates.length - 1]), "dd/MM", { locale: ptBR })}`}
+                                        </span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-xs max-w-xs">
+                                      Datas: {proj.dates.map(d => format(parseISO(d), "dd/MM/yyyy (EEE)", { locale: ptBR })).join(", ")}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                                {proj.activityType && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{proj.activityType}</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <span className="text-xs text-muted-foreground">{pct.toFixed(0)}%</span>
+                            </TableCell>
+                          </TableRow>
+
+                          {/* Task-level detail */}
+                          {isProjExpanded && proj.tasks.map((task, idx) => (
+                            <TableRow key={`${projKey}-task-${idx}`} className="bg-muted/10 border-border/50">
+                              <TableCell></TableCell>
+                              <TableCell>
+                                <div className="flex items-start gap-2 pl-12 text-muted-foreground">
+                                  <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-muted-foreground/60" />
+                                  <span className="text-sm text-foreground/80">{task.taskName}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right text-muted-foreground text-sm">{task.hours.toFixed(2)}h</TableCell>
+                              {individualTarget !== undefined && <TableCell></TableCell>}
+                              <TableCell className="text-center">
+                                <div className="flex flex-col items-center gap-0.5">
+                                  {task.date ? (
+                                    <span className="text-[11px] text-muted-foreground">
+                                      {format(parseISO(task.date), "dd/MM/yyyy", { locale: ptBR })}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] text-muted-foreground">—</span>
+                                  )}
+                                  {task.activityType && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/50 text-accent-foreground">{task.activityType}</span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell></TableCell>
+                            </TableRow>
+                          ))}
+                        </React.Fragment>
                       );
                     })}
                   </React.Fragment>
