@@ -135,7 +135,7 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
                   <span className="text-muted-foreground">— atualizado</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className={`w-4 h-4 ${importResult.hours ? 'text-emerald-500' : 'text-muted-foreground'}`} />
+                  <CheckCircle2 className={`w-4 h-4 ${importResult.hours ? 'text-success' : 'text-muted-foreground'}`} />
                   <span className="text-foreground font-medium">Lançamento de Horas</span>
                   <span className="text-muted-foreground">
                     — {importResult.hours ? `${importResult.hoursCount} registros` : 'sem registros'}

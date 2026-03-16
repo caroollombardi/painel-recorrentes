@@ -293,9 +293,9 @@ export default function HoursDashboard() {
             extraLine={dashboardData && currentPace > 0
               ? `No ritmo atual (${currentPace.toFixed(1)}h/dia), o time atingirá ${projectedCompletion.toFixed(0)}% da meta.`
               : undefined}
-            extraLineClassName={projectedCompletion >= 90 ? "text-emerald-600" : projectedCompletion >= 70 ? "text-amber-600" : "text-destructive"}
+            extraLineClassName={projectedCompletion >= 90 ? "text-success-foreground" : projectedCompletion >= 70 ? "text-warning-foreground" : "text-destructive"}
             icon={needsAcceleration
-              ? <AlertTriangle className="w-5 h-5 text-amber-500" />
+              ? <AlertTriangle className="w-5 h-5 text-warning" />
               : <Target className="w-5 h-5 text-muted-foreground" />}
             delay={150}
             tooltipText={`Meta mensal: ${monthlyTarget.toFixed(0)}h (${businessDaysInMonth} dias × ${DAILY_TARGET_HOURS}h × ${activeMemberCount} membro${activeMemberCount > 1 ? "s" : ""}). Restam ${hoursRemainingFormatted}h.`}
