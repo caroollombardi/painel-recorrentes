@@ -113,7 +113,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
 
             {/* Collapsed dropdown for narrow screens */}
             {adminActions.length > 0 && (
-              <div className="xl:hidden">
+              <div className="2xl:hidden">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
