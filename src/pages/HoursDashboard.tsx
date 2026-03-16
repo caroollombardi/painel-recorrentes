@@ -264,7 +264,7 @@ export default function HoursDashboard() {
             subtitle={dashboardData
               ? `≈ ${avgPerMember.toFixed(1)}h por membro/dia (meta: ${DAILY_TARGET_HOURS}h)`
               : "Por dia útil do período"}
-            subtitleClassName={avgPerMember >= DAILY_TARGET_HOURS ? "text-emerald-600" : "text-destructive"}
+            subtitleClassName={avgPerMember >= DAILY_TARGET_HOURS ? "text-success-foreground" : "text-destructive"}
             variationPercent={avgHoursVariation}
             variation={avgHoursVariation === null ? "— vs. mês anterior" : undefined}
             icon={<Calendar className="w-5 h-5 text-primary" />}
