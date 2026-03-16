@@ -150,7 +150,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     const avgHoursPerDay = businessDaysElapsed > 0 ? totalHours / businessDaysElapsed : 0;
 
     // Members
-    const memberMap = new Map<string, { hours: number; projects: Map<string, { hours: number; activityType: string | null; dates: Set<string> }> }>();
+    const memberMap = new Map<string, { hours: number; projects: Map<string, { hours: number; activityType: string | null; dates: Set<string>; tasks: TaskDetail[] }> }>();
     const projectSet = new Set<string>();
     const activitySet = new Set<string>();
     const dailyMap = new Map<string, number>();
