@@ -57,6 +57,16 @@ export function getMemberTargetAdjustment(name: string, month: number, year: num
 }
 
 /**
+ * Retorna a meta total de um membro para o período (dias úteis × meta diária - abatimentos).
+ * Use esta função em vez de calcular manualmente.
+ */
+export function getMemberPeriodTarget(name: string, businessDays: number, month: number, year: number): number {
+  const dailyTarget = getMemberDailyTarget(name);
+  const adjustment = getMemberTargetAdjustment(name, month, year);
+  return Math.max(0, businessDays * dailyTarget - adjustment);
+}
+
+/**
  * Meta diária total do time considerando metas individuais.
  * Se memberNames for fornecido, soma as metas individuais;
  * caso contrário, usa TARGET_MEMBER_COUNT * DAILY_TARGET_HOURS.
