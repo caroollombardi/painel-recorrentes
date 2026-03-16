@@ -108,7 +108,7 @@ export function KPICard({
           {hasVariation && (
             <div className="flex items-center gap-1 mt-1">
               {variationPercent >= 0 ? (
-                <TrendingUp className={cn("w-3 h-3", variant === "accent" ? "text-primary-foreground/70" : "text-emerald-600")} />
+                <TrendingUp className={cn("w-3 h-3", variant === "accent" ? "text-primary-foreground/70" : "text-success-foreground")} />
               ) : (
                 <TrendingDown className={cn("w-3 h-3", variant === "accent" ? "text-primary-foreground/70" : "text-destructive")} />
               )}
@@ -116,7 +116,7 @@ export function KPICard({
                 "text-xs font-semibold",
                 variant === "accent" 
                   ? "text-primary-foreground/70"
-                  : variationPercent >= 0 ? "text-emerald-600" : "text-destructive"
+                  : variationPercent >= 0 ? "text-success-foreground" : "text-destructive"
               )}>
                 {variationPercent >= 0 ? "↑" : "↓"} {Math.abs(variationPercent).toFixed(1)}%
               </span>
