@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Clock, Calendar, User, Target, FolderOpen, CheckCircle, BarChart3, AlertTriangle, Download, Filter } from "lucide-react";
+import { Clock, Calendar, User, Target, FolderOpen, CheckCircle, BarChart3, AlertTriangle, Download, Filter, FileDown } from "lucide-react";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { DashboardLoadingSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { MonthSelector } from "@/components/dashboard/MonthSelector";
@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { exportHoursPDF } from "@/lib/hours-pdf-export";
 
 const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -398,10 +399,29 @@ export default function HoursDashboard() {
             <div className="ml-auto flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={exportCSV} disabled={!dashboardData}>
                 <Download className="w-4 h-4 mr-2" />
-                Exportar
+                CSV
               </Button>
-
-
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!dashboardData}
+                onClick={() => {
+                  if (!dashboardData) return;
+                  exportHoursPDF({
+                    data: dashboardData,
+                    selectedMonth,
+                    selectedYear,
+                    previousMonthHours,
+                    monthlyTarget,
+                    hoursExpectedSoFar,
+                    activeMemberCount,
+                    businessDaysRemaining,
+                  });
+                }}
+              >
+                <FileDown className="w-4 h-4 mr-2" />
+                PDF
+              </Button>
             </div>
           </div>
           {/* Result count & quick filter chips */}
