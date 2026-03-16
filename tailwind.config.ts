@@ -67,7 +67,6 @@ export default {
           mensal: "hsl(var(--chart-mensal))",
           outros: "hsl(var(--chart-outros))",
         },
-        risk: "hsl(var(--risk))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
