@@ -36,6 +36,7 @@ export const MEMBER_DAILY_TARGETS: Record<string, number> = {
  */
 export const MEMBER_TARGET_ADJUSTMENTS: Record<string, Record<string, number>> = {
   "Sabrina": { "2026-03": 6 }, // Férias dia 13/03
+  "Manuela": { "2026-03": 36 }, // Férias 02/03 a 09/03 (6 dias úteis × 6h)
 };
 
 /** Retorna a meta diária de um membro (customizada ou padrão) */
