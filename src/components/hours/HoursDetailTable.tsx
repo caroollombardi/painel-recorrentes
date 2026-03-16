@@ -115,7 +115,7 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
                             <TooltipTrigger asChild>
                               <div className={cn(
                                 "inline-flex items-center gap-1 font-semibold text-sm px-2 py-0.5 rounded-full cursor-help",
-                                diff >= 0 ? "text-emerald-600 bg-emerald-500/10" : "text-destructive bg-destructive/10"
+                                diff >= 0 ? "text-success-foreground bg-success/10" : "text-destructive bg-destructive/10"
                               )}>
                                 {diff >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                                 <span>{diff >= 0 ? "+" : ""}{diff.toFixed(1)}h ({diffPercent >= 0 ? "+" : ""}{diffPercent.toFixed(0)}%)</span>

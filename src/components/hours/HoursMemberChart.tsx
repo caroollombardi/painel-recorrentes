@@ -98,7 +98,7 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
         </div>
         {individualTarget && individualTarget > 0 && (
           <div className="flex items-center gap-2">
-            <div className="w-6 border-t-2 border-dashed" style={{ borderColor: "#6B7280" }} />
+            <div className="w-6 border-t-2 border-dashed border-muted-foreground" />
             <span className="text-xs text-muted-foreground">Meta padrão ({individualTarget.toFixed(0)}h — {dailyTargetHours}h × {businessDaysElapsed} dias). Metas individuais podem variar.</span>
           </div>
         )}
