@@ -87,7 +87,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
           <div className="flex items-center gap-1 sm:gap-2">
             {/* Full buttons for wide screens */}
             {isAdmin && (
-              <div className="hidden xl:flex items-center gap-1">
+              <div className="hidden 2xl:flex items-center gap-1">
                 <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} className="text-muted-foreground hover:text-foreground">
                   <Upload className="w-4 h-4 mr-2" />
                   Atualizar Dados
