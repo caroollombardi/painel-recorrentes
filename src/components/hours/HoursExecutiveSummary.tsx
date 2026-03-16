@@ -21,7 +21,7 @@ const MONTH_NAMES = [
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
 
-export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget = 0, hoursExpectedSoFar = 0, individualTargetForPeriod = 0, activeMemberCount = 0, businessDaysRemaining = 0 }: HoursExecutiveSummaryProps) {
+export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget = 0, hoursExpectedSoFar = 0, individualTargetForPeriod = 0, activeMemberCount = 0, businessDaysRemaining = 0, month = new Date().getMonth(), year = new Date().getFullYear() }: HoursExecutiveSummaryProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const currentMonthName = MONTH_NAMES[new Date().getMonth()];
