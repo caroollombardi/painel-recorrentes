@@ -53,12 +53,12 @@ export function KPICard({
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="absolute top-3 right-3 w-5 h-5 flex items-center justify-center rounded-full border border-[#D1D5DB] hover:border-[#F97316] hover:bg-[#F97316]/5 transition-colors group">
+              <button className="absolute top-3 right-3 w-5 h-5 flex items-center justify-center rounded-full border border-border hover:border-primary hover:bg-primary/5 transition-colors group">
                 <HelpCircle className={cn(
                   "w-4 h-4 transition-colors",
                   variant === "accent" 
                     ? "text-primary-foreground/60 group-hover:text-primary-foreground" 
-                    : "text-[#9CA3AF] group-hover:text-[#F97316]"
+                    : "text-muted-foreground group-hover:text-primary"
                 )} />
               </button>
             </TooltipTrigger>

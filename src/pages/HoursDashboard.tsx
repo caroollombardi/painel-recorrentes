@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { Clock, Calendar, User, Target, FolderOpen, CheckCircle, BarChart3, AlertTriangle, Download, Filter } from "lucide-react";
 import { KPICard } from "@/components/dashboard/KPICard";
+import { DashboardLoadingSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { MonthSelector } from "@/components/dashboard/MonthSelector";
 import { MonthProgressIndicator } from "@/components/dashboard/MonthProgressIndicator";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -175,9 +176,9 @@ export default function HoursDashboard() {
     return (
       <div className="min-h-screen bg-background">
         <DashboardHeader activeTab="horas" />
-        <div className="flex items-center justify-center py-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
+        <main className="container py-8">
+          <DashboardLoadingSkeleton />
+        </main>
       </div>
     );
   }
@@ -242,7 +243,7 @@ export default function HoursDashboard() {
         </div>
 
         {/* KPI Cards */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* #2 - Total Horas with expected context */}
           <KPICard
             title="Total de Horas Lançadas"
@@ -321,7 +322,7 @@ export default function HoursDashboard() {
 
         {/* Filters - #10 result count, quick filter */}
         <section className="space-y-2">
-          <div className="flex flex-wrap items-end gap-4 p-4 bg-card rounded-lg border border-border animate-fade-in">
+          <div className="flex flex-wrap items-end gap-3 sm:gap-4 p-4 bg-card rounded-lg border border-border animate-fade-in">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Filter className="w-4 h-4" />
               <span className="text-sm font-medium">Filtros:</span>
@@ -331,14 +332,14 @@ export default function HoursDashboard() {
                 </Badge>
               )}
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-xs text-muted-foreground">Membro do Time</label>
               <select
                 value={memberFilter}
                 onChange={(e) => { setMemberFilter(e.target.value); setShowBelowTargetOnly(false); }}
                 className={cn(
-                  "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
-                  memberFilter !== "all" ? "border-[#F97316] bg-[#F97316]/5" : "border-border"
+                  "h-9 w-full sm:w-[200px] rounded-md border bg-background px-3 text-sm",
+                  memberFilter !== "all" ? "border-primary bg-primary/5" : "border-border"
                 )}
               >
                 <option value="all">Todos os membros</option>
@@ -347,14 +348,14 @@ export default function HoursDashboard() {
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-xs text-muted-foreground">Projeto/Cliente</label>
               <select
                 value={projectFilter}
                 onChange={(e) => setProjectFilter(e.target.value)}
                 className={cn(
-                  "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
-                  projectFilter !== "all" ? "border-[#F97316] bg-[#F97316]/5" : "border-border"
+                  "h-9 w-full sm:w-[200px] rounded-md border bg-background px-3 text-sm",
+                  projectFilter !== "all" ? "border-primary bg-primary/5" : "border-border"
                 )}
               >
                 <option value="all">Todos os projetos</option>
@@ -363,14 +364,14 @@ export default function HoursDashboard() {
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-xs text-muted-foreground">Tipo de Atividade</label>
               <select
                 value={activityFilter}
                 onChange={(e) => setActivityFilter(e.target.value)}
                 className={cn(
-                  "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
-                  activityFilter !== "all" ? "border-[#F97316] bg-[#F97316]/5" : "border-border"
+                  "h-9 w-full sm:w-[200px] rounded-md border bg-background px-3 text-sm",
+                  activityFilter !== "all" ? "border-primary bg-primary/5" : "border-border"
                 )}
               >
                 <option value="all">Todas as atividades</option>
