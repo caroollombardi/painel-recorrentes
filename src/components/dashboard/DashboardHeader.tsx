@@ -68,17 +68,14 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
                   key={tab.id}
                   onClick={() => navigate(tab.path)}
                   className={cn(
-                    "relative px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors rounded-md whitespace-nowrap",
+                    "relative px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-all duration-200 rounded-full whitespace-nowrap",
                     activeTab === tab.id
-                      ? "text-primary"
+                      ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
                   <span className="hidden md:inline">{tab.label}</span>
                   <span className="md:hidden">{tab.shortLabel}</span>
-                  {activeTab === tab.id && (
-                    <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />
-                  )}
                 </button>
               ))}
             </nav>
