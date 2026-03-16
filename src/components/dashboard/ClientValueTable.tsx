@@ -273,8 +273,8 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                               variant="outline"
                               className={cn(
                                 "text-[10px] px-1.5 py-0 cursor-help",
-                                health === 'green' && "border-emerald-500/50 text-emerald-600 bg-emerald-500/10",
-                                health === 'yellow' && "border-amber-500/50 text-amber-600 bg-amber-500/10",
+                                health === 'green' && "border-success/50 text-success-foreground bg-success/10",
+                                health === 'yellow' && "border-warning/50 text-warning-foreground bg-warning/10",
                                 health === 'red' && "border-destructive/50 text-destructive bg-destructive/10",
                               )}
                             >
