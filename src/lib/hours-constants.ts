@@ -50,14 +50,10 @@ export function getMemberDailyTarget(name: string): number {
 export function getMemberTargetAdjustment(name: string, month: number, year: number): number {
   const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
   const match = Object.entries(MEMBER_TARGET_ADJUSTMENTS).find(
-    ([key]) => {
-      const [memberName, period] = key.split("-").length > 2
-        ? [key.substring(0, key.lastIndexOf("-", key.lastIndexOf("-") - 1)), key.substring(key.lastIndexOf("-", key.lastIndexOf("-") - 1) + 1)]
-        : [key, ""];
-      return name.toLowerCase().includes(memberName.toLowerCase()) && period === monthStr;
-    }
+    ([key]) => name.toLowerCase().includes(key.toLowerCase())
   );
-  return match ? match[1] : 0;
+  if (!match) return 0;
+  return match[1][monthStr] || 0;
 }
 
 /**
