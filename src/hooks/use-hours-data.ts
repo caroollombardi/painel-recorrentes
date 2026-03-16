@@ -204,6 +204,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
           hours: Math.round(pData.hours * 100) / 100,
           activityType: pData.activityType,
           dates: Array.from(pData.dates).sort(),
+          tasks: pData.tasks.sort((a, b) => (b.date || "").localeCompare(a.date || "")),
         })).sort((a, b) => b.hours - a.hours),
       }))
       .sort((a, b) => b.totalHours - a.totalHours);
