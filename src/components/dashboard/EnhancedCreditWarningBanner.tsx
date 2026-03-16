@@ -82,9 +82,9 @@ export function EnhancedCreditWarningBanner({
       )}
       
       {clientsAtWarning > 0 && (
-        <Alert className="border-amber-500/50 bg-amber-500/10">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="font-semibold text-amber-600 flex items-center gap-2">
+        <Alert className="border-warning/50 bg-warning/10">
+          <AlertTriangle className="h-4 w-4 text-warning-foreground" />
+          <AlertTitle className="font-semibold text-warning-foreground flex items-center gap-2">
             🔔 Atenção Interna
           </AlertTitle>
           <AlertDescription className="text-foreground/80">

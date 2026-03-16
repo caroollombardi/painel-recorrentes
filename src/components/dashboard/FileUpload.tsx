@@ -117,8 +117,8 @@ export function FileUpload({ onFileSelect, isProcessing }: FileUploadProps) {
         <div className="flex flex-col items-center justify-center text-center space-y-4">
           {selectedFile ? (
             <>
-              <div className="p-4 rounded-full bg-emerald-500/10">
-                <FileSpreadsheet className="w-10 h-10 text-emerald-600" />
+              <div className="p-4 rounded-full bg-success/10">
+                <FileSpreadsheet className="w-10 h-10 text-success-foreground" />
               </div>
               <div>
                 <p className="text-lg font-medium text-foreground">

@@ -412,13 +412,13 @@ export default function Metas2026() {
           </div>
         )}
         {worstAlert === "attention" && (
-          <div className="rounded-lg border-2 border-amber-500/30 bg-amber-500/5 p-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+          <div className="rounded-lg border-2 border-warning/30 bg-warning/5 p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-warning-foreground mt-0.5 shrink-0" />
             <div>
-              <p className="font-semibold text-amber-600">
+              <p className="font-semibold text-warning-foreground">
                 Ritmo abaixo do necessário
               </p>
-              <p className="text-sm text-amber-600/80">
+              <p className="text-sm text-warning-foreground/80">
                 Para atingir a meta, é necessário fechar{" "}
                 <strong>{ritmoNecessario} clientes por mês</strong>.
               </p>
