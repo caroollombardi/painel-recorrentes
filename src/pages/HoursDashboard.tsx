@@ -364,14 +364,14 @@ export default function HoursDashboard() {
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-xs text-muted-foreground">Tipo de Atividade</label>
               <select
                 value={activityFilter}
                 onChange={(e) => setActivityFilter(e.target.value)}
                 className={cn(
-                  "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
-                  activityFilter !== "all" ? "border-[#F97316] bg-[#F97316]/5" : "border-border"
+                  "h-9 w-full sm:w-[200px] rounded-md border bg-background px-3 text-sm",
+                  activityFilter !== "all" ? "border-primary bg-primary/5" : "border-border"
                 )}
               >
                 <option value="all">Todas as atividades</option>
