@@ -16,11 +16,26 @@ export interface TimeEntry {
   year: number;
 }
 
+export interface TaskDetail {
+  taskName: string;
+  hours: number;
+  date: string | null;
+  activityType: string | null;
+}
+
+export interface ProjectDetail {
+  project: string;
+  hours: number;
+  activityType: string | null;
+  dates: string[];
+  tasks: TaskDetail[];
+}
+
 export interface MemberSummary {
   name: string;
   totalHours: number;
   percentOfTotal: number;
-  projects: { project: string; hours: number; activityType: string | null; dates: string[] }[];
+  projects: ProjectDetail[];
 }
 
 export interface HoursDashboardData {
