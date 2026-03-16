@@ -348,14 +348,14 @@ export default function HoursDashboard() {
                 ))}
               </select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-xs text-muted-foreground">Projeto/Cliente</label>
               <select
                 value={projectFilter}
                 onChange={(e) => setProjectFilter(e.target.value)}
                 className={cn(
-                  "h-9 w-[200px] rounded-md border bg-background px-3 text-sm",
-                  projectFilter !== "all" ? "border-[#F97316] bg-[#F97316]/5" : "border-border"
+                  "h-9 w-full sm:w-[200px] rounded-md border bg-background px-3 text-sm",
+                  projectFilter !== "all" ? "border-primary bg-primary/5" : "border-border"
                 )}
               >
                 <option value="all">Todos os projetos</option>
