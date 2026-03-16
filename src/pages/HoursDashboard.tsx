@@ -471,6 +471,8 @@ export default function HoursDashboard() {
                 individualTarget={individualTargetForPeriod}
                 businessDaysElapsed={businessDaysElapsed}
                 dailyTargetHours={DAILY_TARGET_HOURS}
+                month={selectedMonth}
+                year={selectedYear}
               />
             </section>
 
