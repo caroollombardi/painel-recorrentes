@@ -472,8 +472,8 @@ export default function Settings() {
                                   }}
                                 />
                                 <span className={
-                                  level === 'attention' ? 'text-amber-600' :
-                                  level === 'risk' ? 'text-orange-600' :
+                                  level === 'attention' ? 'text-warning-foreground' :
+                                  level === 'risk' ? 'text-risk-foreground' :
                                   'text-destructive'
                                 }>
                                   {level === 'attention' ? '🔔' : level === 'risk' ? '⚠️' : '🚨'}
