@@ -322,7 +322,7 @@ export default function HoursDashboard() {
 
         {/* Filters - #10 result count, quick filter */}
         <section className="space-y-2">
-          <div className="flex flex-wrap items-end gap-4 p-4 bg-card rounded-lg border border-border animate-fade-in">
+          <div className="flex flex-wrap items-end gap-3 sm:gap-4 p-4 bg-card rounded-lg border border-border animate-fade-in">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Filter className="w-4 h-4" />
               <span className="text-sm font-medium">Filtros:</span>
