@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { HoursDashboardData } from "@/hooks/use-hours-data";
 import { DAILY_TARGET_HOURS, getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
+import wsaLogo from "@/assets/wsa-logo.png";
 
 const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
