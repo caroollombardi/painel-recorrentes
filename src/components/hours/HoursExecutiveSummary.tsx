@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { ChevronDown, ChevronUp, FileText, AlertTriangle } from "lucide-react";
 import { HoursDashboardData } from "@/hooks/use-hours-data";
-import { DAILY_TARGET_HOURS, getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, getMemberDailyTarget, getMemberPeriodTarget, isExcludedMember } from "@/lib/hours-constants";
 import { cn } from "@/lib/utils";
 
 interface HoursExecutiveSummaryProps {
@@ -12,6 +12,8 @@ interface HoursExecutiveSummaryProps {
   individualTargetForPeriod?: number;
   activeMemberCount?: number;
   businessDaysRemaining?: number;
+  month?: number;
+  year?: number;
 }
 
 const MONTH_NAMES = [
@@ -19,7 +21,7 @@ const MONTH_NAMES = [
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
 
-export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget = 0, hoursExpectedSoFar = 0, individualTargetForPeriod = 0, activeMemberCount = 0, businessDaysRemaining = 0 }: HoursExecutiveSummaryProps) {
+export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget = 0, hoursExpectedSoFar = 0, individualTargetForPeriod = 0, activeMemberCount = 0, businessDaysRemaining = 0, month = new Date().getMonth(), year = new Date().getFullYear() }: HoursExecutiveSummaryProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const currentMonthName = MONTH_NAMES[new Date().getMonth()];
@@ -69,9 +71,8 @@ export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget 
     return data.memberSummaries
       .filter(m => !isExcludedMember(m.name))
       .map(m => {
-        const memberDailyTarget = getMemberDailyTarget(m.name);
-        const memberTargetForPeriod = data.businessDaysElapsed * memberDailyTarget;
-        const totalTargetMonth = data.businessDaysInMonth * memberDailyTarget;
+        const memberTargetForPeriod = getMemberPeriodTarget(m.name, data.businessDaysElapsed, month, year);
+        const totalTargetMonth = getMemberPeriodTarget(m.name, data.businessDaysInMonth, month, year);
         return {
           name: m.name,
           diff: m.totalHours - memberTargetForPeriod,

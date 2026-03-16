@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { HoursDashboardData } from "@/hooks/use-hours-data";
-import { DAILY_TARGET_HOURS, getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, getMemberDailyTarget, getMemberPeriodTarget, isExcludedMember } from "@/lib/hours-constants";
 import wsaLogo from "@/assets/wsa-logo.png";
 
 const MONTH_NAMES = [
@@ -207,7 +207,7 @@ export async function exportHoursPDF(params: ExportParams) {
   y += 2;
 
   const memberRows = data.memberSummaries.map((m) => {
-    const target = data.businessDaysElapsed * getMemberDailyTarget(m.name);
+    const target = getMemberPeriodTarget(m.name, data.businessDaysElapsed, selectedMonth, selectedYear);
     const diff = m.totalHours - target;
     const excluded = isExcludedMember(m.name);
     const status = excluded ? "—" : diff >= 0 ? "✓ Atingido" : `${diff.toFixed(1)}h`;
@@ -303,12 +303,12 @@ export async function exportHoursPDF(params: ExportParams) {
   const membersBelow = data.memberSummaries
     .filter((m) => !isExcludedMember(m.name))
     .filter((m) => {
-      const target = data.businessDaysElapsed * getMemberDailyTarget(m.name);
+      const target = getMemberPeriodTarget(m.name, data.businessDaysElapsed, selectedMonth, selectedYear);
       return m.totalHours < target;
     })
     .map((m) => {
-      const target = data.businessDaysElapsed * getMemberDailyTarget(m.name);
-      const totalTarget = data.businessDaysInMonth * getMemberDailyTarget(m.name);
+      const target = getMemberPeriodTarget(m.name, data.businessDaysElapsed, selectedMonth, selectedYear);
+      const totalTarget = getMemberPeriodTarget(m.name, data.businessDaysInMonth, selectedMonth, selectedYear);
       const needed = businessDaysRemaining > 0 ? (totalTarget - m.totalHours) / businessDaysRemaining : 0;
       return {
         name: m.name,

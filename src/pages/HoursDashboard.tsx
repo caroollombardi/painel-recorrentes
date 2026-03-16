@@ -13,7 +13,7 @@ import { ActivityDistributionChart } from "@/components/hours/ActivityDistributi
 import { HoursExecutiveSummary } from "@/components/hours/HoursExecutiveSummary";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { getMonthProgress } from "@/lib/month-progress";
-import { DAILY_TARGET_HOURS, DAILY_ALERT_THRESHOLD, TARGET_MEMBER_COUNT, getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, DAILY_ALERT_THRESHOLD, TARGET_MEMBER_COUNT, getMemberDailyTarget, getMemberPeriodTarget, getTeamTargetAdjustment, isExcludedMember } from "@/lib/hours-constants";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -84,8 +84,9 @@ export default function HoursDashboard() {
   const businessDaysRemaining = dashboardData?.businessDaysRemaining ?? 0;
   const totalHoursLaunched = dashboardData?.totalHours ?? 0;
 
-  const monthlyTarget = businessDaysInMonth * DAILY_TARGET_HOURS * activeMemberCount;
-  const hoursExpectedSoFar = businessDaysElapsed * DAILY_TARGET_HOURS * activeMemberCount;
+  const teamAdjustment = getTeamTargetAdjustment(selectedMonth, selectedYear);
+  const monthlyTarget = businessDaysInMonth * DAILY_TARGET_HOURS * activeMemberCount - teamAdjustment;
+  const hoursExpectedSoFar = businessDaysElapsed * DAILY_TARGET_HOURS * activeMemberCount - teamAdjustment;
   const hoursRemaining = Math.max(0, monthlyTarget - totalHoursLaunched);
   const hoursPerRemainingDayPerMember = businessDaysRemaining > 0 && activeMemberCount > 0
     ? hoursRemaining / businessDaysRemaining / activeMemberCount
@@ -166,10 +167,10 @@ export default function HoursDashboard() {
     if (!dashboardData || businessDaysElapsed <= 0) return [];
    return dashboardData.memberSummaries.filter(m => {
       if (isExcludedMember(m.name)) return false;
-      const memberTarget = businessDaysElapsed * getMemberDailyTarget(m.name);
+      const memberTarget = getMemberPeriodTarget(m.name, businessDaysElapsed, selectedMonth, selectedYear);
       return m.totalHours < memberTarget;
     });
-  }, [dashboardData, businessDaysElapsed]);
+  }, [dashboardData, businessDaysElapsed, selectedMonth, selectedYear]);
 
   const [showBelowTargetOnly, setShowBelowTargetOnly] = useState(false);
 
@@ -199,6 +200,8 @@ export default function HoursDashboard() {
             individualTargetForPeriod={individualTargetForPeriod}
             activeMemberCount={activeMemberCount}
             businessDaysRemaining={businessDaysRemaining}
+            month={selectedMonth}
+            year={selectedYear}
           />
         )}
 
@@ -469,6 +472,8 @@ export default function HoursDashboard() {
                 individualTarget={individualTargetForPeriod}
                 businessDaysElapsed={businessDaysElapsed}
                 dailyTargetHours={DAILY_TARGET_HOURS}
+                month={selectedMonth}
+                year={selectedYear}
               />
             </section>
 
@@ -494,6 +499,8 @@ export default function HoursDashboard() {
                 businessDaysElapsed={businessDaysElapsed}
                 businessDaysRemaining={businessDaysRemaining}
                 dailyTargetHours={DAILY_TARGET_HOURS}
+                month={selectedMonth}
+                year={selectedYear}
               />
             </section>
 
