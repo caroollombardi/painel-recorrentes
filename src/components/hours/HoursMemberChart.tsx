@@ -66,9 +66,9 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
             {individualTarget && individualTarget > 0 && (
               <ReferenceLine
                 x={individualTarget}
-                stroke="#6B7280"
+                stroke="hsl(var(--muted-foreground))"
                 strokeDasharray="5 5"
-                label={{ value: `Meta padrão: ${individualTarget.toFixed(0)}h (${dailyTargetHours}h × ${businessDaysElapsed} dias)`, position: "top", fontSize: 10, fill: "#6B7280" }}
+                label={{ value: `Meta padrão: ${individualTarget.toFixed(0)}h (${dailyTargetHours}h × ${businessDaysElapsed} dias)`, position: "top", fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
               />
             )}
             <Bar dataKey="horas" radius={[0, 4, 4, 0]} maxBarSize={20}>
