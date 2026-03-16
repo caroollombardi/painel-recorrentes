@@ -166,10 +166,10 @@ export default function HoursDashboard() {
     if (!dashboardData || businessDaysElapsed <= 0) return [];
    return dashboardData.memberSummaries.filter(m => {
       if (isExcludedMember(m.name)) return false;
-      const memberTarget = businessDaysElapsed * getMemberDailyTarget(m.name);
+      const memberTarget = getMemberPeriodTarget(m.name, businessDaysElapsed, selectedMonth, selectedYear);
       return m.totalHours < memberTarget;
     });
-  }, [dashboardData, businessDaysElapsed]);
+  }, [dashboardData, businessDaysElapsed, selectedMonth, selectedYear]);
 
   const [showBelowTargetOnly, setShowBelowTargetOnly] = useState(false);
 
