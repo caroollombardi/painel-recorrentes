@@ -48,14 +48,23 @@ export async function exportHoursPDF(params: ExportParams) {
   doc.setFillColor(...PRIMARY_COLOR);
   doc.rect(0, 0, pageWidth, 3, "F");
 
-  // Title
-  y = 18;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(...DARK_COLOR);
-  doc.text("Wolff e Scripes Advogados", margin, y);
+  // Logo
+  y = 12;
+  try {
+    const logoImg = await loadImage(wsaLogo);
+    const logoHeight = 12;
+    const logoWidth = logoHeight * (logoImg.width / logoImg.height);
+    doc.addImage(logoImg, "PNG", margin, y, logoWidth, logoHeight);
+    y += logoHeight + 4;
+  } catch {
+    // Fallback to text if image fails
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor(...DARK_COLOR);
+    doc.text("Wolff e Scripes Advogados", margin, y + 8);
+    y += 14;
+  }
 
-  y += 8;
   doc.setFontSize(13);
   doc.setTextColor(...PRIMARY_COLOR);
   doc.text("Relatório de Lançamento de Horas", margin, y);
