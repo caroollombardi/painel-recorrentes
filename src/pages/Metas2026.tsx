@@ -87,7 +87,7 @@ function getAlertStatus(
   if (progressReal < progressExpected - 10) {
     return {
       level: "attention",
-      color: "text-amber-600",
+      color: "text-warning-foreground",
       message:
         "Ritmo atual abaixo do necessário para atingir a meta de 2026.",
     };
