@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { MemberSummary } from "@/hooks/use-hours-data";
 import { cn } from "@/lib/utils";
-import { DAILY_TARGET_HOURS, getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, getMemberDailyTarget, getMemberPeriodTarget, isExcludedMember } from "@/lib/hours-constants";
 
 interface HoursDetailTableProps {
   data: MemberSummary[];
@@ -16,9 +16,11 @@ interface HoursDetailTableProps {
   businessDaysElapsed?: number;
   businessDaysRemaining?: number;
   dailyTargetHours?: number;
+  month?: number;
+  year?: number;
 }
 
-export function HoursDetailTable({ data, totalHours, individualTarget, businessDaysElapsed = 0, businessDaysRemaining = 0, dailyTargetHours = DAILY_TARGET_HOURS }: HoursDetailTableProps) {
+export function HoursDetailTable({ data, totalHours, individualTarget, businessDaysElapsed = 0, businessDaysRemaining = 0, dailyTargetHours = DAILY_TARGET_HOURS, month = new Date().getMonth(), year = new Date().getFullYear() }: HoursDetailTableProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const toggle = (name: string) => {
@@ -36,10 +38,10 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
     );
   }
 
-  // Per-member individual target (supports custom daily targets like Laura 3.5h)
+  // Per-member individual target (supports custom daily targets and adjustments)
   const getMemberTarget = (memberName: string) => {
     if (!businessDaysElapsed || businessDaysElapsed <= 0) return individualTarget;
-    return businessDaysElapsed * getMemberDailyTarget(memberName);
+    return getMemberPeriodTarget(memberName, businessDaysElapsed, month, year);
   };
 
   // Pace indicator for a member

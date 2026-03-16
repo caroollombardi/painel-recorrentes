@@ -1,22 +1,24 @@
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 import { MemberSummary } from "@/hooks/use-hours-data";
-import { getMemberDailyTarget, isExcludedMember } from "@/lib/hours-constants";
+import { getMemberPeriodTarget, isExcludedMember } from "@/lib/hours-constants";
 
 interface HoursMemberChartProps {
   data: MemberSummary[];
   individualTarget?: number;
   businessDaysElapsed?: number;
   dailyTargetHours?: number;
+  month?: number;
+  year?: number;
 }
 
-export function HoursMemberChart({ data, individualTarget, businessDaysElapsed = 0, dailyTargetHours = 6 }: HoursMemberChartProps) {
+export function HoursMemberChart({ data, individualTarget, businessDaysElapsed = 0, dailyTargetHours = 6, month = new Date().getMonth(), year = new Date().getFullYear() }: HoursMemberChartProps) {
   const [expanded, setExpanded] = useState(false);
   const DEFAULT_LIMIT = 10;
 
   const chartData = data.map(m => {
     const excluded = isExcludedMember(m.name);
-    const memberTarget = excluded ? undefined : (businessDaysElapsed > 0 ? businessDaysElapsed * getMemberDailyTarget(m.name) : individualTarget);
+    const memberTarget = excluded ? undefined : (businessDaysElapsed > 0 ? getMemberPeriodTarget(m.name, businessDaysElapsed, month, year) : individualTarget);
     return {
       name: m.name,
       fullName: m.name,

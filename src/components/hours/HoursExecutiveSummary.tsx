@@ -71,9 +71,8 @@ export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget 
     return data.memberSummaries
       .filter(m => !isExcludedMember(m.name))
       .map(m => {
-        const memberDailyTarget = getMemberDailyTarget(m.name);
-        const memberTargetForPeriod = data.businessDaysElapsed * memberDailyTarget;
-        const totalTargetMonth = data.businessDaysInMonth * memberDailyTarget;
+        const memberTargetForPeriod = getMemberPeriodTarget(m.name, data.businessDaysElapsed, month, year);
+        const totalTargetMonth = getMemberPeriodTarget(m.name, data.businessDaysInMonth, month, year);
         return {
           name: m.name,
           diff: m.totalHours - memberTargetForPeriod,
