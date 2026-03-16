@@ -75,3 +75,13 @@ export function getTeamDailyTarget(memberNames?: string[]): number {
   if (!memberNames) return TARGET_MEMBER_COUNT * DAILY_TARGET_HOURS;
   return memberNames.reduce((sum, name) => sum + getMemberDailyTarget(name), 0);
 }
+
+/** Retorna o total de horas de abatimento do time para um mês (soma de todos os membros) */
+export function getTeamTargetAdjustment(month: number, year: number): number {
+  const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
+  let total = 0;
+  for (const adjustments of Object.values(MEMBER_TARGET_ADJUSTMENTS)) {
+    total += adjustments[monthStr] || 0;
+  }
+  return total;
+}
