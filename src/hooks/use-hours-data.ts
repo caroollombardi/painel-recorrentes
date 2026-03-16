@@ -165,10 +165,16 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
 
       const proj = e.project || "Sem projeto";
       projectSet.add(proj);
-      if (!m.projects.has(proj)) m.projects.set(proj, { hours: 0, activityType: e.activity_type, dates: new Set() });
+      if (!m.projects.has(proj)) m.projects.set(proj, { hours: 0, activityType: e.activity_type, dates: new Set(), tasks: [] });
       const projData = m.projects.get(proj)!;
       projData.hours += Number(e.hours_logged);
       if (e.completed_date) projData.dates.add(e.completed_date);
+      projData.tasks.push({
+        taskName: e.task_name || "Sem título",
+        hours: Number(e.hours_logged),
+        date: e.completed_date,
+        activityType: e.activity_type,
+      });
 
       const at = e.activity_type || "Outros";
       activitySet.add(at);
