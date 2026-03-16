@@ -208,7 +208,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                 <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
               )}
               {client.creditUsage?.isWarning && !client.creditUsage?.isCritical && (
-                <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                <AlertTriangle className="w-4 h-4 text-warning-foreground flex-shrink-0" />
               )}
               <span translate="no" className={cn(
                 client.creditUsage?.isCritical && "text-destructive font-semibold",
