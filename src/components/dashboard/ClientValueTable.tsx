@@ -56,9 +56,9 @@ function getClientStatus(client: ClientData): StatusGroup {
 
 const statusConfig: Record<StatusGroup, { label: string; emoji: string; bgClass: string; headerBg: string }> = {
   overflow: { label: 'Estouro', emoji: '🚨', bgClass: 'bg-destructive/5 hover:bg-destructive/10', headerBg: 'bg-destructive/10 border-destructive/20' },
-  risk: { label: 'Risco', emoji: '⚠️', bgClass: 'bg-orange-500/5 hover:bg-orange-500/10', headerBg: 'bg-orange-500/10 border-orange-500/20' },
-  warning: { label: 'Atenção', emoji: '🔔', bgClass: 'bg-amber-500/5 hover:bg-amber-500/10', headerBg: 'bg-amber-500/10 border-amber-500/20' },
-  healthy: { label: 'Saudável', emoji: '✅', bgClass: 'bg-emerald-500/5 hover:bg-emerald-500/10', headerBg: 'bg-emerald-500/10 border-emerald-500/20' },
+  risk: { label: 'Risco', emoji: '⚠️', bgClass: 'bg-risk/5 hover:bg-risk/10', headerBg: 'bg-risk/10 border-risk/20' },
+  warning: { label: 'Atenção', emoji: '🔔', bgClass: 'bg-warning/5 hover:bg-warning/10', headerBg: 'bg-warning/10 border-warning/20' },
+  healthy: { label: 'Saudável', emoji: '✅', bgClass: 'bg-success/5 hover:bg-success/10', headerBg: 'bg-success/10 border-success/20' },
   avulso: { label: 'Avulso', emoji: '📋', bgClass: 'hover:bg-muted/50', headerBg: 'bg-muted/30 border-border' },
 };
 
