@@ -26,7 +26,7 @@ interface ExportParams {
   businessDaysRemaining: number;
 }
 
-export function exportHoursPDF(params: ExportParams) {
+export async function exportHoursPDF(params: ExportParams) {
   const {
     data,
     selectedMonth,
