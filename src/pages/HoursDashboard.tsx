@@ -199,6 +199,8 @@ export default function HoursDashboard() {
             individualTargetForPeriod={individualTargetForPeriod}
             activeMemberCount={activeMemberCount}
             businessDaysRemaining={businessDaysRemaining}
+            month={selectedMonth}
+            year={selectedYear}
           />
         )}
 
