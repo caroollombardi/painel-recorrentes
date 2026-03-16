@@ -399,10 +399,29 @@ export default function HoursDashboard() {
             <div className="ml-auto flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={exportCSV} disabled={!dashboardData}>
                 <Download className="w-4 h-4 mr-2" />
-                Exportar
+                CSV
               </Button>
-
-
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!dashboardData}
+                onClick={() => {
+                  if (!dashboardData) return;
+                  exportHoursPDF({
+                    data: dashboardData,
+                    selectedMonth,
+                    selectedYear,
+                    previousMonthHours,
+                    monthlyTarget,
+                    hoursExpectedSoFar,
+                    activeMemberCount,
+                    businessDaysRemaining,
+                  });
+                }}
+              >
+                <FileDown className="w-4 h-4 mr-2" />
+                PDF
+              </Button>
             </div>
           </div>
           {/* Result count & quick filter chips */}
