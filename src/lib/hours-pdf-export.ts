@@ -15,6 +15,16 @@ const MUTED_COLOR: [number, number, number] = [120, 120, 120];
 const SUCCESS_COLOR: [number, number, number] = [34, 139, 34];
 const DANGER_COLOR: [number, number, number] = [200, 40, 40];
 
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 interface ExportParams {
   data: HoursDashboardData;
   selectedMonth: number;
