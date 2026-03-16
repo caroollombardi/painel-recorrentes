@@ -84,8 +84,9 @@ export default function HoursDashboard() {
   const businessDaysRemaining = dashboardData?.businessDaysRemaining ?? 0;
   const totalHoursLaunched = dashboardData?.totalHours ?? 0;
 
-  const monthlyTarget = businessDaysInMonth * DAILY_TARGET_HOURS * activeMemberCount;
-  const hoursExpectedSoFar = businessDaysElapsed * DAILY_TARGET_HOURS * activeMemberCount;
+  const teamAdjustment = getTeamTargetAdjustment(selectedMonth, selectedYear);
+  const monthlyTarget = businessDaysInMonth * DAILY_TARGET_HOURS * activeMemberCount - teamAdjustment;
+  const hoursExpectedSoFar = businessDaysElapsed * DAILY_TARGET_HOURS * activeMemberCount - teamAdjustment;
   const hoursRemaining = Math.max(0, monthlyTarget - totalHoursLaunched);
   const hoursPerRemainingDayPerMember = businessDaysRemaining > 0 && activeMemberCount > 0
     ? hoursRemaining / businessDaysRemaining / activeMemberCount
