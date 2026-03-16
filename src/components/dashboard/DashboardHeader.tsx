@@ -55,14 +55,14 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
     )}>
       <div className="container py-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+          <div className="flex items-center gap-3 sm:gap-6 min-w-0 flex-shrink-0">
             <img
               src={wsaLogo}
               alt="Wolff e Scripes Advogados"
               className={cn("object-contain transition-all duration-300 shrink-0", isScrolled ? "h-7" : "h-8 sm:h-10")}
             />
             {/* Tabs */}
-            <nav className="flex items-center gap-1 min-w-0">
+            <nav className="flex items-center gap-0.5 sm:gap-1 min-w-0">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
@@ -74,8 +74,8 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.shortLabel}</span>
+                  <span className="hidden md:inline">{tab.label}</span>
+                  <span className="md:hidden">{tab.shortLabel}</span>
                   {activeTab === tab.id && (
                     <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />
                   )}
@@ -87,7 +87,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
           <div className="flex items-center gap-1 sm:gap-2">
             {/* Full buttons for wide screens */}
             {isAdmin && (
-              <div className="hidden xl:flex items-center gap-1">
+              <div className="hidden 2xl:flex items-center gap-1">
                 <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} className="text-muted-foreground hover:text-foreground">
                   <Upload className="w-4 h-4 mr-2" />
                   Atualizar Dados
@@ -103,7 +103,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
               </div>
             )}
             {!isAdmin && canAccessMetas && (
-              <div className="hidden xl:flex items-center gap-1">
+              <div className="hidden 2xl:flex items-center gap-1">
                 <Button variant="ghost" size="sm" onClick={() => navigate("/settings")} className="text-muted-foreground hover:text-foreground">
                   <Settings className="w-4 h-4 mr-2" />
                   Configurações
@@ -113,7 +113,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
 
             {/* Collapsed dropdown for narrow screens */}
             {adminActions.length > 0 && (
-              <div className="xl:hidden">
+              <div className="2xl:hidden">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
