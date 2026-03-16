@@ -207,7 +207,7 @@ export async function exportHoursPDF(params: ExportParams) {
   y += 2;
 
   const memberRows = data.memberSummaries.map((m) => {
-    const target = data.businessDaysElapsed * getMemberDailyTarget(m.name);
+    const target = getMemberPeriodTarget(m.name, data.businessDaysElapsed, selectedMonth, selectedYear);
     const diff = m.totalHours - target;
     const excluded = isExcludedMember(m.name);
     const status = excluded ? "—" : diff >= 0 ? "✓ Atingido" : `${diff.toFixed(1)}h`;
