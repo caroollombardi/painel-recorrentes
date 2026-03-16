@@ -45,7 +45,7 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
           <p className="font-display font-semibold text-foreground mb-1">{d.fullName}</p>
           <p className="text-sm text-muted-foreground">{d.horas.toFixed(1)}h • {d.projects} projeto{d.projects !== 1 ? "s" : ""}</p>
           {diff !== null && (
-            <p className={`text-sm font-semibold mt-1 ${diff >= 0 ? "text-emerald-600" : "text-destructive"}`}>
+            <p className={`text-sm font-semibold mt-1 ${diff >= 0 ? "text-success-foreground" : "text-destructive"}`}>
               {diff >= 0 ? "+" : ""}{diff.toFixed(1)}h vs. meta
             </p>
           )}
@@ -66,9 +66,9 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
             {individualTarget && individualTarget > 0 && (
               <ReferenceLine
                 x={individualTarget}
-                stroke="#6B7280"
+                stroke="hsl(var(--muted-foreground))"
                 strokeDasharray="5 5"
-                label={{ value: `Meta padrão: ${individualTarget.toFixed(0)}h (${dailyTargetHours}h × ${businessDaysElapsed} dias)`, position: "top", fontSize: 10, fill: "#6B7280" }}
+                label={{ value: `Meta padrão: ${individualTarget.toFixed(0)}h (${dailyTargetHours}h × ${businessDaysElapsed} dias)`, position: "top", fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
               />
             )}
             <Bar dataKey="horas" radius={[0, 4, 4, 0]} maxBarSize={20}>
@@ -98,7 +98,7 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
         </div>
         {individualTarget && individualTarget > 0 && (
           <div className="flex items-center gap-2">
-            <div className="w-6 border-t-2 border-dashed" style={{ borderColor: "#6B7280" }} />
+            <div className="w-6 border-t-2 border-dashed border-muted-foreground" />
             <span className="text-xs text-muted-foreground">Meta padrão ({individualTarget.toFixed(0)}h — {dailyTargetHours}h × {businessDaysElapsed} dias). Metas individuais podem variar.</span>
           </div>
         )}

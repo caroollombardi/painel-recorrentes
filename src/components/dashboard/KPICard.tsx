@@ -40,9 +40,10 @@ export function KPICard({
   return (
     <div 
       className={cn(
-        "relative overflow-hidden rounded-lg p-6 shadow-sm transition-all duration-300 hover:shadow-md animate-fade-in",
+        "relative overflow-hidden rounded-lg p-6 shadow-sm transition-all duration-300 animate-fade-in",
+        "hover:shadow-lg hover:-translate-y-1 hover:border-primary/30",
         variant === "default" && "bg-card border border-border",
-        variant === "accent" && "bg-primary text-primary-foreground",
+        variant === "accent" && "bg-primary text-primary-foreground hover:border-primary-foreground/20",
         variant === "highlight" && "bg-card border-2 border-primary",
         promoted && variant !== "accent" && "bg-gradient-to-br from-card to-primary/5"
       )}
@@ -107,7 +108,7 @@ export function KPICard({
           {hasVariation && (
             <div className="flex items-center gap-1 mt-1">
               {variationPercent >= 0 ? (
-                <TrendingUp className={cn("w-3 h-3", variant === "accent" ? "text-primary-foreground/70" : "text-emerald-600")} />
+                <TrendingUp className={cn("w-3 h-3", variant === "accent" ? "text-primary-foreground/70" : "text-success-foreground")} />
               ) : (
                 <TrendingDown className={cn("w-3 h-3", variant === "accent" ? "text-primary-foreground/70" : "text-destructive")} />
               )}
@@ -115,7 +116,7 @@ export function KPICard({
                 "text-xs font-semibold",
                 variant === "accent" 
                   ? "text-primary-foreground/70"
-                  : variationPercent >= 0 ? "text-emerald-600" : "text-destructive"
+                  : variationPercent >= 0 ? "text-success-foreground" : "text-destructive"
               )}>
                 {variationPercent >= 0 ? "↑" : "↓"} {Math.abs(variationPercent).toFixed(1)}%
               </span>

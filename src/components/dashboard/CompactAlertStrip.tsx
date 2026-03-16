@@ -29,16 +29,16 @@ const levelConfig: Record<AlertLevel, { emoji: string; bg: string; text: string;
   },
   risk: {
     emoji: "⚠️",
-    bg: "bg-orange-500/10",
-    text: "text-orange-700",
-    border: "border-orange-500/30",
+    bg: "bg-risk/10",
+    text: "text-risk-foreground",
+    border: "border-risk/30",
     label: "Risco de Estouro",
   },
   warning: {
     emoji: "🔔",
-    bg: "bg-amber-500/10",
-    text: "text-amber-700",
-    border: "border-amber-500/30",
+    bg: "bg-warning/10",
+    text: "text-warning-foreground",
+    border: "border-warning/30",
     label: "Atenção Interna",
   },
 };

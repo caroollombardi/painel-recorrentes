@@ -101,18 +101,18 @@ export default function HoursDashboard() {
   const avgHoursValue = dashboardData?.avgHoursPerDay ?? 0;
   const avgPerMember = activeMemberCount > 0 ? avgHoursValue / activeMemberCount : 0;
   const avgMetaRatio = avgDayMeta > 0 ? avgHoursValue / avgDayMeta : 0;
-  const avgValueColor = avgMetaRatio >= 1 ? "text-emerald-600" : avgMetaRatio >= 0.8 ? "text-[#F97316]" : "text-destructive";
+  const avgValueColor = avgMetaRatio >= 1 ? "text-success-foreground" : avgMetaRatio >= 0.8 ? "text-risk-foreground" : "text-destructive";
 
   // Individual target for member chart
   const individualTargetForPeriod = businessDaysElapsed * DAILY_TARGET_HOURS;
 
   // #1 - Progress bar risk color
   const progressRatio = expectedProgressPercent > 0 ? progressPercent / expectedProgressPercent : 1;
-  const progressBarColor = progressRatio >= 1 ? "bg-emerald-500" : progressRatio >= 0.7 ? "bg-amber-500" : "bg-destructive";
-  const progressBarTextColor = progressRatio >= 1 ? "text-emerald-600" : progressRatio >= 0.7 ? "text-amber-600" : "text-destructive";
+  const progressBarColor = progressRatio >= 1 ? "bg-success" : progressRatio >= 0.7 ? "bg-warning" : "bg-destructive";
+  const progressBarTextColor = progressRatio >= 1 ? "text-success-foreground" : progressRatio >= 0.7 ? "text-warning-foreground" : "text-destructive";
 
   // #2 - Total hours expected context
-  const expectedHoursColor = totalHoursLaunched >= hoursExpectedSoFar ? "text-emerald-600" : totalHoursLaunched >= hoursExpectedSoFar * 0.8 ? "text-amber-600" : "text-destructive";
+  const expectedHoursColor = totalHoursLaunched >= hoursExpectedSoFar ? "text-success-foreground" : totalHoursLaunched >= hoursExpectedSoFar * 0.8 ? "text-warning-foreground" : "text-destructive";
 
   // #4 - Horas restantes humanized
   const hoursRemainingFormatted = hoursRemaining.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -264,7 +264,7 @@ export default function HoursDashboard() {
             subtitle={dashboardData
               ? `≈ ${avgPerMember.toFixed(1)}h por membro/dia (meta: ${DAILY_TARGET_HOURS}h)`
               : "Por dia útil do período"}
-            subtitleClassName={avgPerMember >= DAILY_TARGET_HOURS ? "text-emerald-600" : "text-destructive"}
+            subtitleClassName={avgPerMember >= DAILY_TARGET_HOURS ? "text-success-foreground" : "text-destructive"}
             variationPercent={avgHoursVariation}
             variation={avgHoursVariation === null ? "— vs. mês anterior" : undefined}
             icon={<Calendar className="w-5 h-5 text-primary" />}
@@ -293,9 +293,9 @@ export default function HoursDashboard() {
             extraLine={dashboardData && currentPace > 0
               ? `No ritmo atual (${currentPace.toFixed(1)}h/dia), o time atingirá ${projectedCompletion.toFixed(0)}% da meta.`
               : undefined}
-            extraLineClassName={projectedCompletion >= 90 ? "text-emerald-600" : projectedCompletion >= 70 ? "text-amber-600" : "text-destructive"}
+            extraLineClassName={projectedCompletion >= 90 ? "text-success-foreground" : projectedCompletion >= 70 ? "text-warning-foreground" : "text-destructive"}
             icon={needsAcceleration
-              ? <AlertTriangle className="w-5 h-5 text-amber-500" />
+              ? <AlertTriangle className="w-5 h-5 text-warning" />
               : <Target className="w-5 h-5 text-muted-foreground" />}
             delay={150}
             tooltipText={`Meta mensal: ${monthlyTarget.toFixed(0)}h (${businessDaysInMonth} dias × ${DAILY_TARGET_HOURS}h × ${activeMemberCount} membro${activeMemberCount > 1 ? "s" : ""}). Restam ${hoursRemainingFormatted}h.`}

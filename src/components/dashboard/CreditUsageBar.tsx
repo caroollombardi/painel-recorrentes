@@ -19,19 +19,18 @@ function formatCurrency(value: number): string {
 export function CreditUsageBar({ creditUsage, compact = false }: CreditUsageBarProps) {
   const { percentualUsado, analysis } = creditUsage;
   
-  // Sistema de cores por nível: <60% verde, 60-79% amarelo, 80-99% laranja, 100%+ vermelho
   const getBarColor = () => {
-    if (percentualUsado >= 100) return "bg-destructive"; // Estouro
-    if (percentualUsado >= 80) return "bg-orange-500"; // Risco
-    if (percentualUsado >= 60) return "bg-amber-500"; // Atenção
-    return "bg-emerald-500"; // OK
+    if (percentualUsado >= 100) return "bg-destructive";
+    if (percentualUsado >= 80) return "bg-risk";
+    if (percentualUsado >= 60) return "bg-warning";
+    return "bg-success";
   };
   
   const getTextColor = () => {
     if (percentualUsado >= 100) return "text-destructive";
-    if (percentualUsado >= 80) return "text-orange-600";
-    if (percentualUsado >= 60) return "text-amber-600";
-    return "text-emerald-600";
+    if (percentualUsado >= 80) return "text-risk-foreground";
+    if (percentualUsado >= 60) return "text-warning-foreground";
+    return "text-success-foreground";
   };
   
   const riskLevel = analysis?.riskLevel || 'ok';

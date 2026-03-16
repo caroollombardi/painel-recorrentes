@@ -56,9 +56,9 @@ function getClientStatus(client: ClientData): StatusGroup {
 
 const statusConfig: Record<StatusGroup, { label: string; emoji: string; bgClass: string; headerBg: string }> = {
   overflow: { label: 'Estouro', emoji: '🚨', bgClass: 'bg-destructive/5 hover:bg-destructive/10', headerBg: 'bg-destructive/10 border-destructive/20' },
-  risk: { label: 'Risco', emoji: '⚠️', bgClass: 'bg-orange-500/5 hover:bg-orange-500/10', headerBg: 'bg-orange-500/10 border-orange-500/20' },
-  warning: { label: 'Atenção', emoji: '🔔', bgClass: 'bg-amber-500/5 hover:bg-amber-500/10', headerBg: 'bg-amber-500/10 border-amber-500/20' },
-  healthy: { label: 'Saudável', emoji: '✅', bgClass: 'bg-emerald-500/5 hover:bg-emerald-500/10', headerBg: 'bg-emerald-500/10 border-emerald-500/20' },
+  risk: { label: 'Risco', emoji: '⚠️', bgClass: 'bg-risk/5 hover:bg-risk/10', headerBg: 'bg-risk/10 border-risk/20' },
+  warning: { label: 'Atenção', emoji: '🔔', bgClass: 'bg-warning/5 hover:bg-warning/10', headerBg: 'bg-warning/10 border-warning/20' },
+  healthy: { label: 'Saudável', emoji: '✅', bgClass: 'bg-success/5 hover:bg-success/10', headerBg: 'bg-success/10 border-success/20' },
   avulso: { label: 'Avulso', emoji: '📋', bgClass: 'hover:bg-muted/50', headerBg: 'bg-muted/30 border-border' },
 };
 
@@ -208,11 +208,11 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                 <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
               )}
               {client.creditUsage?.isWarning && !client.creditUsage?.isCritical && (
-                <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                <AlertTriangle className="w-4 h-4 text-warning-foreground flex-shrink-0" />
               )}
               <span translate="no" className={cn(
                 client.creditUsage?.isCritical && "text-destructive font-semibold",
-                client.creditUsage?.isWarning && !client.creditUsage?.isCritical && "text-amber-600 font-semibold"
+                client.creditUsage?.isWarning && !client.creditUsage?.isCritical && "text-warning-foreground font-semibold"
               )}>
                 {client.project}
               </span>
@@ -242,7 +242,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                   const pctChange = ((client.horasMensal - prevHoras) / prevHoras) * 100;
                   if (Math.abs(pctChange) >= 0.5) {
                     return (
-                      <span className={cn("text-[10px] font-semibold", pctChange >= 0 ? "text-emerald-600" : "text-destructive")}>
+                      <span className={cn("text-[10px] font-semibold", pctChange >= 0 ? "text-success-foreground" : "text-destructive")}>
                         {pctChange >= 0 ? "↑" : "↓"}{Math.abs(pctChange).toFixed(0)}%
                       </span>
                     );
@@ -273,8 +273,8 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                               variant="outline"
                               className={cn(
                                 "text-[10px] px-1.5 py-0 cursor-help",
-                                health === 'green' && "border-emerald-500/50 text-emerald-600 bg-emerald-500/10",
-                                health === 'yellow' && "border-amber-500/50 text-amber-600 bg-amber-500/10",
+                                health === 'green' && "border-success/50 text-success-foreground bg-success/10",
+                                health === 'yellow' && "border-warning/50 text-warning-foreground bg-warning/10",
                                 health === 'red' && "border-destructive/50 text-destructive bg-destructive/10",
                               )}
                             >

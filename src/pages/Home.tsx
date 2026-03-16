@@ -130,12 +130,12 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
             {importResult && (
               <div className="mt-6 space-y-2 p-4 rounded-lg bg-muted/50 border border-border">
                 <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <CheckCircle2 className="w-4 h-4 text-success" />
                   <span className="text-foreground font-medium">Clientes Recorrentes</span>
                   <span className="text-muted-foreground">— atualizado</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className={`w-4 h-4 ${importResult.hours ? 'text-emerald-500' : 'text-muted-foreground'}`} />
+                  <CheckCircle2 className={`w-4 h-4 ${importResult.hours ? 'text-success' : 'text-muted-foreground'}`} />
                   <span className="text-foreground font-medium">Lançamento de Horas</span>
                   <span className="text-muted-foreground">
                     — {importResult.hours ? `${importResult.hoursCount} registros` : 'sem registros'}

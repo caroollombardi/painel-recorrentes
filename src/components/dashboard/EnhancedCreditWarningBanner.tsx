@@ -66,9 +66,9 @@ export function EnhancedCreditWarningBanner({
       )}
       
       {clientsAtRisk > 0 && (
-        <Alert className="border-orange-500/50 bg-orange-500/10">
-          <AlertTriangle className="h-4 w-4 text-orange-600" />
-          <AlertTitle className="font-semibold text-orange-600 flex items-center gap-2">
+        <Alert className="border-risk/50 bg-risk/10">
+          <AlertTriangle className="h-4 w-4 text-risk-foreground" />
+          <AlertTitle className="font-semibold text-risk-foreground flex items-center gap-2">
             ⚠️ Risco de Estouro
           </AlertTitle>
           <AlertDescription className="text-foreground/80">
@@ -82,9 +82,9 @@ export function EnhancedCreditWarningBanner({
       )}
       
       {clientsAtWarning > 0 && (
-        <Alert className="border-amber-500/50 bg-amber-500/10">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="font-semibold text-amber-600 flex items-center gap-2">
+        <Alert className="border-warning/50 bg-warning/10">
+          <AlertTriangle className="h-4 w-4 text-warning-foreground" />
+          <AlertTitle className="font-semibold text-warning-foreground flex items-center gap-2">
             🔔 Atenção Interna
           </AlertTitle>
           <AlertDescription className="text-foreground/80">

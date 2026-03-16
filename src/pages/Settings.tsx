@@ -311,7 +311,7 @@ export default function Settings() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                      <Badge variant="outline" className="bg-warning/10 text-warning-foreground border-warning/20">
                         🔔 Atenção
                       </Badge>
                     </Label>
@@ -331,7 +331,7 @@ export default function Settings() {
                   
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
+                      <Badge variant="outline" className="bg-risk/10 text-risk-foreground border-risk/20">
                         ⚠️ Risco
                       </Badge>
                     </Label>
@@ -472,8 +472,8 @@ export default function Settings() {
                                   }}
                                 />
                                 <span className={
-                                  level === 'attention' ? 'text-amber-600' :
-                                  level === 'risk' ? 'text-orange-600' :
+                                  level === 'attention' ? 'text-warning-foreground' :
+                                  level === 'risk' ? 'text-risk-foreground' :
                                   'text-destructive'
                                 }>
                                   {level === 'attention' ? '🔔' : level === 'risk' ? '⚠️' : '🚨'}
