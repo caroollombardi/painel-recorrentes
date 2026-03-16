@@ -40,9 +40,10 @@ export function KPICard({
   return (
     <div 
       className={cn(
-        "relative overflow-hidden rounded-lg p-6 shadow-sm transition-all duration-300 hover:shadow-md animate-fade-in",
+        "relative overflow-hidden rounded-lg p-6 shadow-sm transition-all duration-300 animate-fade-in",
+        "hover:shadow-lg hover:-translate-y-1 hover:border-primary/30",
         variant === "default" && "bg-card border border-border",
-        variant === "accent" && "bg-primary text-primary-foreground",
+        variant === "accent" && "bg-primary text-primary-foreground hover:border-primary-foreground/20",
         variant === "highlight" && "bg-card border-2 border-primary",
         promoted && variant !== "accent" && "bg-gradient-to-br from-card to-primary/5"
       )}
