@@ -303,12 +303,12 @@ export async function exportHoursPDF(params: ExportParams) {
   const membersBelow = data.memberSummaries
     .filter((m) => !isExcludedMember(m.name))
     .filter((m) => {
-      const target = data.businessDaysElapsed * getMemberDailyTarget(m.name);
+      const target = getMemberPeriodTarget(m.name, data.businessDaysElapsed, selectedMonth, selectedYear);
       return m.totalHours < target;
     })
     .map((m) => {
-      const target = data.businessDaysElapsed * getMemberDailyTarget(m.name);
-      const totalTarget = data.businessDaysInMonth * getMemberDailyTarget(m.name);
+      const target = getMemberPeriodTarget(m.name, data.businessDaysElapsed, selectedMonth, selectedYear);
+      const totalTarget = getMemberPeriodTarget(m.name, data.businessDaysInMonth, selectedMonth, selectedYear);
       const needed = businessDaysRemaining > 0 ? (totalTarget - m.totalHours) / businessDaysRemaining : 0;
       return {
         name: m.name,
