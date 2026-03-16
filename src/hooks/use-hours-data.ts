@@ -16,11 +16,26 @@ export interface TimeEntry {
   year: number;
 }
 
+export interface TaskDetail {
+  taskName: string;
+  hours: number;
+  date: string | null;
+  activityType: string | null;
+}
+
+export interface ProjectDetail {
+  project: string;
+  hours: number;
+  activityType: string | null;
+  dates: string[];
+  tasks: TaskDetail[];
+}
+
 export interface MemberSummary {
   name: string;
   totalHours: number;
   percentOfTotal: number;
-  projects: { project: string; hours: number; activityType: string | null; dates: string[] }[];
+  projects: ProjectDetail[];
 }
 
 export interface HoursDashboardData {
@@ -135,7 +150,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     const avgHoursPerDay = businessDaysElapsed > 0 ? totalHours / businessDaysElapsed : 0;
 
     // Members
-    const memberMap = new Map<string, { hours: number; projects: Map<string, { hours: number; activityType: string | null; dates: Set<string> }> }>();
+    const memberMap = new Map<string, { hours: number; projects: Map<string, { hours: number; activityType: string | null; dates: Set<string>; tasks: TaskDetail[] }> }>();
     const projectSet = new Set<string>();
     const activitySet = new Set<string>();
     const dailyMap = new Map<string, number>();
@@ -150,10 +165,16 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
 
       const proj = e.project || "Sem projeto";
       projectSet.add(proj);
-      if (!m.projects.has(proj)) m.projects.set(proj, { hours: 0, activityType: e.activity_type, dates: new Set() });
+      if (!m.projects.has(proj)) m.projects.set(proj, { hours: 0, activityType: e.activity_type, dates: new Set(), tasks: [] });
       const projData = m.projects.get(proj)!;
       projData.hours += Number(e.hours_logged);
       if (e.completed_date) projData.dates.add(e.completed_date);
+      projData.tasks.push({
+        taskName: e.task_name || "Sem título",
+        hours: Number(e.hours_logged),
+        date: e.completed_date,
+        activityType: e.activity_type,
+      });
 
       const at = e.activity_type || "Outros";
       activitySet.add(at);
@@ -183,6 +204,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
           hours: Math.round(pData.hours * 100) / 100,
           activityType: pData.activityType,
           dates: Array.from(pData.dates).sort(),
+          tasks: pData.tasks.sort((a, b) => (b.date || "").localeCompare(a.date || "")),
         })).sort((a, b) => b.hours - a.hours),
       }))
       .sort((a, b) => b.totalHours - a.totalHours);
