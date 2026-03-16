@@ -101,7 +101,7 @@ export default function HoursDashboard() {
   const avgHoursValue = dashboardData?.avgHoursPerDay ?? 0;
   const avgPerMember = activeMemberCount > 0 ? avgHoursValue / activeMemberCount : 0;
   const avgMetaRatio = avgDayMeta > 0 ? avgHoursValue / avgDayMeta : 0;
-  const avgValueColor = avgMetaRatio >= 1 ? "text-emerald-600" : avgMetaRatio >= 0.8 ? "text-[#F97316]" : "text-destructive";
+  const avgValueColor = avgMetaRatio >= 1 ? "text-success-foreground" : avgMetaRatio >= 0.8 ? "text-risk-foreground" : "text-destructive";
 
   // Individual target for member chart
   const individualTargetForPeriod = businessDaysElapsed * DAILY_TARGET_HOURS;
