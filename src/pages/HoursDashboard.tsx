@@ -9,6 +9,7 @@ import { HoursMemberChart } from "@/components/hours/HoursMemberChart";
 import { HoursDetailTable } from "@/components/hours/HoursDetailTable";
 import { DailyHoursChart } from "@/components/hours/DailyHoursChart";
 import { ActivityDistributionChart } from "@/components/hours/ActivityDistributionChart";
+import { EasyJurImport } from "@/components/hours/EasyJurImport";
 
 import { HoursExecutiveSummary } from "@/components/hours/HoursExecutiveSummary";
 import { useHoursData } from "@/hooks/use-hours-data";
@@ -33,7 +34,7 @@ export default function HoursDashboard() {
   const [activityFilter, setActivityFilter] = useState("all");
   
 
-  const { dashboardData, isLoading, previousMonthHours } = useHoursData(selectedMonth, selectedYear);
+  const { dashboardData, isLoading, previousMonthHours, reload } = useHoursData(selectedMonth, selectedYear);
 
   const monthProgress = useMemo(() => getMonthProgress(), []);
 
@@ -400,6 +401,11 @@ export default function HoursDashboard() {
               </Button>
             )}
             <div className="ml-auto flex items-center gap-2">
+              <EasyJurImport
+                selectedMonth={selectedMonth}
+                selectedYear={selectedYear}
+                onImportComplete={reload}
+              />
               <Button variant="outline" size="sm" onClick={exportCSV} disabled={!dashboardData}>
                 <Download className="w-4 h-4 mr-2" />
                 CSV
