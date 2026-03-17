@@ -302,7 +302,7 @@ function extractActivityType(descricao: string): string | null {
   if (!descricao) return null;
   const upper = descricao.toUpperCase().trim();
   // Extract activity type from the prefix pattern "TIPO - descrição"
-  const match = upper.match(/^(ELABORA[CÇ][AÃ]O|REVIS[AÃ]O|AN[AÁ]LISE|ACOMPANHAMENTO|PESQUISA|REUNI[AÃ]O|ATENDIMENTO|DESPACHO|PETICAO|PETI[CÇ][AÃ]O|PROTOCOLO|DISTRIBUI[CÇ][AÃ]O|CARGA|MANIFESTA[CÇ][AÃ]O)/i;
+  const match = upper.match(/^(ELABORACAO|REVISAO|ANALISE|ACOMPANHAMENTO|PESQUISA|REUNIAO|ATENDIMENTO|DESPACHO|PETICAO|PROTOCOLO|DISTRIBUICAO|CARGA|MANIFESTACAO)/i);
   if (match) {
     // Normalize common activity types
     const type = match[1].toUpperCase()
