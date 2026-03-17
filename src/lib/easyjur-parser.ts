@@ -300,7 +300,7 @@ function extractProjectName(contrato: string, projeto: string, cliente: string):
 
 function extractActivityType(descricao: string): string | null {
   if (!descricao) return null;
-  const upper = descricao.toUpperCase().trim();
+  const upper = descricao.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
   // Extract activity type from the prefix pattern "TIPO - descrição"
   const match = upper.match(/^(ELABORACAO|REVISAO|ANALISE|ACOMPANHAMENTO|PESQUISA|REUNIAO|ATENDIMENTO|DESPACHO|PETICAO|PROTOCOLO|DISTRIBUICAO|CARGA|MANIFESTACAO)/i);
   if (match) {

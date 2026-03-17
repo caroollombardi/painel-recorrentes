@@ -401,6 +401,11 @@ export default function HoursDashboard() {
               </Button>
             )}
             <div className="ml-auto flex items-center gap-2">
+              <EasyJurImport
+                selectedMonth={selectedMonth}
+                selectedYear={selectedYear}
+                onImportComplete={reload}
+              />
               <Button variant="outline" size="sm" onClick={exportCSV} disabled={!dashboardData}>
                 <Download className="w-4 h-4 mr-2" />
                 CSV
