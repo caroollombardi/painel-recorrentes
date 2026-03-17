@@ -9,6 +9,7 @@ import { HoursMemberChart } from "@/components/hours/HoursMemberChart";
 import { HoursDetailTable } from "@/components/hours/HoursDetailTable";
 import { DailyHoursChart } from "@/components/hours/DailyHoursChart";
 import { ActivityDistributionChart } from "@/components/hours/ActivityDistributionChart";
+import { EasyJurImport } from "@/components/hours/EasyJurImport";
 
 import { HoursExecutiveSummary } from "@/components/hours/HoursExecutiveSummary";
 import { useHoursData } from "@/hooks/use-hours-data";
