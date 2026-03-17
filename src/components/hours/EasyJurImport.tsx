@@ -157,23 +157,28 @@ export function EasyJurImport({ selectedMonth, selectedYear, onImportComplete }:
     };
   }, [parsedResult, selectedPerson]);
 
-  if (!isOpen) {
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setIsOpen(true)}
-        className="gap-2 border-primary/30 hover:border-primary hover:bg-primary/5"
-      >
-        <FileSpreadsheet className="w-4 h-4" />
-        Importar EasyJur
-      </Button>
-    );
-  }
+  useEffect(() => {
+    if (!isOpen) return;
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={handleClose}>
-      <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col relative" onClick={e => e.stopPropagation()}>
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[9999] isolate flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in"
+      onClick={handleClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative z-10 mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
