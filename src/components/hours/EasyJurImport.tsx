@@ -1,4 +1,5 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Upload, FileSpreadsheet, X, CheckCircle, AlertTriangle, Info, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -156,23 +157,28 @@ export function EasyJurImport({ selectedMonth, selectedYear, onImportComplete }:
     };
   }, [parsedResult, selectedPerson]);
 
-  if (!isOpen) {
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setIsOpen(true)}
-        className="gap-2 border-primary/30 hover:border-primary hover:bg-primary/5"
-      >
-        <FileSpreadsheet className="w-4 h-4" />
-        Importar EasyJur
-      </Button>
-    );
-  }
+  useEffect(() => {
+    if (!isOpen) return;
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in" onClick={handleClose}>
-      <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col relative" onClick={e => e.stopPropagation()}>
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[9999] isolate flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in"
+      onClick={handleClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative z-10 mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
@@ -459,7 +465,7 @@ export function EasyJurImport({ selectedMonth, selectedYear, onImportComplete }:
 
         {/* Sticky footer with action buttons for preview step */}
         {step === "preview" && parsedResult && selectedPerson && previewSummary && (
-          <div className="flex justify-end gap-3 p-4 border-t border-border bg-card rounded-b-xl shrink-0">
+          <div className="relative z-20 flex shrink-0 justify-end gap-3 border-t border-border bg-card p-4 shadow-[0_-8px_24px_hsl(var(--background)/0.12)]">
             <Button variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
@@ -471,6 +477,22 @@ export function EasyJurImport({ selectedMonth, selectedYear, onImportComplete }:
         )}
       </div>
     </div>
+  );
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setIsOpen(true)}
+        className="gap-2 border-primary/30 hover:border-primary hover:bg-primary/5"
+      >
+        <FileSpreadsheet className="w-4 h-4" />
+        Importar EasyJur
+      </Button>
+
+      {isOpen && typeof document !== "undefined" ? createPortal(modalContent, document.body) : null}
+    </>
   );
 }
 
