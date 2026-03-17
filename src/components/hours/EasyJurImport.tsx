@@ -428,16 +428,47 @@ export function EasyJurImport({ selectedMonth, selectedYear, onImportComplete }:
                 </p>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex justify-end gap-3 pt-2">
-                <Button variant="outline" onClick={handleClose}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleConfirmImport} className="gap-2">
-                  <CheckCircle className="w-4 h-4" />
-                  Confirmar importação ({previewSummary.totalEntries} registros)
-                </Button>
+            </div>
+          )}
+
+          {/* Step 4: Importing */}
+          {step === "importing" && (
+            <div className="py-12 text-center space-y-4">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto" />
+              <p className="text-sm text-muted-foreground">Importando lançamentos...</p>
+            </div>
+          )}
+
+          {/* Step 5: Done */}
+          {step === "done" && importResult && selectedPerson && (
+            <div className="py-8 text-center space-y-4">
+              <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-success" />
               </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Importação concluída!</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {importResult.count} lançamentos de {selectedPerson.shortName} foram importados para{" "}
+                  {MONTH_NAMES[selectedMonth]}/{selectedYear}.
+                </p>
+              </div>
+              <Button onClick={handleClose}>Fechar</Button>
+            </div>
+          )}
+        </div>
+
+        {/* Sticky footer with action buttons for preview step */}
+        {step === "preview" && parsedResult && selectedPerson && previewSummary && (
+          <div className="flex justify-end gap-3 p-4 border-t border-border bg-card rounded-b-xl shrink-0">
+            <Button variant="outline" onClick={handleClose}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmImport} className="gap-2">
+              <CheckCircle className="w-4 h-4" />
+              Confirmar importação ({previewSummary.totalEntries} registros)
+            </Button>
+          </div>
+        )}
             </div>
           )}
 
