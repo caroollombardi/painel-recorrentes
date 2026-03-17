@@ -193,7 +193,7 @@ export function EasyJurImport({ selectedMonth, selectedYear, onImportComplete }:
           </Button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
           {/* Step 1: Select Person */}
           {step === "select-person" && (
             <div className="space-y-4">
