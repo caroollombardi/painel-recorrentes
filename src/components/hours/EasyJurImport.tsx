@@ -469,34 +469,6 @@ export function EasyJurImport({ selectedMonth, selectedYear, onImportComplete }:
             </Button>
           </div>
         )}
-            </div>
-          )}
-
-          {/* Step 4: Importing */}
-          {step === "importing" && (
-            <div className="py-12 text-center space-y-4">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto" />
-              <p className="text-sm text-muted-foreground">Importando lançamentos...</p>
-            </div>
-          )}
-
-          {/* Step 5: Done */}
-          {step === "done" && importResult && selectedPerson && (
-            <div className="py-8 text-center space-y-4">
-              <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
-                <CheckCircle className="w-8 h-8 text-success" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">Importação concluída!</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {importResult.count} lançamentos de {selectedPerson.shortName} foram importados para{" "}
-                  {MONTH_NAMES[selectedMonth]}/{selectedYear}.
-                </p>
-              </div>
-              <Button onClick={handleClose}>Fechar</Button>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
