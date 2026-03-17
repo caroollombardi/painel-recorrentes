@@ -117,6 +117,16 @@ export function EasyJurImport({ selectedMonth, selectedYear, onImportComplete }:
     );
 
     if (result.success) {
+      // Also merge into the recurring clients dashboard
+      const mergeResult = await mergeEasyJurIntoDashboard(
+        selectedPerson.name,
+        selectedMonth,
+        selectedYear
+      );
+      if (!mergeResult.success) {
+        console.warn("Merge into dashboard failed:", mergeResult.error);
+      }
+
       setImportResult({ count: result.count });
       setStep("done");
       toast({
