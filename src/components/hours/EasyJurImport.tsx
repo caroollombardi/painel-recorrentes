@@ -465,7 +465,7 @@ export function EasyJurImport({ selectedMonth, selectedYear, onImportComplete }:
 
         {/* Sticky footer with action buttons for preview step */}
         {step === "preview" && parsedResult && selectedPerson && previewSummary && (
-          <div className="flex justify-end gap-3 p-4 border-t border-border bg-card rounded-b-xl shrink-0">
+          <div className="relative z-20 flex shrink-0 justify-end gap-3 border-t border-border bg-card p-4 shadow-[0_-8px_24px_hsl(var(--background)/0.12)]">
             <Button variant="outline" onClick={handleClose}>
               Cancelar
             </Button>
@@ -477,6 +477,22 @@ export function EasyJurImport({ selectedMonth, selectedYear, onImportComplete }:
         )}
       </div>
     </div>
+  );
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setIsOpen(true)}
+        className="gap-2 border-primary/30 hover:border-primary hover:bg-primary/5"
+      >
+        <FileSpreadsheet className="w-4 h-4" />
+        Importar EasyJur
+      </Button>
+
+      {isOpen && typeof document !== "undefined" ? createPortal(modalContent, document.body) : null}
+    </>
   );
 }
 
