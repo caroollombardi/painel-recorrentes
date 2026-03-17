@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { parseEasyJurCSV, importEasyJurEntries, type ParsedEasyJurEntry } from "@/lib/easyjur-parser";
+import { mergeEasyJurIntoDashboard } from "@/lib/merge-easyjur-dashboard";
 import { toast } from "@/hooks/use-toast";
 
 interface EasyJurImportProps {
@@ -116,6 +117,16 @@ export function EasyJurImport({ selectedMonth, selectedYear, onImportComplete }:
     );
 
     if (result.success) {
+      // Also merge into the recurring clients dashboard
+      const mergeResult = await mergeEasyJurIntoDashboard(
+        selectedPerson.name,
+        selectedMonth,
+        selectedYear
+      );
+      if (!mergeResult.success) {
+        console.warn("Merge into dashboard failed:", mergeResult.error);
+      }
+
       setImportResult({ count: result.count });
       setStep("done");
       toast({
