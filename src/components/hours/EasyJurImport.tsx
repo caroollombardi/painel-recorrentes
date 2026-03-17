@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { parseEasyJurCSV, importEasyJurEntries, type ParsedEasyJurEntry } from "@/lib/easyjur-parser";
+import { mergeEasyJurIntoDashboard } from "@/lib/merge-easyjur-dashboard";
 import { toast } from "@/hooks/use-toast";
 
 interface EasyJurImportProps {
