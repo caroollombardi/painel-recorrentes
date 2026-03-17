@@ -7,7 +7,7 @@ export interface LawyerPrice {
 }
 
 export const lawyerPrices: LawyerPrice[] = [
-  { name: "Aline", role: "Adv. Júnior", hourlyRate: 0, area: "Contencioso" },
+  { name: "Aline Morozinski", role: "Adv. Júnior", hourlyRate: 450, area: "Contencioso" },
   { name: "Camilla Ferronato", role: "Adv. Júnior 2", hourlyRate: 490, area: "Contratos" },
   { name: "Carolina Lombardi", role: "Gestora de projetos", hourlyRate: 0, area: "Gestão de Projetos" },
   { name: "Felipe Hauagge", role: "Adv. Pleno 3", hourlyRate: 730, area: "Societário" },
