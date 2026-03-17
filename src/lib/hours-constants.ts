@@ -8,8 +8,6 @@ export const DAILY_ALERT_THRESHOLD = 8;
 export const EXCLUDED_MEMBERS = [
   "Lorenzo",
   "Pedro",
-  "Natalí",
-  "Aline",
   "Carol",
 ];
 

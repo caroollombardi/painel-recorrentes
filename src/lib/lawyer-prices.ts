@@ -17,7 +17,7 @@ export const lawyerPrices: LawyerPrice[] = [
   { name: "Luiza de Macedo Gebran", role: "Adv. Pleno 3", hourlyRate: 730, area: "Societário" },
   { name: "Manuela Crudi Sant'Anna", role: "Adv. Júnior 3", hourlyRate: 530, area: "Societário" },
   { name: "Marianna Moura Machado", role: "Trainee", hourlyRate: 250, area: "Societário" },
-  { name: "Natalí Perera Batista", role: "Adv. Pleno 2", hourlyRate: 680, area: "Contencioso" },
+  { name: "Natalí Perera Batista", role: "Adv. Pleno 2", hourlyRate: 730, area: "Contencioso" },
   { name: "Pedro Wolff", role: "Sócio Fundador", hourlyRate: 1080, area: "Societário" },
   { name: "Sabrina Yohana Bona", role: "Adv. Pleno 2", hourlyRate: 680, area: "Contratos" },
 ];
