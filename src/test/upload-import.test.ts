@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { parseEasyJurCSV } from "@/lib/easyjur-parser";
 import { parseXLSXData } from "@/lib/xlsx-parser";
 
 const csvText = readFileSync(
-  new URL("./fixtures/googleSheetsAdvancedSearchQueryCsv_2.csv", import.meta.url),
+  resolve(process.cwd(), "src/test/fixtures/googleSheetsAdvancedSearchQueryCsv_2.csv"),
   "utf8"
 );
 
