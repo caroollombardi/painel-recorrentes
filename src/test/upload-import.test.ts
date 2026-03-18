@@ -1,0 +1,27 @@
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { parseEasyJurCSV } from "@/lib/easyjur-parser";
+import { parseXLSXData } from "@/lib/xlsx-parser";
+
+const csvText = readFileSync(
+  new URL("./fixtures/googleSheetsAdvancedSearchQueryCsv_2.csv", import.meta.url),
+  "utf8"
+);
+
+describe("importação da planilha anexada", () => {
+  it("rejeita o arquivo no fluxo EasyJur", () => {
+    const result = parseEasyJurCSV(csvText);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(" ")).toContain("Colunas obrigatórias não encontradas");
+  });
+
+  it("lê o arquivo no fluxo padrão de Asana/clientes recorrentes", () => {
+    const buffer = new TextEncoder().encode(csvText).buffer as ArrayBuffer;
+    const result = parseXLSXData(buffer);
+
+    expect(result.clients.length).toBeGreaterThan(0);
+    expect(result.totalHoras).toBeGreaterThan(0);
+    expect(result.clients.some((client) => client.project === "DATASOUL")).toBe(true);
+  });
+});
