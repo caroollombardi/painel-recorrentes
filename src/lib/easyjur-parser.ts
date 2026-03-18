@@ -254,8 +254,7 @@ function parseSemicolonLine(line: string): string[] {
 }
 
 function mapColumns(headers: string[]): Record<string, number> {
-  const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  const find = (needles: string[]) => headers.findIndex(h => needles.some(n => normalize(h).includes(n)));
+  const find = (needles: string[]) => headers.findIndex(h => needles.some(n => normalizeText(h).includes(n)));
 
   return {
     id: find(["id"]),
@@ -265,8 +264,8 @@ function mapColumns(headers: string[]): Record<string, number> {
     dataTimesheet: find(["data timesheet"]),
     dataConclusao: find(["data conclusao"]),
     timesheet: headers.findIndex(h => {
-      const n = normalize(h);
-      return n === "timesheet" || (n.includes("timesheet") && !n.includes("data"));
+      const normalized = normalizeText(h);
+      return normalized === "timesheet" || (normalized.includes("timesheet") && !normalized.includes("data"));
     }),
     projeto: find(["projeto"]),
     contrato: find(["contrato"]),

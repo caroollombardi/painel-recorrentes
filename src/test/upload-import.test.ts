@@ -10,11 +10,11 @@ const csvText = readFileSync(
 );
 
 describe("importação da planilha anexada", () => {
-  it("rejeita o arquivo no fluxo EasyJur", () => {
+  it("rejeita o arquivo no fluxo EasyJur com mensagem clara", () => {
     const result = parseEasyJurCSV(csvText);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.join(" ")).toContain("Colunas obrigatórias não encontradas");
+    expect(result.errors.join(" ")).toContain("exportação do Asana");
   });
 
   it("lê o arquivo no fluxo padrão de Asana/clientes recorrentes", () => {
