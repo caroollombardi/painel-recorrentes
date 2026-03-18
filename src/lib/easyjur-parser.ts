@@ -35,6 +35,14 @@ export interface EasyJurValidationResult {
 
 const REQUIRED_COLUMNS = ["Responsavel", "Descricao", "Data Timesheet", "Timesheet"];
 
+const normalizeText = (value: string) =>
+  value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+function looksLikeAsanaExport(headerLine: string): boolean {
+  const normalized = normalizeText(headerLine);
+  return normalized.includes("task id") && normalized.includes("actual time") && normalized.includes("assignee");
+}
+
 /**
  * Parse an EasyJur CSV/Excel export (semicolon-separated, Latin-1 encoding possible).
  */
@@ -50,18 +58,29 @@ export function parseEasyJurCSV(csvText: string): EasyJurValidationResult {
 
   // Parse header (semicolon-separated, remove quotes and BOM)
   const headerLine = lines[0].replace(/^\uFEFF/, "");
+
+  if (looksLikeAsanaExport(headerLine)) {
+    return {
+      valid: false,
+      entries: [],
+      errors: [
+        "Esta planilha parece ser uma exportação do Asana, não do EasyJur. Use a importação padrão de planilha/Asana para atualizar Clientes Recorrentes e Lançamento de Horas.",
+      ],
+      warnings,
+      totalHours: 0,
+      dateRange: null,
+    };
+  }
+
   const headers = parseSemicolonLine(headerLine);
-  
+
   // Map column indices
   const colMap = mapColumns(headers);
-  
+
   // Validate required columns
   const missingCols = REQUIRED_COLUMNS.filter(col => {
-    const key = col.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    return !headers.some(h => {
-      const norm = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      return norm.includes(key.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-    });
+    const key = normalizeText(col);
+    return !headers.some(h => normalizeText(h).includes(key));
   });
 
   if (missingCols.length > 0) {
@@ -235,8 +254,7 @@ function parseSemicolonLine(line: string): string[] {
 }
 
 function mapColumns(headers: string[]): Record<string, number> {
-  const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  const find = (needles: string[]) => headers.findIndex(h => needles.some(n => normalize(h).includes(n)));
+  const find = (needles: string[]) => headers.findIndex(h => needles.some(n => normalizeText(h).includes(n)));
 
   return {
     id: find(["id"]),
@@ -246,8 +264,8 @@ function mapColumns(headers: string[]): Record<string, number> {
     dataTimesheet: find(["data timesheet"]),
     dataConclusao: find(["data conclusao"]),
     timesheet: headers.findIndex(h => {
-      const n = normalize(h);
-      return n === "timesheet" || (n.includes("timesheet") && !n.includes("data"));
+      const normalized = normalizeText(h);
+      return normalized === "timesheet" || (normalized.includes("timesheet") && !normalized.includes("data"));
     }),
     projeto: find(["projeto"]),
     contrato: find(["contrato"]),
