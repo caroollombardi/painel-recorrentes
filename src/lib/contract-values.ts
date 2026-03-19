@@ -42,15 +42,18 @@ export function getClientContract(clientName: string): ContractValue | null {
   if (!clientName) return null;
   
   const normalized = clientName.toLowerCase().trim();
+  const normalizedNoSpaces = normalized.replace(/\s+/g, '');
   
   // Try exact match first
   const exactMatch = contractValueMap.get(normalized);
   if (exactMatch) return exactMatch;
   
-  // Try partial match (client name contains or is contained)
+  // Try partial match (client name contains or is contained, also compare without spaces)
   for (const contract of contractValues) {
     const contractNormalized = contract.cliente.toLowerCase().trim();
-    if (contractNormalized.includes(normalized) || normalized.includes(contractNormalized)) {
+    const contractNoSpaces = contractNormalized.replace(/\s+/g, '');
+    if (contractNormalized.includes(normalized) || normalized.includes(contractNormalized) ||
+        contractNoSpaces === normalizedNoSpaces) {
       return contract;
     }
   }
