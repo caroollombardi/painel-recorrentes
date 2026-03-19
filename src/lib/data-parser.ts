@@ -113,7 +113,7 @@ export function parseCSVData(csvText: string): DashboardData {
     
     records.push({
       taskId: fields[0],
-      project: extractProjectName(project),
+      project: projectName,
       actualTime,
       contrato: contrato?.trim() || '',
       hours,
