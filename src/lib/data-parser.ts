@@ -98,8 +98,12 @@ export function parseCSVData(csvText: string): DashboardData {
     
     if (!project || !actualTime) continue;
     
-    // Only include MENSAL contracts
-    if (contrato?.trim() !== 'MENSAL') continue;
+    const projectName = extractProjectName(project);
+    const isMensal = contrato?.trim() === 'MENSAL';
+    const hasContract = !!getClientContract(projectName);
+    
+    // Include if explicitly MENSAL or if client exists in contract mapping
+    if (!isMensal && !hasContract) continue;
     
     const hours = parseTimeToHours(actualTime);
     if (hours === 0) continue;
@@ -109,7 +113,7 @@ export function parseCSVData(csvText: string): DashboardData {
     
     records.push({
       taskId: fields[0],
-      project: extractProjectName(project),
+      project: projectName,
       actualTime,
       contrato: contrato?.trim() || '',
       hours,
