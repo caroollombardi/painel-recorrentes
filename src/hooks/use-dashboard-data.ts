@@ -29,7 +29,8 @@ export function useDashboardData() {
         if (data?.data) {
           const result = dashboardDataSchema.safeParse(data.data);
           if (result.success) {
-            setDashboardData(result.data as DashboardData);
+            const recalculated = recalculateCreditUsage(result.data as DashboardData);
+            setDashboardData(recalculated);
           } else {
             console.error("Dashboard data validation failed:", result.error.issues);
             toast({
