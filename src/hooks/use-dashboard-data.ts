@@ -6,6 +6,33 @@ import { toast } from "@/hooks/use-toast";
 import { getClientContract, calculateCreditUsage } from "@/lib/contract-values";
 import { analyzeConsumption } from "@/lib/month-progress";
 
+// Recalculates credit usage from current contract-values.ts on every load
+function recalculateCreditUsage(data: DashboardData): DashboardData {
+  const clients = data.clients.map((client) => {
+    const contract = getClientContract(client.project);
+    if (!contract) return { ...client, creditUsage: null };
+
+    const valorConsumido = client.valorMensal;
+    const usage = calculateCreditUsage(valorConsumido, contract.valorMensalCredito);
+    const analysis = analyzeConsumption(usage.percentual, data.monthProgress);
+
+    return {
+      ...client,
+      creditUsage: {
+        valorPago: contract.valorMensalPago,
+        valorCredito: contract.valorMensalCredito,
+        valorConsumido,
+        percentualUsado: usage.percentual,
+        isWarning: usage.isWarning,
+        isCritical: usage.isCritical,
+        analysis,
+      },
+    };
+  });
+
+  return { ...data, clients: clients as ClientData[] };
+}
+
 export function useDashboardData() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
