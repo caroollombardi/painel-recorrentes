@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { DashboardData } from "@/lib/data-parser";
+import { DashboardData, ClientData } from "@/lib/data-parser";
 import { dashboardDataSchema } from "@/lib/schemas";
 import { toast } from "@/hooks/use-toast";
+import { getClientContract, calculateCreditUsage } from "@/lib/contract-values";
+import { analyzeConsumption } from "@/lib/month-progress";
 
 export function useDashboardData() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
