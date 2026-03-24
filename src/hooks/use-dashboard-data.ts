@@ -1,8 +1,37 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { DashboardData } from "@/lib/data-parser";
+import { DashboardData, ClientData } from "@/lib/data-parser";
 import { dashboardDataSchema } from "@/lib/schemas";
 import { toast } from "@/hooks/use-toast";
+import { getClientContract, calculateCreditUsage } from "@/lib/contract-values";
+import { analyzeConsumption } from "@/lib/month-progress";
+
+// Recalculates credit usage from current contract-values.ts on every load
+function recalculateCreditUsage(data: DashboardData): DashboardData {
+  const clients = data.clients.map((client) => {
+    const contract = getClientContract(client.project);
+    if (!contract) return { ...client, creditUsage: null };
+
+    const valorConsumido = client.valorMensal;
+    const usage = calculateCreditUsage(valorConsumido, contract.valorMensalCredito);
+    const analysis = analyzeConsumption(usage.percentual, data.monthProgress);
+
+    return {
+      ...client,
+      creditUsage: {
+        valorPago: contract.valorMensalPago,
+        valorCredito: contract.valorMensalCredito,
+        valorConsumido,
+        percentualUsado: usage.percentual,
+        isWarning: usage.isWarning,
+        isCritical: usage.isCritical,
+        analysis,
+      },
+    };
+  });
+
+  return { ...data, clients: clients as ClientData[] };
+}
 
 export function useDashboardData() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -27,7 +56,8 @@ export function useDashboardData() {
         if (data?.data) {
           const result = dashboardDataSchema.safeParse(data.data);
           if (result.success) {
-            setDashboardData(result.data as DashboardData);
+            const recalculated = recalculateCreditUsage(result.data as DashboardData);
+            setDashboardData(recalculated);
           } else {
             console.error("Dashboard data validation failed:", result.error.issues);
             toast({
