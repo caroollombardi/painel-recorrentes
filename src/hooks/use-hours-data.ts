@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { parseImportDate } from "@/lib/import-date";
 import { EXCLUDED_MEMBERS, isExcludedMember } from "@/lib/hours-constants";
 
 export interface TimeEntry {
@@ -304,14 +305,9 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
       }
       if (hours <= 0) continue;
 
-      let dateStr: string | null = null;
-      if (dateCol >= 0 && fields[dateCol]) {
-        const raw = fields[dateCol].trim();
-        const d = new Date(raw);
-        if (!isNaN(d.getTime())) {
-          dateStr = d.toISOString().split("T")[0];
-        }
-      }
+      const dateStr = dateCol >= 0
+        ? parseImportDate(fields[dateCol])
+        : null;
 
       // Extract activity type from Tags or dedicated column
       let activityType: string | null = null;
