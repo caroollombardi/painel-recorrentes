@@ -1,7 +1,6 @@
 import * as XLSX from 'xlsx';
 import { supabase } from "@/integrations/supabase/client";
-import { parseXLSXData } from "./xlsx-parser";
-import { DashboardData } from "./data-parser";
+import { parseImportDate } from "./import-date";
 
 /**
  * Extract time entries from XLSX for the hours dashboard.
@@ -33,7 +32,6 @@ export async function importTimeEntriesFromXLSX(
 
     if (!actualTime || !actualTime.trim()) continue;
 
-    // Parse time (HH:MM format)
     let hours = 0;
     if (actualTime.includes(':')) {
       const parts = actualTime.trim().split(':');
@@ -43,16 +41,8 @@ export async function importTimeEntriesFromXLSX(
     }
     if (hours <= 0) continue;
 
-    // Parse date
-    let dateStr: string | null = null;
-    if (completedAt) {
-      const d = new Date(completedAt.trim());
-      if (!isNaN(d.getTime())) {
-        dateStr = d.toISOString().split('T')[0];
-      }
-    }
+    const dateStr = parseImportDate(completedAt);
 
-    // Extract main project name (before ' - ')
     const projectName = project ? project.split(' - ')[0].trim() : 'Sem projeto';
 
     newEntries.push({
@@ -63,7 +53,7 @@ export async function importTimeEntriesFromXLSX(
       hours_logged: Math.round(hours * 100) / 100,
       client: client.trim() || null,
       activity_type: activityType.trim() || null,
-      month: month + 1, // DB uses 1-indexed
+      month: month + 1,
       year,
       uploaded_by: userId || null,
     });
@@ -73,7 +63,6 @@ export async function importTimeEntriesFromXLSX(
     return { success: false, count: 0 };
   }
 
-  // Delete existing entries for this month/year
   const { error: delError } = await supabase
     .from('time_entries')
     .delete()
@@ -84,7 +73,6 @@ export async function importTimeEntriesFromXLSX(
     console.error('Error deleting old time entries:', delError);
   }
 
-  // Insert in batches of 500
   for (let i = 0; i < newEntries.length; i += 500) {
     const batch = newEntries.slice(i, i + 500);
     const { error } = await supabase.from('time_entries').insert(batch);

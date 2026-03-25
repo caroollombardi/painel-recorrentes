@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseEasyJurCSV } from "@/lib/easyjur-parser";
+import { parseImportDate } from "@/lib/import-date";
 import { parseXLSXData } from "@/lib/xlsx-parser";
 
 const csvText = readFileSync(
@@ -24,5 +25,10 @@ describe("importação da planilha anexada", () => {
     expect(result.clients.length).toBeGreaterThan(0);
     expect(result.totalHoras).toBeGreaterThan(0);
     expect(result.clients.some((client) => client.project === "DATASOUL")).toBe(true);
+  });
+
+  it("preserva a data local ao importar timestamps com fuso", () => {
+    expect(parseImportDate("2026-03-24T00:30:00-03:00")).toBe("2026-03-24");
+    expect(parseImportDate("24/03/2026 08:15")).toBe("2026-03-24");
   });
 });
