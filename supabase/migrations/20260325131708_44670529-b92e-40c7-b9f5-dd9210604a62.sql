@@ -1,0 +1,1 @@
+DELETE FROM public.time_entries WHERE month = 3 AND year = 2026;
