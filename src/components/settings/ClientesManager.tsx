@@ -1,12 +1,15 @@
-import { useState } from "react";
-import { Plus, Pencil, Trash2, Save, Building2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Pencil, Trash2, Save, Building2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { getContractValues, saveContractValues, ContractValue } from "@/lib/contract-values";
+
+const CONFIG_FILE_NAME = "__contract_values_config__";
 
 const fmt = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -22,10 +25,67 @@ const emptyForm: FormState = { cliente: "", valorMensalPago: "", valorMensalCred
 export default function ClientesManager() {
   const { toast } = useToast();
   const [clientes, setClientes] = useState<ContractValue[]>(() => getContractValues());
+  const [recordId, setRecordId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+
+  // Carrega do Supabase ao montar
+  useEffect(() => {
+    async function loadFromSupabase() {
+      try {
+        const { data, error } = await supabase
+          .from("dashboard_data")
+          .select("id, data")
+          .eq("file_name", CONFIG_FILE_NAME)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+          const values = data.data as ContractValue[];
+          saveContractValues(values); // atualiza localStorage como cache
+          setClientes(values);
+          setRecordId(data.id);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar clientes do Supabase:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFromSupabase();
+  }, []);
+
+  async function persistir(updated: ContractValue[]) {
+    setSaving(true);
+    saveContractValues(updated); // salva no localStorage imediatamente
+    setClientes(updated);
+    try {
+      if (recordId) {
+        await supabase
+          .from("dashboard_data")
+          .update({ data: updated as any, updated_at: new Date().toISOString() })
+          .eq("id", recordId);
+      } else {
+        const { data, error } = await supabase
+          .from("dashboard_data")
+          .insert({ file_name: CONFIG_FILE_NAME, data: updated as any })
+          .select("id")
+          .single();
+        if (error) throw error;
+        setRecordId(data.id);
+      }
+    } catch (err) {
+      console.error("Erro ao salvar no Supabase:", err);
+      toast({ title: "Aviso", description: "Salvo localmente, mas não foi possível sincronizar com o servidor.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const openAdd = () => {
     setEditingIndex(null);
@@ -44,7 +104,7 @@ export default function ClientesManager() {
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const nome = form.cliente.trim().toUpperCase();
     const pago = parseFloat(form.valorMensalPago.replace(",", "."));
     const credito = parseFloat(form.valorMensalCredito.replace(",", "."));
@@ -64,16 +124,14 @@ export default function ClientesManager() {
       updated = [...clientes, novoCliente];
     }
 
-    saveContractValues(updated);
-    setClientes(updated);
+    await persistir(updated);
     setDialogOpen(false);
     toast({ title: editingIndex !== null ? "Cliente atualizado" : "Cliente adicionado", description: `${nome} salvo com sucesso.` });
   };
 
-  const handleDelete = (idx: number) => {
+  const handleDelete = async (idx: number) => {
     const updated = clientes.filter((_, i) => i !== idx);
-    saveContractValues(updated);
-    setClientes(updated);
+    await persistir(updated);
     setDeleteConfirm(null);
     toast({ title: "Cliente removido", description: "O cliente foi excluído da lista." });
   };
@@ -97,14 +155,20 @@ export default function ClientesManager() {
             Gerencie os contratos, valores mensais e créditos disponíveis de cada cliente.
           </CardDescription>
         </div>
-        <Button onClick={openAdd} style={{ backgroundColor: "#FB7435" }} className="shrink-0">
+        <Button onClick={openAdd} style={{ backgroundColor: "#FB7435" }} className="shrink-0" disabled={loading}>
           <Plus className="w-4 h-4 mr-2" />
           Novo Cliente
         </Button>
       </CardHeader>
 
       <CardContent>
-        <div className="rounded-lg border border-border overflow-hidden">
+        {loading && (
+          <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Carregando clientes...
+          </div>
+        )}
+        {!loading && <div className="rounded-lg border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
@@ -160,7 +224,7 @@ export default function ClientesManager() {
           {clientes.length === 0 && (
             <p className="text-center text-muted-foreground py-8">Nenhum cliente cadastrado.</p>
           )}
-        </div>
+        </div>}
 
         <p className="text-xs text-muted-foreground mt-3">
           {clientes.length} cliente{clientes.length !== 1 ? "s" : ""} cadastrado{clientes.length !== 1 ? "s" : ""}
@@ -216,9 +280,9 @@ export default function ClientesManager() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} style={{ backgroundColor: "#FB7435" }}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
+            <Button onClick={handleSave} style={{ backgroundColor: "#FB7435" }} disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              {saving ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
