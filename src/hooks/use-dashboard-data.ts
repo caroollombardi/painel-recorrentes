@@ -37,6 +37,15 @@ export function useDashboardData() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Recalculate credit usage whenever contract values are saved in Settings
+  useEffect(() => {
+    const handleContractUpdate = () => {
+      setDashboardData(prev => prev ? recalculateCreditUsage(prev) : null);
+    };
+    window.addEventListener("contractValuesUpdated", handleContractUpdate);
+    return () => window.removeEventListener("contractValuesUpdated", handleContractUpdate);
+  }, []);
+
   useEffect(() => {
     async function loadData() {
       try {

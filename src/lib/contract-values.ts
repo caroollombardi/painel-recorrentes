@@ -17,9 +17,9 @@ export function getContractValues(): ContractValue[] {
 
 export function saveContractValues(values: ContractValue[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
-  // Rebuild the lookup map
   contractValueMap.clear();
   values.forEach(c => contractValueMap.set(c.cliente.toLowerCase().trim(), c));
+  window.dispatchEvent(new CustomEvent("contractValuesUpdated"));
 }
 
 const defaultContractValues: ContractValue[] = [
@@ -68,8 +68,8 @@ export function getClientContract(clientName: string): ContractValue | null {
   const exactMatch = contractValueMap.get(normalized);
   if (exactMatch) return exactMatch;
   
-  // Try partial match (client name contains or is contained, also compare without spaces)
-  for (const contract of contractValues) {
+  // Try partial match against the live map (includes user-saved clients)
+  for (const contract of contractValueMap.values()) {
     const contractNormalized = contract.cliente.toLowerCase().trim();
     const contractNoSpaces = contractNormalized.replace(/\s+/g, '');
     if (contractNormalized.includes(normalized) || normalized.includes(contractNormalized) ||
