@@ -228,10 +228,10 @@ export default function ClientesManager() {
             <tfoot>
               <tr className="border-t-2 border-border bg-muted/50 font-semibold">
                 <td className="px-4 py-3">Total ({clientes.length} clientes)</td>
-                <td className="px-4 py-3 text-right" style={{ color: "#FB7435" }}>
+                <td className="px-4 py-3 text-center" style={{ color: "#FB7435" }}>
                   {fmt(clientes.reduce((s, c) => s + c.valorMensalPago, 0))}
                 </td>
-                <td className="px-4 py-3 text-right" style={{ color: "#FB7435" }}>
+                <td className="px-4 py-3 text-center" style={{ color: "#FB7435" }}>
                   {fmt(clientes.reduce((s, c) => s + c.valorMensalCredito, 0))}
                 </td>
                 <td></td>
