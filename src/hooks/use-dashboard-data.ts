@@ -43,6 +43,7 @@ export function useDashboardData() {
         const { data, error } = await supabase
           .from("dashboard_data")
           .select("data")
+          .neq("file_name", "__contract_values_config__")
           .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -91,6 +92,7 @@ export function useDashboardData() {
       const { data: existing } = await supabase
         .from("dashboard_data")
         .select("id")
+        .neq("file_name", "__contract_values_config__")
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
