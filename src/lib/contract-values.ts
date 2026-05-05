@@ -1,3 +1,5 @@
+const STORAGE_KEY = "wsa_contract_values";
+
 // Tabela de valores de contrato por cliente
 export interface ContractValue {
   cliente: string;
@@ -5,7 +7,22 @@ export interface ContractValue {
   valorMensalCredito: number;
 }
 
-export const contractValues: ContractValue[] = [
+export function getContractValues(): ContractValue[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return JSON.parse(stored) as ContractValue[];
+  } catch {}
+  return [...defaultContractValues];
+}
+
+export function saveContractValues(values: ContractValue[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
+  // Rebuild the lookup map
+  contractValueMap.clear();
+  values.forEach(c => contractValueMap.set(c.cliente.toLowerCase().trim(), c));
+}
+
+const defaultContractValues: ContractValue[] = [
   { cliente: "AIM CONVERSION", valorMensalPago: 4952.71, valorMensalCredito: 9905.42 },
   { cliente: "SUPLOS", valorMensalPago: 2000.00, valorMensalCredito: 4000.00 },
   { cliente: "APPLAUSE", valorMensalPago: 3000.00, valorMensalCredito: 6000.00 },
@@ -33,9 +50,11 @@ export const contractValues: ContractValue[] = [
   { cliente: "DATA SOUL", valorMensalPago: 4900.00, valorMensalCredito: 9800.00 },
 ];
 
-// Create a map for quick lookup by client name (normalized)
+export const contractValues = defaultContractValues;
+
+// Mutable map — rebuilt when saveContractValues() is called
 export const contractValueMap = new Map<string, ContractValue>(
-  contractValues.map(contract => [contract.cliente.toLowerCase().trim(), contract])
+  getContractValues().map(contract => [contract.cliente.toLowerCase().trim(), contract])
 );
 
 export function getClientContract(clientName: string): ContractValue | null {
