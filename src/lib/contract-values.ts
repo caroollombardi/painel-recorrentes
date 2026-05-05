@@ -23,18 +23,17 @@ export function saveContractValues(values: ContractValue[]): void {
 }
 
 const defaultContractValues: ContractValue[] = [
-  { cliente: "AIM CONVERSION", valorMensalPago: 4952.71, valorMensalCredito: 9905.42 },
+  { cliente: "AIM CONVERSION", valorMensalPago: 4800.00, valorMensalCredito: 9600.00 },
   { cliente: "SUPLOS", valorMensalPago: 2000.00, valorMensalCredito: 4000.00 },
   { cliente: "APPLAUSE", valorMensalPago: 3000.00, valorMensalCredito: 6000.00 },
-  { cliente: "ARCA TECH", valorMensalPago: 3450.00, valorMensalCredito: 6900.00 },
   { cliente: "PINÓ", valorMensalPago: 3000.00, valorMensalCredito: 6000.00 },
   { cliente: "BTAX", valorMensalPago: 4500.00, valorMensalCredito: 9000.00 },
-  { cliente: "COMPOSTA", valorMensalPago: 4350.00, valorMensalCredito: 8700.00 },
+  { cliente: "COMPOSTA", valorMensalPago: 3480.00, valorMensalCredito: 6960.00 },
   { cliente: "FIGUEIRA CAPITAL", valorMensalPago: 6350.00, valorMensalCredito: 12700.00 },
   { cliente: "LAYER UP", valorMensalPago: 4950.00, valorMensalCredito: 9900.00 },
-  { cliente: "MADALOZZO CORRETORA", valorMensalPago: 4000.00, valorMensalCredito: 8000.00 },
+  { cliente: "MADALOZZO CORRETORA", valorMensalPago: 7325.00, valorMensalCredito: 14650.00 },
   { cliente: "MAKASÍ", valorMensalPago: 10432.00, valorMensalCredito: 20864.00 },
-  { cliente: "ME2", valorMensalPago: 2750.00, valorMensalCredito: 5500.00 },
+  { cliente: "ME2", valorMensalPago: 4200.00, valorMensalCredito: 8400.00 },
   { cliente: "MEETROX", valorMensalPago: 4180.72, valorMensalCredito: 8361.44 },
   { cliente: "RNF", valorMensalPago: 4200.00, valorMensalCredito: 8400.00 },
   { cliente: "SMART CITIZEN", valorMensalPago: 4950.00, valorMensalCredito: 9900.00 },
@@ -48,6 +47,8 @@ const defaultContractValues: ContractValue[] = [
   { cliente: "KPEX Ribeirão Preto", valorMensalPago: 1100.00, valorMensalCredito: 2200.00 },
   { cliente: "KPEX Louveira", valorMensalPago: 1100.00, valorMensalCredito: 2200.00 },
   { cliente: "DATA SOUL", valorMensalPago: 4900.00, valorMensalCredito: 9800.00 },
+  { cliente: "HITECH", valorMensalPago: 4863.00, valorMensalCredito: 9726.00 },
+  { cliente: "SILVANIO", valorMensalPago: 1750.00, valorMensalCredito: 3500.00 },
 ];
 
 export const contractValues = defaultContractValues;
