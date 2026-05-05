@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, BarChart2, ChevronUp } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, BarChart2, ChevronUp, Calendar } from "lucide-react";
 import { DashboardData } from "@/lib/data-parser";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientValueTable, ClientValueTableHandle } from "@/components/dashboard/ClientValueTable";
@@ -18,6 +18,11 @@ const MONTH_NAMES = [
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
 
+const MONTH_NAMES_DISPLAY = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
 type AlertLevel = "overflow" | "risk" | "warning";
 
 interface AlertChip {
@@ -28,6 +33,20 @@ interface AlertChip {
 
 interface DashboardProps {
   data: DashboardData;
+}
+
+function Variation({ value, label }: { value: number | null | undefined; label: string }) {
+  if (value == null) return null;
+  return (
+    <div className="flex items-center gap-1 mt-1.5">
+      {value >= 0
+        ? <TrendingUp className="w-3 h-3 text-success-foreground shrink-0" />
+        : <TrendingDown className="w-3 h-3 text-destructive shrink-0" />}
+      <span className={cn("text-xs font-medium", value >= 0 ? "text-success-foreground" : "text-destructive")}>
+        {value >= 0 ? "+" : ""}{value.toFixed(1)}% vs {label}
+      </span>
+    </div>
+  );
 }
 
 export function Dashboard({ data }: DashboardProps) {
@@ -41,7 +60,6 @@ export function Dashboard({ data }: DashboardProps) {
   const { getPreviousMonthSnapshot } = useMonthlySnapshots();
 
   const prevSnapshot = getPreviousMonthSnapshot(selectedMonth, selectedYear);
-
   const prevMonthName = (() => {
     let pm = selectedMonth - 1;
     if (pm < 0) pm = 11;
@@ -62,7 +80,6 @@ export function Dashboard({ data }: DashboardProps) {
     ? ((projected - prevSnapshot.total_valor) / prevSnapshot.total_valor) * 100
     : null;
 
-  // Compute alert chips from full dataset (unfiltered — always show all alerts)
   const alertChips: AlertChip[] = data.clients
     .filter(c => c.creditUsage && c.creditUsage.percentualUsado >= 60)
     .map(c => {
@@ -78,22 +95,30 @@ export function Dashboard({ data }: DashboardProps) {
   const overflowCount = alertChips.filter(c => c.level === "overflow").length;
   const riskCount = alertChips.filter(c => c.level === "risk").length;
   const warningCount = alertChips.filter(c => c.level === "warning").length;
-
   const bannerLevel: AlertLevel = overflowCount > 0 ? "overflow" : riskCount > 0 ? "risk" : "warning";
   const bannerLabel =
     overflowCount > 0 ? `${overflowCount} cliente${overflowCount > 1 ? "s" : ""} estourou o crédito` :
-    riskCount > 0 ? `${riskCount} cliente${riskCount > 1 ? "s" : ""} em risco de estouro` :
-    `${warningCount} cliente${warningCount > 1 ? "s" : ""} em atenção`;
-  const bannerStyles: Record<AlertLevel, { container: string; title: string }> = {
-    overflow: { container: "bg-destructive/5 border-destructive/30", title: "text-destructive" },
-    risk:     { container: "bg-risk/10 border-risk/30",             title: "text-risk-foreground" },
-    warning:  { container: "bg-warning/10 border-warning/30",       title: "text-warning-foreground" },
-  };
+    riskCount > 0    ? `${riskCount} cliente${riskCount > 1 ? "s" : ""} em risco de estouro` :
+                       `${warningCount} cliente${warningCount > 1 ? "s" : ""} em atenção`;
+
   const chipStyles: Record<AlertLevel, string> = {
-    overflow: "bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20",
-    risk:     "bg-risk/10 border-risk/30 text-risk-foreground hover:bg-risk/20",
-    warning:  "bg-warning/10 border-warning/30 text-warning-foreground hover:bg-warning/20",
+    overflow: "bg-destructive/10 border-destructive/40 text-destructive hover:bg-destructive/20",
+    risk:     "bg-risk/10 border-risk/40 text-risk-foreground hover:bg-risk/20",
+    warning:  "bg-warning/10 border-warning/40 text-warning-foreground hover:bg-warning/20",
   };
+  const bannerBorder: Record<AlertLevel, string> = {
+    overflow: "border-l-destructive",
+    risk:     "border-l-risk",
+    warning:  "border-l-warning",
+  };
+  const bannerTitleColor: Record<AlertLevel, string> = {
+    overflow: "text-destructive",
+    risk:     "text-risk-foreground",
+    warning:  "text-warning-foreground",
+  };
+
+  const { percentElapsed, currentDay, totalDays, daysRemaining } = data.monthProgress;
+  const currentMonthDisplay = MONTH_NAMES_DISPLAY[new Date().getMonth()];
 
   if (presentation.isActive) {
     return (
@@ -120,118 +145,90 @@ export function Dashboard({ data }: DashboardProps) {
 
       <main className="container py-5 space-y-3">
 
-        {/* ── Metrics strip ── compact, horizontal, no tall cards ── */}
-        <section className="bg-card border border-border rounded-lg overflow-hidden">
-          <div className="grid grid-cols-2 lg:grid-cols-4">
+        {/* ── Hero metrics ── três números grandes + barra de progresso ── */}
+        <section className="bg-gradient-to-br from-card to-primary/5 border border-border rounded-xl overflow-hidden shadow-sm">
 
-            {/* Horas */}
-            <div className="px-5 py-4 border-r border-b lg:border-b-0 border-border">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-1.5">
+          {/* Três métricas principais */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border">
+
+            <div className="px-6 py-5">
+              <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-2">
                 Total horas
               </p>
-              <p className="text-2xl font-display font-bold text-foreground">
-                {filteredKPIs.totalHoras.toFixed(1)}h
+              <p className="text-4xl font-display font-bold text-foreground leading-none">
+                {filteredKPIs.totalHoras.toFixed(1)}
+                <span className="text-2xl text-muted-foreground font-normal ml-1">h</span>
               </p>
-              {selectedClient === "all" && horasVariation != null && (
-                <div className="flex items-center gap-1 mt-1">
-                  {horasVariation >= 0
-                    ? <TrendingUp className="w-3 h-3 text-success-foreground" />
-                    : <TrendingDown className="w-3 h-3 text-destructive" />}
-                  <span className={cn("text-xs font-medium",
-                    horasVariation >= 0 ? "text-success-foreground" : "text-destructive")}>
-                    {horasVariation >= 0 ? "+" : ""}{horasVariation.toFixed(1)}% vs {prevMonthName}
-                  </span>
-                </div>
+              {selectedClient === "all" && (
+                <Variation value={horasVariation} label={prevMonthName} />
               )}
             </div>
 
-            {/* Valor */}
-            <div className="px-5 py-4 border-b lg:border-b-0 lg:border-r border-border">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-1.5">
+            <div className="px-6 py-5">
+              <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-2">
                 Valor recorrente
               </p>
-              <p className="text-2xl font-display font-bold text-foreground">
+              <p className={cn(
+                "text-4xl font-display font-bold leading-none",
+                showValues ? "text-primary" : "text-foreground"
+              )}>
                 {showValues ? formatCurrency(filteredKPIs.totalValor) : "—"}
               </p>
-              {showValues && selectedClient === "all" && valorVariation != null && (
-                <div className="flex items-center gap-1 mt-1">
-                  {valorVariation >= 0
-                    ? <TrendingUp className="w-3 h-3 text-success-foreground" />
-                    : <TrendingDown className="w-3 h-3 text-destructive" />}
-                  <span className={cn("text-xs font-medium",
-                    valorVariation >= 0 ? "text-success-foreground" : "text-destructive")}>
-                    {valorVariation >= 0 ? "+" : ""}{valorVariation.toFixed(1)}% vs {prevMonthName}
-                  </span>
-                </div>
+              {showValues && selectedClient === "all" && (
+                <Variation value={valorVariation} label={prevMonthName} />
               )}
             </div>
 
-            {/* Projeção */}
-            <div className="px-5 py-4 border-r border-border">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-1.5">
+            <div className="px-6 py-5">
+              <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-2">
                 Projeção fim do mês
               </p>
-              <p className="text-2xl font-display font-bold text-foreground">
+              <p className="text-4xl font-display font-bold text-foreground leading-none">
                 {showValues ? formatCurrency(projected) : "—"}
               </p>
-              {showValues && selectedClient === "all" && projectedVariation != null && (
-                <div className="flex items-center gap-1 mt-1">
-                  {projectedVariation >= 0
-                    ? <TrendingUp className="w-3 h-3 text-success-foreground" />
-                    : <TrendingDown className="w-3 h-3 text-destructive" />}
-                  <span className={cn("text-xs font-medium",
-                    projectedVariation >= 0 ? "text-success-foreground" : "text-destructive")}>
-                    {projectedVariation >= 0 ? "+" : ""}{projectedVariation.toFixed(1)}% vs {prevMonthName}
-                  </span>
-                </div>
+              {showValues && selectedClient === "all" && (
+                <Variation value={projectedVariation} label={prevMonthName} />
               )}
-            </div>
-
-            {/* Progresso do mês */}
-            <div className="px-5 py-4">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-1.5">
-                Progresso do mês
-              </p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-display font-bold text-foreground">
-                  {data.monthProgress.currentDay}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  /{data.monthProgress.totalDays} dias
-                </span>
-                <span className="text-sm font-semibold text-primary ml-0.5">
-                  · {data.monthProgress.percentElapsed.toFixed(0)}%
-                </span>
-              </div>
-              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-2">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-500"
-                  style={{ width: `${data.monthProgress.percentElapsed}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                {data.monthProgress.daysRemaining} dias restantes
-              </p>
             </div>
 
           </div>
+
+          {/* Barra de progresso do mês — rodapé do hero */}
+          <div className="border-t border-border bg-muted/20 px-6 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Calendar className="w-3.5 h-3.5" />
+              <span className="font-medium">{currentMonthDisplay}</span>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              Dia <span className="font-semibold text-foreground">{currentDay}</span>/{totalDays}
+            </span>
+            <div className="flex-1 min-w-[80px] h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-500"
+                style={{ width: `${percentElapsed}%` }}
+              />
+            </div>
+            <span className="text-xs font-bold text-primary">{percentElapsed.toFixed(0)}%</span>
+            <span className="text-xs text-muted-foreground">{daysRemaining} dias restantes</span>
+          </div>
+
         </section>
 
-        {/* ── Alert banner ── prominent, only when there are alerts ── */}
+        {/* ── Alert banner ── só aparece quando há clientes em alerta ── */}
         {alertChips.length > 0 && (
           <section className={cn(
-            "rounded-lg border px-5 py-3.5",
-            bannerStyles[bannerLevel].container
+            "bg-card border-l-4 border border-border/60 rounded-lg px-5 py-3.5",
+            bannerBorder[bannerLevel]
           )}>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <div className={cn(
                 "flex items-center gap-1.5 text-sm font-semibold shrink-0",
-                bannerStyles[bannerLevel].title
+                bannerTitleColor[bannerLevel]
               )}>
                 <AlertTriangle className="w-4 h-4" />
                 <span>{bannerLabel}</span>
               </div>
-              <div className="h-4 w-px bg-border/60 hidden sm:block" />
+              <div className="h-4 w-px bg-border hidden sm:block" />
               {alertChips.slice(0, 9).map(chip => (
                 <button
                   key={chip.project}
@@ -247,15 +244,13 @@ export function Dashboard({ data }: DashboardProps) {
                 </button>
               ))}
               {alertChips.length > 9 && (
-                <span className="text-xs text-muted-foreground">
-                  +{alertChips.length - 9} mais
-                </span>
+                <span className="text-xs text-muted-foreground">+{alertChips.length - 9} mais</span>
               )}
             </div>
           </section>
         )}
 
-        {/* ── Filters + chart toggle ── */}
+        {/* ── Filtros + toggle de gráfico ── */}
         <section className="flex flex-wrap items-center gap-3 px-4 py-2.5 bg-card rounded-lg border border-border">
           <select
             value={selectedClient}
@@ -290,7 +285,7 @@ export function Dashboard({ data }: DashboardProps) {
             variant="ghost"
             size="sm"
             onClick={() => setShowChart(v => !v)}
-            className="h-8 text-muted-foreground hover:text-foreground shrink-0 text-xs"
+            className="h-8 text-xs text-muted-foreground hover:text-foreground"
           >
             {showChart
               ? <><ChevronUp className="w-3.5 h-3.5 mr-1" />Ocultar gráfico</>
@@ -299,27 +294,25 @@ export function Dashboard({ data }: DashboardProps) {
           </Button>
         </section>
 
-        {/* ── Chart ── hidden by default, toggled above ── */}
+        {/* ── Gráfico ── oculto por padrão ── */}
         {showChart && (
-          <section className="bg-card rounded-lg border border-border p-6 shadow-sm animate-fade-in">
+          <section className="bg-card rounded-xl border border-border p-6 shadow-sm animate-fade-in">
             <h2 className="text-base font-display font-semibold text-foreground mb-4">
-              Horas por Cliente — consumo vs. crédito disponível
+              Horas por cliente — consumo vs. crédito disponível
             </h2>
             <HoursChart data={filteredData} showValues={showValues} />
           </section>
         )}
 
-        {/* ── Client table ── main content of the page ── */}
-        <section className="bg-card rounded-lg border border-border overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-display font-semibold text-foreground">
-                Clientes Recorrentes
-              </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Clique em um cliente para ver o detalhamento por advogado
-              </p>
-            </div>
+        {/* ── Tabela ── conteúdo principal ── */}
+        <section className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+          <div className="px-6 py-4 border-b border-border bg-muted/20">
+            <h2 className="text-base font-display font-semibold text-foreground">
+              Clientes Recorrentes
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Clique em um cliente para ver o detalhamento por advogado
+            </p>
           </div>
           <div className="p-6">
             <ClientValueTable
@@ -331,7 +324,7 @@ export function Dashboard({ data }: DashboardProps) {
           </div>
         </section>
 
-        {/* ── Executive summary ── para análise detalhada, no fim ── */}
+        {/* ── Resumo executivo ── disponível no fim ── */}
         <ExecutiveSummary
           data={data}
           previousMonthTotalValor={prevSnapshot?.total_valor ?? null}
@@ -343,7 +336,7 @@ export function Dashboard({ data }: DashboardProps) {
 
       </main>
 
-      <footer className="border-t border-border bg-card/50 py-6">
+      <footer className="border-t border-border bg-card/50 py-6 mt-6">
         <div className="container text-center text-sm text-muted-foreground">
           <a
             href="https://wolffescripes.com.br"
