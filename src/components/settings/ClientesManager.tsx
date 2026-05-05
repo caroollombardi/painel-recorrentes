@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Save, X, Building2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Save, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -122,22 +122,34 @@ export default function ClientesManager() {
                   <td className="px-4 py-3 text-right text-muted-foreground">{fmt(c.valorMensalCredito)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(idx)}>
-                        <Pencil className="w-4 h-4 text-muted-foreground" />
-                      </Button>
                       {deleteConfirm === idx ? (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(idx)}>
-                            <Save className="w-4 h-4 text-destructive" />
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="h-7 text-xs px-2"
+                            onClick={() => handleDelete(idx)}
+                          >
+                            Excluir
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteConfirm(null)}>
-                            <X className="w-4 h-4" />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs px-2"
+                            onClick={() => setDeleteConfirm(null)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(idx)}>
+                            <Pencil className="w-4 h-4 text-muted-foreground" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteConfirm(idx)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
                         </>
-                      ) : (
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteConfirm(idx)}>
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
                       )}
                     </div>
                   </td>
