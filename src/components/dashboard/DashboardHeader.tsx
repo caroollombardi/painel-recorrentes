@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upload, UsersRound, Settings, Eye, EyeOff, Monitor, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,14 +30,6 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
   const { isAdmin, signOut, user, hasRole } = useAuth();
   const { isDark, toggle: toggleTheme } = useTheme();
   const canAccessMetas = hasRole("socio") || hasRole("gestao");
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   const handleLogout = async () => { await signOut(); navigate("/auth"); };
 
   const adminActions = [];
@@ -63,7 +55,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
               <img
                 src={wsaLogo}
                 alt="Wolff e Scripes Advogados"
-                className={cn("object-contain transition-all duration-300", isScrolled ? "h-7" : "h-8 sm:h-10")}
+                className="object-contain h-8 sm:h-10"
               />
             </div>
             {/* Tabs */}
@@ -166,23 +158,6 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
           </div>
         </div>
 
-        <div className={cn(
-          "overflow-hidden transition-all duration-300",
-          isScrolled ? "max-h-0 opacity-0 mt-0" : "max-h-24 opacity-100 mt-3"
-        )}>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold tracking-tight">
-            {activeTab === "recorrentes" ? (
-              <>Análise <span className="text-primary">Clientes Recorrentes</span></>
-            ) : (
-              <>Lançamento de <span className="text-primary">Horas</span></>
-            )}
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-            {activeTab === "recorrentes"
-              ? "Análise de horas e valores por advogado"
-              : "Acompanhamento de horas lançadas pelo time"}
-          </p>
-        </div>
       </div>
       </div>
     </header>
