@@ -34,8 +34,8 @@
     --success-foreground: 152 69% 25%;
     --warning: 38 92% 50%;
     --warning-foreground: 38 92% 35%;
-    --risk: 20 95% 60%;
-    --risk-foreground: 24 80% 45%;
+    --risk: 16 90% 45%;
+    --risk-foreground: 16 90% 30%;
 
     --border: 220 13% 88%;
     --input: 220 13% 88%;
@@ -45,7 +45,6 @@
 
     --chart-mensal: 20 95% 60%;
     --chart-outros: 220 14% 65%;
-    --risk: 20 95% 60%;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 20% 25%;
@@ -86,8 +85,8 @@
     --success-foreground: 152 69% 55%;
     --warning: 38 92% 45%;
     --warning-foreground: 38 92% 65%;
-    --risk: 20 95% 55%;
-    --risk-foreground: 20 95% 70%;
+    --risk: 16 90% 50%;
+    --risk-foreground: 16 90% 75%;
 
     --border: 220 20% 20%;
     --input: 220 20% 20%;
@@ -95,7 +94,6 @@
 
     --chart-mensal: 20 95% 60%;
     --chart-outros: 220 14% 55%;
-    --risk: 20 95% 60%;
 
     --sidebar-background: 220 20% 12%;
     --sidebar-foreground: 220 14% 96%;

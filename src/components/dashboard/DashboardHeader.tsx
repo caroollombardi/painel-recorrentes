@@ -51,16 +51,25 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
 
   return (
     <header className={cn(
-      "border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 transition-all duration-300",
+      "bg-card/50 backdrop-blur-sm sticky top-0 z-10 transition-all duration-300",
     )}>
+      {/* Linha de identidade WSA */}
+      <div className="h-0.5 w-full" style={{ backgroundColor: "#FB7435" }} />
+      <div className="border-b border-border">
       <div className="container py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 sm:gap-6 min-w-0 flex-shrink-0">
-            <img
-              src={wsaLogo}
-              alt="Wolff e Scripes Advogados"
-              className={cn("object-contain transition-all duration-300 shrink-0", isScrolled ? "h-7" : "h-8 sm:h-10")}
-            />
+            <div className="flex items-center gap-3 shrink-0">
+              <img
+                src={wsaLogo}
+                alt="Wolff e Scripes Advogados"
+                className={cn("object-contain transition-all duration-300", isScrolled ? "h-7" : "h-8 sm:h-10")}
+              />
+              <div className={cn("hidden lg:block transition-all duration-300", isScrolled ? "opacity-0 w-0 overflow-hidden" : "opacity-100")}>
+                <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground leading-none">Wolff e Scripes</p>
+                <p className="text-xs text-muted-foreground/60 leading-none mt-0.5">Advogados</p>
+              </div>
+            </div>
             {/* Tabs */}
             <nav className="flex items-center gap-0.5 sm:gap-1 min-w-0">
               {tabs.map(tab => (
@@ -178,6 +187,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
               : "Acompanhamento de horas lançadas pelo time"}
           </p>
         </div>
+      </div>
       </div>
     </header>
   );

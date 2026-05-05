@@ -179,7 +179,13 @@ export default function ClientesManager() {
               </tr>
             </thead>
             <tbody>
-              {clientes.map((c, idx) => (
+              {clientes.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="text-center text-muted-foreground py-8">
+                    Nenhum cliente cadastrado.
+                  </td>
+                </tr>
+              ) : clientes.map((c, idx) => (
                 <tr key={idx} className="border-t border-border hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium">{c.cliente}</td>
                   <td className="px-4 py-3 text-right text-muted-foreground">{fmt(c.valorMensalPago)}</td>
@@ -188,20 +194,10 @@ export default function ClientesManager() {
                     <div className="flex items-center gap-1 justify-end">
                       {deleteConfirm === idx ? (
                         <div className="flex items-center gap-1">
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="h-7 text-xs px-2"
-                            onClick={() => handleDelete(idx)}
-                          >
+                          <Button variant="destructive" size="sm" className="h-7 text-xs px-2" onClick={() => handleDelete(idx)}>
                             Excluir
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs px-2"
-                            onClick={() => setDeleteConfirm(null)}
-                          >
+                          <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setDeleteConfirm(null)}>
                             Cancelar
                           </Button>
                         </div>
@@ -220,24 +216,21 @@ export default function ClientesManager() {
                 </tr>
               ))}
             </tbody>
+            {clientes.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/50 font-semibold">
+                  <td className="px-4 py-3">Total ({clientes.length} clientes)</td>
+                  <td className="px-4 py-3 text-right" style={{ color: "#FB7435" }}>
+                    {fmt(clientes.reduce((s, c) => s + c.valorMensalPago, 0))}
+                  </td>
+                  <td className="px-4 py-3 text-right" style={{ color: "#FB7435" }}>
+                    {fmt(clientes.reduce((s, c) => s + c.valorMensalCredito, 0))}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
-          {clientes.length === 0 && (
-            <p className="text-center text-muted-foreground py-8">Nenhum cliente cadastrado.</p>
-          )}
-          {clientes.length > 0 && (
-            <tfoot>
-              <tr className="border-t-2 border-border bg-muted/50 font-semibold">
-                <td className="px-4 py-3">Total ({clientes.length} clientes)</td>
-                <td className="px-4 py-3 text-center" style={{ color: "#FB7435" }}>
-                  {fmt(clientes.reduce((s, c) => s + c.valorMensalPago, 0))}
-                </td>
-                <td className="px-4 py-3 text-center" style={{ color: "#FB7435" }}>
-                  {fmt(clientes.reduce((s, c) => s + c.valorMensalCredito, 0))}
-                </td>
-                <td></td>
-              </tr>
-            </tfoot>
-          )}
         </div>}
 
         <p className="text-xs text-muted-foreground mt-3">
