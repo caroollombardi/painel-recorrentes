@@ -68,12 +68,20 @@ export function getClientContract(clientName: string): ContractValue | null {
   const exactMatch = contractValueMap.get(normalized);
   if (exactMatch) return exactMatch;
   
+  // Alphanumeric-only version for fuzzy matching (catches "EM 7" vs "EM7", "EM-7", etc.)
+  const normalizedAlphanumOnly = normalized.replace(/[^a-z0-9]/g, '');
+
   // Try partial match against the live map (includes user-saved clients)
   for (const contract of contractValueMap.values()) {
     const contractNormalized = contract.cliente.toLowerCase().trim();
     const contractNoSpaces = contractNormalized.replace(/\s+/g, '');
-    if (contractNormalized.includes(normalized) || normalized.includes(contractNormalized) ||
-        contractNoSpaces === normalizedNoSpaces) {
+    const contractAlphanumOnly = contractNormalized.replace(/[^a-z0-9]/g, '');
+    if (
+      contractNormalized.includes(normalized) ||
+      normalized.includes(contractNormalized) ||
+      contractNoSpaces === normalizedNoSpaces ||
+      (normalizedAlphanumOnly.length > 1 && contractAlphanumOnly === normalizedAlphanumOnly)
+    ) {
       return contract;
     }
   }

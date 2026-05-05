@@ -5,6 +5,8 @@ import { FileUpload } from "@/components/dashboard/FileUpload";
 import { parseXLSXData } from "@/lib/xlsx-parser";
 import { importTimeEntriesFromXLSX } from "@/lib/unified-import";
 import { DashboardData } from "@/lib/data-parser";
+import { saveContractValues, ContractValue } from "@/lib/contract-values";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
 import { Button } from "@/components/ui/button";
@@ -32,10 +34,26 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
     setImportResult(null);
 
     try {
+      // 0. Sync contract values from Supabase to ensure contractValueMap is current
+      try {
+        const { data: configData } = await supabase
+          .from("dashboard_data")
+          .select("data")
+          .eq("file_name", "__contract_values_config__")
+          .maybeSingle();
+        if (configData?.data) {
+          saveContractValues(configData.data as ContractValue[]);
+          console.log("[Import] Contract values synced:", (configData.data as ContractValue[]).map(c => c.cliente));
+        }
+      } catch (syncErr) {
+        console.warn("[Import] Could not sync contract values:", syncErr);
+      }
+
       const buffer = await file.arrayBuffer();
 
       // 1. Parse for recurring clients dashboard
       const dashboardData = parseXLSXData(buffer);
+      console.log("[Import] Recurring clients found:", dashboardData.clients.map(c => c.project));
       onDataUpdate(dashboardData, file.name);
 
       // 2. Also extract time entries for hours dashboard (current month)
