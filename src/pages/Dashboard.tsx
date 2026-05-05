@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, BarChart2, ChevronUp, Calendar } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, BarChart2, ChevronUp, Calendar, Clock, Users } from "lucide-react";
 import { DashboardData } from "@/lib/data-parser";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientValueTable, ClientValueTableHandle } from "@/components/dashboard/ClientValueTable";
@@ -35,15 +35,20 @@ interface DashboardProps {
   data: DashboardData;
 }
 
-function Variation({ value, label }: { value: number | null | undefined; label: string }) {
+function Variation({ value, label, white = false }: { value: number | null | undefined; label: string; white?: boolean }) {
   if (value == null) return null;
+  const isUp = value >= 0;
+  const textClass = white
+    ? "text-white/75"
+    : isUp ? "text-success-foreground" : "text-destructive";
+  const iconClass = white ? "text-white/75" : isUp ? "text-success-foreground" : "text-destructive";
   return (
     <div className="flex items-center gap-1 mt-1.5">
-      {value >= 0
-        ? <TrendingUp className="w-3 h-3 text-success-foreground shrink-0" />
-        : <TrendingDown className="w-3 h-3 text-destructive shrink-0" />}
-      <span className={cn("text-xs font-medium", value >= 0 ? "text-success-foreground" : "text-destructive")}>
-        {value >= 0 ? "+" : ""}{value.toFixed(1)}% vs {label}
+      {isUp
+        ? <TrendingUp className={cn("w-3 h-3 shrink-0", iconClass)} />
+        : <TrendingDown className={cn("w-3 h-3 shrink-0", iconClass)} />}
+      <span className={cn("text-xs font-medium", textClass)}>
+        {isUp ? "+" : ""}{value.toFixed(1)}% vs {label}
       </span>
     </div>
   );
@@ -106,12 +111,17 @@ export function Dashboard({ data }: DashboardProps) {
     risk:     "bg-risk/10 border-risk/40 text-risk-foreground hover:bg-risk/20",
     warning:  "bg-warning/10 border-warning/40 text-warning-foreground hover:bg-warning/20",
   };
-  const bannerBorder: Record<AlertLevel, string> = {
-    overflow: "border-l-destructive",
-    risk:     "border-l-risk",
-    warning:  "border-l-warning",
+  const alertCardBorder: Record<AlertLevel, string> = {
+    overflow: "border-destructive/40",
+    risk:     "border-risk/40",
+    warning:  "border-warning/40",
   };
-  const bannerTitleColor: Record<AlertLevel, string> = {
+  const alertCardBg: Record<AlertLevel, string> = {
+    overflow: "bg-destructive/5",
+    risk:     "bg-risk/5",
+    warning:  "bg-warning/5",
+  };
+  const alertTitleColor: Record<AlertLevel, string> = {
     overflow: "text-destructive",
     risk:     "text-risk-foreground",
     warning:  "text-warning-foreground",
@@ -119,6 +129,8 @@ export function Dashboard({ data }: DashboardProps) {
 
   const { percentElapsed, currentDay, totalDays, daysRemaining } = data.monthProgress;
   const currentMonthDisplay = MONTH_NAMES_DISPLAY[new Date().getMonth()];
+  const recurringClientsCount = data.clients.filter(c => c.creditUsage !== null).length;
+  const visibleClientCount = filteredData.filter(c => c.valorMensal > 0).length;
 
   if (presentation.isActive) {
     return (
@@ -143,47 +155,76 @@ export function Dashboard({ data }: DashboardProps) {
         onPresentationToggle={presentation.toggle}
       />
 
-      <main className="container py-5 space-y-3">
+      <div className="container py-5">
+        <div className="flex gap-5 items-start">
 
-        {/* ── Hero metrics ── três números grandes + barra de progresso ── */}
-        <section className="bg-gradient-to-br from-card to-primary/5 border border-border rounded-xl overflow-hidden shadow-sm">
+          {/* ── SIDEBAR (desktop only, sticky) ── */}
+          <aside className="hidden lg:flex flex-col gap-3 w-72 xl:w-80 shrink-0 sticky top-20">
 
-          {/* Três métricas principais */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border">
-
-            <div className="px-6 py-5">
-              <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-2">
-                Total horas
+            {/* Hero: Valor Recorrente */}
+            <div className="rounded-xl p-5 shadow-md" style={{ background: "#FB7435" }}>
+              <p className="text-[10px] uppercase tracking-widest text-white/70 font-bold mb-1.5">
+                Valor Recorrente
               </p>
-              <p className="text-4xl font-display font-bold text-foreground leading-none">
-                {filteredKPIs.totalHoras.toFixed(1)}
-                <span className="text-2xl text-muted-foreground font-normal ml-1">h</span>
-              </p>
-              {selectedClient === "all" && (
-                <Variation value={horasVariation} label={prevMonthName} />
-              )}
-            </div>
-
-            <div className="px-6 py-5">
-              <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-2">
-                Valor recorrente
-              </p>
-              <p className={cn(
-                "text-4xl font-display font-bold leading-none",
-                showValues ? "text-primary" : "text-foreground"
-              )}>
+              <p className="text-[2rem] font-display font-bold text-white leading-none">
                 {showValues ? formatCurrency(filteredKPIs.totalValor) : "—"}
               </p>
-              {showValues && selectedClient === "all" && (
-                <Variation value={valorVariation} label={prevMonthName} />
+              {showValues && selectedClient === "all" && valorVariation != null && (
+                <Variation value={valorVariation} label={prevMonthName} white />
               )}
             </div>
 
-            <div className="px-6 py-5">
-              <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-2">
-                Projeção fim do mês
+            {/* Horas + Clientes */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-card border border-border rounded-xl p-4">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Horas</p>
+                </div>
+                <p className="text-2xl font-display font-bold text-foreground leading-none">
+                  {filteredKPIs.totalHoras.toFixed(1)}
+                  <span className="text-sm text-muted-foreground font-normal ml-0.5">h</span>
+                </p>
+                {selectedClient === "all" && (
+                  <Variation value={horasVariation} label={prevMonthName} />
+                )}
+              </div>
+              <div className="bg-card border border-border rounded-xl p-4">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Clientes</p>
+                </div>
+                <p className="text-2xl font-display font-bold text-foreground leading-none">
+                  {recurringClientsCount}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1.5 font-medium uppercase tracking-widest">recorrentes</p>
+              </div>
+            </div>
+
+            {/* Progresso do mês */}
+            <div className="bg-card border border-border rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{currentMonthDisplay}</span>
+                </div>
+                <span className="text-sm font-bold text-primary">{percentElapsed.toFixed(0)}%</span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: `${percentElapsed}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Dia <span className="font-semibold text-foreground">{currentDay}</span>/{totalDays} &middot; {daysRemaining} dias restantes
               </p>
-              <p className="text-4xl font-display font-bold text-foreground leading-none">
+            </div>
+
+            {/* Projeção */}
+            <div className="bg-card border border-border rounded-xl p-4">
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1.5">Projeção fim do mês</p>
+              <p className="text-xl font-display font-bold text-foreground leading-none">
                 {showValues ? formatCurrency(projected) : "—"}
               </p>
               {showValues && selectedClient === "all" && (
@@ -191,150 +232,193 @@ export function Dashboard({ data }: DashboardProps) {
               )}
             </div>
 
-          </div>
-
-          {/* Barra de progresso do mês — rodapé do hero */}
-          <div className="border-t border-border bg-muted/20 px-6 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Calendar className="w-3.5 h-3.5" />
-              <span className="font-medium">{currentMonthDisplay}</span>
-            </div>
-            <span className="text-xs text-muted-foreground">
-              Dia <span className="font-semibold text-foreground">{currentDay}</span>/{totalDays}
-            </span>
-            <div className="flex-1 min-w-[80px] h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-500"
-                style={{ width: `${percentElapsed}%` }}
-              />
-            </div>
-            <span className="text-xs font-bold text-primary">{percentElapsed.toFixed(0)}%</span>
-            <span className="text-xs text-muted-foreground">{daysRemaining} dias restantes</span>
-          </div>
-
-        </section>
-
-        {/* ── Alert banner ── só aparece quando há clientes em alerta ── */}
-        {alertChips.length > 0 && (
-          <section className={cn(
-            "bg-card border-l-4 border border-border/60 rounded-lg px-5 py-3.5",
-            bannerBorder[bannerLevel]
-          )}>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            {/* Alertas */}
+            {alertChips.length > 0 && (
               <div className={cn(
-                "flex items-center gap-1.5 text-sm font-semibold shrink-0",
-                bannerTitleColor[bannerLevel]
+                "border rounded-xl p-4",
+                alertCardBg[bannerLevel],
+                alertCardBorder[bannerLevel]
               )}>
-                <AlertTriangle className="w-4 h-4" />
-                <span>{bannerLabel}</span>
+                <div className={cn("flex items-center gap-1.5 mb-2.5", alertTitleColor[bannerLevel])}>
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest">{bannerLabel}</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {alertChips.map(chip => (
+                    <button
+                      key={chip.project}
+                      onClick={() => handleAlertClientClick(chip.project)}
+                      className={cn(
+                        "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold border transition-colors cursor-pointer",
+                        chipStyles[chip.level]
+                      )}
+                    >
+                      {chip.project}
+                      <span className="opacity-70">({chip.percent.toFixed(0)}%)</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="h-4 w-px bg-border hidden sm:block" />
-              {alertChips.slice(0, 9).map(chip => (
-                <button
-                  key={chip.project}
-                  onClick={() => handleAlertClientClick(chip.project)}
-                  className={cn(
-                    "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold",
-                    "border transition-colors cursor-pointer",
-                    chipStyles[chip.level]
-                  )}
+            )}
+
+            {/* Filtros */}
+            <div className="bg-card border border-border rounded-xl p-4 space-y-2.5">
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Filtros</p>
+              <select
+                value={selectedClient}
+                onChange={(e) => setSelectedClient(e.target.value)}
+                className={cn(
+                  "w-full h-8 rounded-md border bg-background px-3 text-sm",
+                  selectedClient !== "all" ? "border-primary bg-primary/5" : "border-border"
+                )}
+              >
+                <option value="all">Todos os clientes</option>
+                {clientList.map((client) => (
+                  <option key={client} value={client}>{client}</option>
+                ))}
+              </select>
+              <MonthSelector
+                currentMonth={selectedMonth}
+                currentYear={selectedYear}
+                onChange={(m, y) => { setSelectedMonth(m); setSelectedYear(y); }}
+              />
+              {selectedClient !== "all" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedClient("all")}
+                  className="w-full h-7 text-xs text-muted-foreground"
                 >
-                  {chip.project}
-                  <span className="opacity-70">({chip.percent.toFixed(0)}%)</span>
-                </button>
-              ))}
-              {alertChips.length > 9 && (
-                <span className="text-xs text-muted-foreground">+{alertChips.length - 9} mais</span>
+                  Limpar filtro
+                </Button>
               )}
             </div>
-          </section>
-        )}
 
-        {/* ── Filtros + toggle de gráfico ── */}
-        <section className="flex flex-wrap items-center gap-3 px-4 py-2.5 bg-card rounded-lg border border-border">
-          <select
-            value={selectedClient}
-            onChange={(e) => setSelectedClient(e.target.value)}
-            className={cn(
-              "h-8 w-full sm:w-[200px] rounded-md border bg-background px-3 text-sm",
-              selectedClient !== "all" ? "border-primary bg-primary/5" : "border-border"
+          </aside>
+
+          {/* ── CONTEÚDO PRINCIPAL ── */}
+          <div className="flex-1 min-w-0 space-y-4">
+
+            {/* Mobile: KPIs empilhados (apenas em telas pequenas) */}
+            <div className="lg:hidden space-y-3">
+              <div className="rounded-xl p-5 shadow-md" style={{ background: "#FB7435" }}>
+                <p className="text-[10px] uppercase tracking-widest text-white/70 font-bold mb-1.5">Valor Recorrente</p>
+                <p className="text-3xl font-display font-bold text-white leading-none">
+                  {showValues ? formatCurrency(filteredKPIs.totalValor) : "—"}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-card border border-border rounded-xl p-3">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Horas</p>
+                  <p className="text-xl font-display font-bold">{filteredKPIs.totalHoras.toFixed(1)}<span className="text-sm text-muted-foreground ml-0.5">h</span></p>
+                </div>
+                <div className="bg-card border border-border rounded-xl p-3">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Projeção</p>
+                  <p className="text-xl font-display font-bold leading-tight">{showValues ? formatCurrency(projected) : "—"}</p>
+                </div>
+              </div>
+              <div className="bg-card border border-border rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-muted-foreground font-medium">{currentMonthDisplay} · Dia {currentDay}/{totalDays}</span>
+                  <span className="text-xs font-bold text-primary">{percentElapsed.toFixed(0)}% decorrido</span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full" style={{ width: `${percentElapsed}%` }} />
+                </div>
+              </div>
+              {alertChips.length > 0 && (
+                <div className={cn("border rounded-xl p-4", alertCardBg[bannerLevel], alertCardBorder[bannerLevel])}>
+                  <div className={cn("flex items-center gap-1.5 mb-2", alertTitleColor[bannerLevel])}>
+                    <AlertTriangle className="w-4 h-4" />
+                    <span className="text-sm font-semibold">{bannerLabel}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {alertChips.map(chip => (
+                      <button
+                        key={chip.project}
+                        onClick={() => handleAlertClientClick(chip.project)}
+                        className={cn("inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors", chipStyles[chip.level])}
+                      >
+                        {chip.project} <span className="opacity-70">({chip.percent.toFixed(0)}%)</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={selectedClient}
+                  onChange={(e) => setSelectedClient(e.target.value)}
+                  className={cn("h-8 flex-1 min-w-[140px] rounded-md border bg-background px-3 text-sm",
+                    selectedClient !== "all" ? "border-primary" : "border-border")}
+                >
+                  <option value="all">Todos os clientes</option>
+                  {clientList.map((client) => <option key={client} value={client}>{client}</option>)}
+                </select>
+                <MonthSelector
+                  currentMonth={selectedMonth}
+                  currentYear={selectedYear}
+                  onChange={(m, y) => { setSelectedMonth(m); setSelectedYear(y); }}
+                />
+              </div>
+            </div>
+
+            {/* Cabeçalho da tabela + toggle de gráfico */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-display font-semibold text-foreground">
+                Clientes Recorrentes
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  · {visibleClientCount} {visibleClientCount === 1 ? "cliente" : "clientes"}
+                </span>
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowChart(v => !v)}
+                className="h-8 text-xs text-muted-foreground hover:text-foreground"
+              >
+                {showChart
+                  ? <><ChevronUp className="w-3.5 h-3.5 mr-1" />Ocultar gráfico</>
+                  : <><BarChart2 className="w-3.5 h-3.5 mr-1" />Ver gráfico</>
+                }
+              </Button>
+            </div>
+
+            {/* Gráfico (oculto por padrão) */}
+            {showChart && (
+              <section className="bg-card rounded-xl border border-border p-6 shadow-sm">
+                <h3 className="text-sm font-semibold text-foreground mb-4">
+                  Horas por cliente — consumo vs. crédito disponível
+                </h3>
+                <HoursChart data={filteredData} showValues={showValues} />
+              </section>
             )}
-          >
-            <option value="all">Todos os clientes</option>
-            {clientList.map((client) => (
-              <option key={client} value={client}>{client}</option>
-            ))}
-          </select>
-          <MonthSelector
-            currentMonth={selectedMonth}
-            currentYear={selectedYear}
-            onChange={(m, y) => { setSelectedMonth(m); setSelectedYear(y); }}
-          />
-          {selectedClient !== "all" && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedClient("all")}
-              className="h-8 text-xs text-muted-foreground px-2"
-            >
-              Limpar filtro
-            </Button>
-          )}
-          <div className="flex-1" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowChart(v => !v)}
-            className="h-8 text-xs text-muted-foreground hover:text-foreground"
-          >
-            {showChart
-              ? <><ChevronUp className="w-3.5 h-3.5 mr-1" />Ocultar gráfico</>
-              : <><BarChart2 className="w-3.5 h-3.5 mr-1" />Ver gráfico</>
-            }
-          </Button>
-        </section>
 
-        {/* ── Gráfico ── oculto por padrão ── */}
-        {showChart && (
-          <section className="bg-card rounded-xl border border-border p-6 shadow-sm animate-fade-in">
-            <h2 className="text-base font-display font-semibold text-foreground mb-4">
-              Horas por cliente — consumo vs. crédito disponível
-            </h2>
-            <HoursChart data={filteredData} showValues={showValues} />
-          </section>
-        )}
+            {/* Tabela principal */}
+            <section className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+              <div className="p-6">
+                <ClientValueTable
+                  ref={tableRef}
+                  data={filteredData}
+                  showValues={showValues}
+                  clientVariations={clientVariations}
+                />
+              </div>
+            </section>
 
-        {/* ── Tabela ── conteúdo principal ── */}
-        <section className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-border bg-muted/20">
-            <h2 className="text-base font-display font-semibold text-foreground">
-              Clientes Recorrentes
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Clique em um cliente para ver o detalhamento por advogado
-            </p>
-          </div>
-          <div className="p-6">
-            <ClientValueTable
-              ref={tableRef}
-              data={filteredData}
+            {/* Resumo executivo */}
+            <ExecutiveSummary
+              data={data}
+              previousMonthTotalValor={prevSnapshot?.total_valor ?? null}
+              previousMonthTotalHoras={prevSnapshot?.total_horas ?? null}
+              previousMonthName={prevSnapshot ? prevMonthName : null}
               showValues={showValues}
-              clientVariations={clientVariations}
+              defaultExpanded={false}
             />
+
           </div>
-        </section>
-
-        {/* ── Resumo executivo ── disponível no fim ── */}
-        <ExecutiveSummary
-          data={data}
-          previousMonthTotalValor={prevSnapshot?.total_valor ?? null}
-          previousMonthTotalHoras={prevSnapshot?.total_horas ?? null}
-          previousMonthName={prevSnapshot ? prevMonthName : null}
-          showValues={showValues}
-          defaultExpanded={false}
-        />
-
-      </main>
+        </div>
+      </div>
 
       <footer className="border-t border-border bg-card/50 py-6 mt-6">
         <div className="container text-center text-sm text-muted-foreground">
