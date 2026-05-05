@@ -65,10 +65,6 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
                 alt="Wolff e Scripes Advogados"
                 className={cn("object-contain transition-all duration-300", isScrolled ? "h-7" : "h-8 sm:h-10")}
               />
-              <div className={cn("hidden lg:block transition-all duration-300", isScrolled ? "opacity-0 w-0 overflow-hidden" : "opacity-100")}>
-                <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground leading-none">Wolff e Scripes</p>
-                <p className="text-xs text-muted-foreground/60 leading-none mt-0.5">Advogados</p>
-              </div>
             </div>
             {/* Tabs */}
             <nav className="flex items-center gap-0.5 sm:gap-1 min-w-0">
