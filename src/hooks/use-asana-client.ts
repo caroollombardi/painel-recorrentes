@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 export interface AsanaTask {
   gid: string;
@@ -47,22 +46,25 @@ export function useAsanaClient(clientName: string | null) {
     setError(null);
     setData(null);
 
-    supabase.functions
-      .invoke("asana-proxy", { body: { client: clientName } })
-      .then(({ data: result, error: invokeErr }) => {
-        if (invokeErr) {
-          setError(invokeErr.message || "Erro ao buscar dados do Asana");
+    fetch("/api/asana-proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client: clientName }),
+    })
+      .then(async (res) => {
+        const result = await res.json();
+        if (!res.ok) {
+          setError(result?.error || "Erro ao buscar dados do Asana");
           return;
         }
         if (result?.error) {
           setError(result.error);
           return;
         }
-        if (result) {
-          cache.set(clientName, { data: result as AsanaClientData, timestamp: Date.now() });
-          setData(result as AsanaClientData);
-        }
+        cache.set(clientName, { data: result as AsanaClientData, timestamp: Date.now() });
+        setData(result as AsanaClientData);
       })
+      .catch((err) => setError(err.message || "Erro ao buscar dados do Asana"))
       .finally(() => setIsLoading(false));
   }, [clientName]);
 
