@@ -209,15 +209,22 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
           <aside className="hidden lg:flex flex-col gap-3 w-72 xl:w-80 shrink-0 sticky top-[70px]">
 
             {/* Hero: Valor Recorrente */}
-            <div className="rounded-xl p-5 shadow-md" style={{ background: "#FB7435" }}>
-              <p className="text-[10px] uppercase tracking-widest text-white/70 font-bold mb-1.5">
-                Valor Recorrente
+            <div className="rounded-xl px-5 pt-5 pb-6" style={{ background: "#FB7435" }}>
+              <p className="text-[9px] uppercase tracking-[0.18em] text-white/50 font-medium mb-5">
+                {currentMonthDisplay}
               </p>
-              <p className="text-[2rem] font-display font-bold text-white leading-none">
-                {showValues ? formatCurrency(filteredKPIs.totalValor) : "—"}
-              </p>
+              <div className="mb-1">
+                <span className="text-sm text-white/60 font-medium block mb-0.5">R$</span>
+                <p className="text-[2.6rem] font-display font-extrabold text-white leading-none tracking-tight">
+                  {showValues
+                    ? filteredKPIs.totalValor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : "—"}
+                </p>
+              </div>
               {showValues && selectedClient === "all" && valorVariation != null && (
-                <Variation value={valorVariation} label={prevMonthName} white />
+                <div className="mt-4 pt-4 border-t border-white/20">
+                  <Variation value={valorVariation} label={prevMonthName} white />
+                </div>
               )}
             </div>
 
@@ -511,7 +518,7 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
             )}
 
             {/* Tabela principal */}
-            <section className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+            <section className="bg-card rounded-xl border border-border/50 overflow-hidden shadow-sm">
               <div className="p-6">
                 <ClientValueTable
                   ref={tableRef}
