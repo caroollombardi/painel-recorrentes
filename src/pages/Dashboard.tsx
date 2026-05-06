@@ -12,6 +12,7 @@ import { useFilteredKPIs } from "@/hooks/useFilteredKPIs";
 import { PresentationMode } from "@/components/dashboard/PresentationMode";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AsanaDrawer } from "@/components/dashboard/AsanaDrawer";
 
 const MONTH_NAMES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -61,6 +62,7 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [showChart, setShowChart] = useState(false);
+  const [asanaClient, setAsanaClient] = useState<string | null>(null);
   const [clientSearch, setClientSearch] = useState("");
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const presentation = usePresentationMode();
@@ -505,6 +507,7 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
                   data={filteredData}
                   showValues={showValues}
                   clientVariations={clientVariations}
+                  onAsanaClick={(name) => setAsanaClient(name)}
                 />
               </div>
             </section>
@@ -522,6 +525,10 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
           </div>
         </div>
       </div>
+
+      {asanaClient && (
+        <AsanaDrawer clientName={asanaClient} onClose={() => setAsanaClient(null)} />
+      )}
 
       <footer className="border-t border-border bg-card/50 py-6 mt-6">
         <div className="container text-center text-sm text-muted-foreground">

@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CreditUsageBar } from "./CreditUsageBar";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,8 @@ export interface ClientValueTableHandle {
 interface ClientValueTableProps {
   data: ClientData[];
   showValues?: boolean;
-  clientVariations?: Record<string, number | null>; // previous month hours by client
+  clientVariations?: Record<string, number | null>;
+  onAsanaClick?: (clientName: string) => void;
 }
 
 function formatCurrency(value: number, show: boolean = true): string {
@@ -72,7 +73,7 @@ const badgeTooltips: Record<string, string> = {
 };
 
 export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTableProps>(
-  function ClientValueTable({ data, showValues = true, clientVariations = {} }, ref) {
+  function ClientValueTable({ data, showValues = true, clientVariations = {}, onAsanaClick }, ref) {
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -224,6 +225,15 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
               <span className="text-xs text-muted-foreground">
                 ({client.lawyers.length} advogado{client.lawyers.length !== 1 ? 's' : ''})
               </span>
+              {onAsanaClick && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onAsanaClick(client.project); }}
+                  className="ml-auto text-muted-foreground/40 hover:text-primary transition-colors p-0.5 rounded flex-shrink-0"
+                  title="Ver tarefas no Asana"
+                >
+                  <ListChecks className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </TableCell>
           <TableCell className="text-center">
