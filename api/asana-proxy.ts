@@ -3,6 +3,10 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 const WORKSPACE_GID = "1209757363771221";
 const ASANA_BASE = "https://app.asana.com/api/1.0";
 
+const CLIENT_ALIASES: Record<string, string[]> = {
+  "SUPLOS": ["SUPLOS (ALMOX)"],
+};
+
 async function asanaGet(path: string, pat: string): Promise<unknown> {
   const res = await fetch(`${ASANA_BASE}${path}`, {
     headers: { Authorization: `Bearer ${pat}` },
@@ -55,6 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const clientKey = clientName.toUpperCase();
+    const searchKeys = [clientKey, ...(CLIENT_ALIASES[clientKey] ?? [])];
 
     const projects = (await asanaGet(
       `/workspaces/${WORKSPACE_GID}/projects?opt_fields=name,gid,archived&limit=100`,
@@ -64,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const matching = projects.filter((p) => {
       if (p.archived) return false;
       const key = p.name.split(" - ")[0].trim().toUpperCase();
-      return key === clientKey || clientKey.startsWith(key) || key.startsWith(clientKey);
+      return searchKeys.some((sk) => key === sk || sk.startsWith(key) || key.startsWith(sk));
     });
 
     if (matching.length === 0) {
