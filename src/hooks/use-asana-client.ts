@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 export interface AsanaTask {
   gid: string;
@@ -47,42 +46,26 @@ export function useAsanaClient(clientName: string | null) {
     setError(null);
     setData(null);
 
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-
-        const res = await fetch("/api/asana-proxy", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ client: clientName }),
-        });
-
+    fetch("/api/asana-proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client: clientName }),
+    })
+      .then(async (res) => {
         const result = await res.json();
-        if (cancelled) return;
-
-        if (!res.ok || result?.error) {
+        if (!res.ok) {
           setError(result?.error || "Erro ao buscar dados do Asana");
           return;
         }
-
+        if (result?.error) {
+          setError(result.error);
+          return;
+        }
         cache.set(clientName, { data: result as AsanaClientData, timestamp: Date.now() });
         setData(result as AsanaClientData);
-      } catch (err: unknown) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Erro ao buscar dados do Asana");
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
+      })
+      .catch((err) => setError(err.message || "Erro ao buscar dados do Asana"))
+      .finally(() => setIsLoading(false));
   }, [clientName]);
 
   return { data, isLoading, error };

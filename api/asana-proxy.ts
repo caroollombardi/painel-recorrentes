@@ -7,27 +7,13 @@ const CLIENT_ALIASES: Record<string, string[]> = {
   "SUPLOS": ["SUPLOS (ALMOX)"],
 };
 
-async function verifySupabaseToken(token: string): Promise<boolean> {
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return false;
-
-  const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      apikey: supabaseAnonKey,
-    },
-  });
-  return res.ok;
-}
-
 async function asanaGet(path: string, pat: string): Promise<unknown> {
   const res = await fetch(`${ASANA_BASE}${path}`, {
     headers: { Authorization: `Bearer ${pat}` },
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Asana API error ${res.status}`);
+    throw new Error(`Asana ${path} → ${res.status}: ${text}`);
   }
   const json = (await res.json()) as { data: unknown; next_page: { offset: string } | null };
   return json;
@@ -73,25 +59,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Verify Supabase session token
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-  const isValid = await verifySupabaseToken(token);
-  if (!isValid) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
   try {
     const pat = process.env.ASANA_PAT;
     if (!pat) {
-      return res.status(500).json({ error: "Configuração incompleta" });
+      return res.status(500).json({ error: "ASANA_PAT não configurado" });
     }
 
     const clientName = (req.body?.client as string)?.trim();
-    if (!clientName || clientName.length < 2) {
+    if (!clientName) {
       return res.status(400).json({ error: "client é obrigatório" });
     }
 
@@ -163,7 +138,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
   } catch (err: unknown) {
-    console.error("asana-proxy:", err instanceof Error ? err.message : String(err));
-    return res.status(500).json({ error: "Erro ao buscar dados do Asana" });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("asana-proxy:", msg);
+    return res.status(500).json({ error: msg });
   }
 }
