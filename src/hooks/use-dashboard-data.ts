@@ -97,6 +97,14 @@ export function useDashboardData() {
   // Initial load
   useEffect(() => { loadData(false); }, [loadData]);
 
+  // Reload when user signs in (handles incognito / fresh session)
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") loadData(false);
+    });
+    return () => subscription.unsubscribe();
+  }, [loadData]);
+
   // Realtime: auto-refresh when another user imports data
   useEffect(() => {
     const channel = supabase
