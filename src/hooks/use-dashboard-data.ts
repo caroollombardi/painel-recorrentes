@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardData, ClientData } from "@/lib/data-parser";
 import { dashboardDataSchema } from "@/lib/schemas";
@@ -6,7 +6,6 @@ import { toast } from "@/hooks/use-toast";
 import { getClientContract, calculateCreditUsage } from "@/lib/contract-values";
 import { analyzeConsumption } from "@/lib/month-progress";
 
-// Recalculates credit usage from current contract-values.ts on every load
 function recalculateCreditUsage(data: DashboardData): DashboardData {
   const clients = data.clients.map((client) => {
     const contract = getClientContract(client.project);
@@ -37,8 +36,9 @@ export function useDashboardData() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  // Flag to suppress Realtime toast when the current tab is the one importing
+  const ownUpdateRef = useRef(false);
 
-  // Recalculate credit usage whenever contract values are saved in Settings
   useEffect(() => {
     const handleContractUpdate = () => {
       setDashboardData(prev => prev ? recalculateCreditUsage(prev) : null);
@@ -47,31 +47,34 @@ export function useDashboardData() {
     return () => window.removeEventListener("contractValuesUpdated", handleContractUpdate);
   }, []);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const { data, error } = await supabase
-          .from("dashboard_data")
-          .select("data, updated_at")
-          .neq("file_name", "__contract_values_config__")
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+  const loadData = useCallback(async (fromRealtime = false) => {
+    try {
+      const { data, error } = await supabase
+        .from("dashboard_data")
+        .select("data, updated_at")
+        .neq("file_name", "__contract_values_config__")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-        if (error) {
-          console.error("Error fetching dashboard data:", error);
-          setDashboardData(null);
-          return;
-        }
+      if (error) {
+        console.error("Error fetching dashboard data:", error);
+        if (!fromRealtime) setDashboardData(null);
+        return;
+      }
 
-        if (data?.data) {
-          if (data.updated_at) setLastUpdated(new Date(data.updated_at));
-          const result = dashboardDataSchema.safeParse(data.data);
-          if (result.success) {
-            const recalculated = recalculateCreditUsage(result.data as DashboardData);
-            setDashboardData(recalculated);
-          } else {
-            console.error("Dashboard data validation failed:", result.error.issues);
+      if (data?.data) {
+        if (data.updated_at) setLastUpdated(new Date(data.updated_at));
+        const result = dashboardDataSchema.safeParse(data.data);
+        if (result.success) {
+          const recalculated = recalculateCreditUsage(result.data as DashboardData);
+          setDashboardData(recalculated);
+          if (fromRealtime) {
+            toast({ title: "Painel atualizado", description: "Novos dados foram importados." });
+          }
+        } else {
+          console.error("Dashboard data validation failed:", result.error.issues);
+          if (!fromRealtime) {
             toast({
               title: "Erro nos dados",
               description: "Dados do banco em formato inesperado. Reimporte a planilha.",
@@ -79,21 +82,36 @@ export function useDashboardData() {
             });
             setDashboardData(null);
           }
-        } else {
-          setDashboardData(null);
         }
-      } catch (err) {
-        console.error("Error loading dashboard data:", err);
-        setDashboardData(null);
-      } finally {
-        setIsLoading(false);
+      } else {
+        if (!fromRealtime) setDashboardData(null);
       }
+    } catch (err) {
+      console.error("Error loading dashboard data:", err);
+      if (!fromRealtime) setDashboardData(null);
+    } finally {
+      if (!fromRealtime) setIsLoading(false);
     }
-
-    loadData();
   }, []);
 
+  // Initial load
+  useEffect(() => { loadData(false); }, [loadData]);
+
+  // Realtime: auto-refresh when another user imports data
+  useEffect(() => {
+    const channel = supabase
+      .channel("dashboard_data_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "dashboard_data" }, () => {
+        if (ownUpdateRef.current) return;
+        loadData(true);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [loadData]);
+
   const updateData = useCallback(async (data: DashboardData, fileName?: string) => {
+    ownUpdateRef.current = true;
     setDashboardData(data);
 
     try {
@@ -113,47 +131,33 @@ export function useDashboardData() {
       if (existing) {
         await supabase
           .from("dashboard_data")
-          .update({
-            data: jsonData,
-            file_name: fileName || null,
-            uploaded_by: userId || null,
-          })
+          .update({ data: jsonData, file_name: fileName || null, uploaded_by: userId || null })
           .eq("id", existing.id);
       } else {
         await supabase
           .from("dashboard_data")
-          .insert([{
-            data: jsonData,
-            file_name: fileName || null,
-            uploaded_by: userId || null,
-          }]);
+          .insert([{ data: jsonData, file_name: fileName || null, uploaded_by: userId || null }]);
       }
 
-      // Save monthly snapshot
+      setLastUpdated(new Date());
+
+      // Monthly snapshot
       const now = new Date();
       const month = now.getMonth() + 1;
       const year = now.getFullYear();
-
       const clientSnapshotData = data.clients
         .filter(c => c.valorMensal > 0)
-        .map(c => ({
-          project: c.project,
-          horasMensal: c.horasMensal,
-          valorMensal: c.valorMensal,
-        }));
+        .map(c => ({ project: c.project, horasMensal: c.horasMensal, valorMensal: c.valorMensal }));
 
       await supabase
         .from("monthly_snapshots")
-        .upsert({
-          month,
-          year,
-          total_horas: data.totalHoras,
-          total_valor: data.totalValor,
-          client_data: clientSnapshotData as any,
-        }, { onConflict: "month,year" });
+        .upsert({ month, year, total_horas: data.totalHoras, total_valor: data.totalValor, client_data: clientSnapshotData as any }, { onConflict: "month,year" });
 
     } catch (err) {
       console.error("Error saving dashboard data:", err);
+    } finally {
+      // Release the flag after enough time for the Realtime event to arrive
+      setTimeout(() => { ownUpdateRef.current = false; }, 5000);
     }
   }, []);
 

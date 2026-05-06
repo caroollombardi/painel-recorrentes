@@ -15,6 +15,7 @@ export interface TimeEntry {
   activity_type: string | null;
   month: number;
   year: number;
+  updated_at?: string;
 }
 
 export interface TaskDetail {
@@ -97,6 +98,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [previousMonthHours, setPreviousMonthHours] = useState<number | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -112,7 +114,14 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
         console.error("Error fetching time entries:", error);
         setEntries([]);
       } else {
-        setEntries((data as TimeEntry[]) || []);
+        const typed = (data as TimeEntry[]) || [];
+        setEntries(typed);
+        // Find the most recent updated_at across all entries
+        const maxTs = typed.reduce((max, e) => {
+          if (!e.updated_at) return max;
+          return e.updated_at > max ? e.updated_at : max;
+        }, "");
+        if (maxTs) setLastUpdated(new Date(maxTs));
       }
 
       // Fetch previous month for comparison
@@ -140,6 +149,18 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
   }, [selectedMonth, selectedYear]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Realtime: auto-refresh when hours are imported by any user
+  useEffect(() => {
+    const channel = supabase
+      .channel("time_entries_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "time_entries" }, () => {
+        loadData();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [loadData]);
 
   const dashboardData = useMemo((): HoursDashboardData | null => {
     if (entries.length === 0) return null;
@@ -361,7 +382,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     return true;
   }, [loadData]);
 
-  return { dashboardData, isLoading, importCSV, previousMonthHours, reload: loadData };
+  return { dashboardData, isLoading, importCSV, previousMonthHours, lastUpdated, reload: loadData };
 }
 
 /** Parse full CSV text handling multiline quoted fields */

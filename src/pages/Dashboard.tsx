@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { TrendingUp, TrendingDown, AlertTriangle, BarChart2, ChevronUp, Calendar, Clock, Users, Download } from "lucide-react";
 import { DashboardData } from "@/lib/data-parser";
 import { HoursChart } from "@/components/dashboard/HoursChart";
@@ -61,8 +61,22 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [showChart, setShowChart] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
   const presentation = usePresentationMode();
   const tableRef = useRef<ClientValueTableHandle>(null);
+  const clientBoxRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (clientBoxRef.current && !clientBoxRef.current.contains(e.target as Node)) {
+        setShowClientDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
   const { getPreviousMonthSnapshot } = useMonthlySnapshots();
 
   const prevSnapshot = getPreviousMonthSnapshot(selectedMonth, selectedYear);
@@ -294,34 +308,72 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
             {/* Filtros */}
             <div className="bg-card border border-border rounded-xl p-4 space-y-2.5">
               <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Filtros</p>
-              <select
-                value={selectedClient}
-                onChange={(e) => setSelectedClient(e.target.value)}
-                className={cn(
-                  "w-full h-8 rounded-md border bg-background px-3 text-sm",
+
+              {/* Client search combobox */}
+              <div ref={clientBoxRef} className="relative">
+                <div className={cn(
+                  "flex items-center h-8 rounded-md border bg-background px-3 gap-1.5",
                   selectedClient !== "all" ? "border-primary bg-primary/5" : "border-border"
+                )}>
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente…"
+                    value={clientSearch}
+                    onChange={(e) => {
+                      setClientSearch(e.target.value);
+                      if (selectedClient !== "all") setSelectedClient("all");
+                      setShowClientDropdown(true);
+                    }}
+                    onFocus={() => setShowClientDropdown(true)}
+                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
+                  />
+                  {(clientSearch || selectedClient !== "all") && (
+                    <button
+                      onClick={() => { setClientSearch(""); setSelectedClient("all"); setShowClientDropdown(false); }}
+                      className="text-muted-foreground hover:text-foreground shrink-0 text-xs"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                {showClientDropdown && (
+                  <div className="absolute z-20 top-full mt-1 w-full bg-card border border-border rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                    <button
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors",
+                        selectedClient === "all" && "font-medium text-primary"
+                      )}
+                      onClick={() => { setSelectedClient("all"); setClientSearch(""); setShowClientDropdown(false); }}
+                    >
+                      Todos os clientes
+                    </button>
+                    {clientList
+                      .filter(c => !clientSearch || c.toLowerCase().includes(clientSearch.toLowerCase()))
+                      .map(client => (
+                        <button
+                          key={client}
+                          className={cn(
+                            "w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors",
+                            selectedClient === client && "font-medium text-primary bg-primary/5"
+                          )}
+                          onClick={() => { setSelectedClient(client); setClientSearch(client); setShowClientDropdown(false); }}
+                        >
+                          {client}
+                        </button>
+                      ))
+                    }
+                    {clientSearch && clientList.filter(c => c.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
+                      <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum resultado</p>
+                    )}
+                  </div>
                 )}
-              >
-                <option value="all">Todos os clientes</option>
-                {clientList.map((client) => (
-                  <option key={client} value={client}>{client}</option>
-                ))}
-              </select>
+              </div>
+
               <MonthSelector
                 currentMonth={selectedMonth}
                 currentYear={selectedYear}
                 onChange={(m, y) => { setSelectedMonth(m); setSelectedYear(y); }}
               />
-              {selectedClient !== "all" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedClient("all")}
-                  className="w-full h-7 text-xs text-muted-foreground"
-                >
-                  Limpar filtro
-                </Button>
-              )}
             </div>
 
             {/* Export + timestamp */}

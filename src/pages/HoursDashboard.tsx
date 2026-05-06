@@ -53,7 +53,7 @@ export default function HoursDashboard() {
   const [activityFilter, setActivityFilter] = useState("all");
   const [showBelowTargetOnly, setShowBelowTargetOnly] = useState(false);
 
-  const { dashboardData, isLoading, previousMonthHours, reload } = useHoursData(selectedMonth, selectedYear);
+  const { dashboardData, isLoading, previousMonthHours, lastUpdated, reload } = useHoursData(selectedMonth, selectedYear);
   const monthProgress = useMemo(() => getMonthProgress(), []);
 
   const filteredData = useMemo(() => {
@@ -383,6 +383,16 @@ export default function HoursDashboard() {
                 onChange={(m, y) => { setSelectedMonth(m); setSelectedYear(y); }}
               />
             </div>
+
+            {/* Timestamp */}
+            {lastUpdated && (
+              <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+                Atualizado em{" "}
+                {lastUpdated.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "2-digit" })}
+                {" "}às{" "}
+                {lastUpdated.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
 
           </aside>
 
