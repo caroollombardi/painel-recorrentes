@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, BarChart2, ChevronUp, Calendar, Clock, Users, Download } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, BarChart2, ChevronUp, Calendar, Clock, Users, Download, FileDown } from "lucide-react";
 import { DashboardData } from "@/lib/data-parser";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientValueTable, ClientValueTableHandle } from "@/components/dashboard/ClientValueTable";
@@ -13,6 +13,7 @@ import { PresentationMode } from "@/components/dashboard/PresentationMode";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AsanaDrawer } from "@/components/dashboard/AsanaDrawer";
+import { exportRecorrentesPDF } from "@/lib/recorrentes-pdf-export";
 
 const MONTH_NAMES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -388,6 +389,16 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
               >
                 <Download className="w-3.5 h-3.5 mr-1.5" />
                 Exportar CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => data && exportRecorrentesPDF(data, selectedMonth, selectedYear, showValues)}
+                className="w-full h-8 text-xs"
+                disabled={!data}
+              >
+                <FileDown className="w-3.5 h-3.5 mr-1.5" />
+                Relatório PDF
               </Button>
               {lastUpdated && (
                 <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
