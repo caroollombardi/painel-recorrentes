@@ -15,8 +15,20 @@ async function asanaGet(path: string, pat: string): Promise<unknown> {
     const text = await res.text();
     throw new Error(`Asana ${path} → ${res.status}: ${text}`);
   }
-  const json = (await res.json()) as { data: unknown };
-  return json.data;
+  const json = (await res.json()) as { data: unknown; next_page: { offset: string } | null };
+  return json;
+}
+
+async function asanaGetAll<T>(basePath: string, pat: string): Promise<T[]> {
+  const results: T[] = [];
+  let offset: string | null = null;
+  do {
+    const url = offset ? `${basePath}&offset=${encodeURIComponent(offset)}` : basePath;
+    const json = (await asanaGet(url, pat)) as { data: T[]; next_page: { offset: string } | null };
+    results.push(...json.data);
+    offset = json.next_page?.offset ?? null;
+  } while (offset);
+  return results;
 }
 
 interface AsanaProject {
@@ -61,10 +73,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const clientKey = clientName.toUpperCase();
     const searchKeys = [clientKey, ...(CLIENT_ALIASES[clientKey] ?? [])];
 
-    const projects = (await asanaGet(
+    const projects = await asanaGetAll<AsanaProject>(
       `/workspaces/${WORKSPACE_GID}/projects?opt_fields=name,gid,archived&limit=100`,
       pat
-    )) as AsanaProject[];
+    );
 
     const matching = projects.filter((p) => {
       if (p.archived) return false;
@@ -89,13 +101,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const recentlyCompleted: CategorizedTask[] = [];
     const upcoming: CategorizedTask[] = [];
 
-    for (const project of matching.slice(0, 5)) {
-      const tasks = (await asanaGet(
+    for (const project of matching) {
+      const tasks = await asanaGetAll<AsanaTask>(
         `/projects/${project.gid}/tasks` +
           `?opt_fields=name,due_on,completed,completed_at,assignee.name` +
           `&completed_since=${encodeURIComponent(ago30Days)}&limit=100`,
         pat
-      )) as AsanaTask[];
+      );
 
       for (const t of tasks) {
         const task: CategorizedTask = { ...t, projectName: project.name };
@@ -117,7 +129,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     upcoming.sort((a, b) => (a.due_on ?? "").localeCompare(b.due_on ?? ""));
 
     return res.json({
-      projects: matching.slice(0, 5).map((p) => ({ gid: p.gid, name: p.name })),
+      projects: matching.map((p) => ({ gid: p.gid, name: p.name })),
       tasks: {
         overdue: overdue.slice(0, 20),
         dueSoon: dueSoon.slice(0, 20),
