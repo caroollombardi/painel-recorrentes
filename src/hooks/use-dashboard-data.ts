@@ -36,6 +36,7 @@ function recalculateCreditUsage(data: DashboardData): DashboardData {
 export function useDashboardData() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Recalculate credit usage whenever contract values are saved in Settings
   useEffect(() => {
@@ -51,7 +52,7 @@ export function useDashboardData() {
       try {
         const { data, error } = await supabase
           .from("dashboard_data")
-          .select("data")
+          .select("data, updated_at")
           .neq("file_name", "__contract_values_config__")
           .order("updated_at", { ascending: false })
           .limit(1)
@@ -64,6 +65,7 @@ export function useDashboardData() {
         }
 
         if (data?.data) {
+          if (data.updated_at) setLastUpdated(new Date(data.updated_at));
           const result = dashboardDataSchema.safeParse(data.data);
           if (result.success) {
             const recalculated = recalculateCreditUsage(result.data as DashboardData);
@@ -155,5 +157,5 @@ export function useDashboardData() {
     }
   }, []);
 
-  return { dashboardData, isLoading, updateData };
+  return { dashboardData, isLoading, updateData, lastUpdated };
 }

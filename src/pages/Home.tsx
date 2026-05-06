@@ -43,7 +43,6 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
           .maybeSingle();
         if (configData?.data) {
           saveContractValues(configData.data as ContractValue[]);
-          console.log("[Import] Contract values synced:", (configData.data as ContractValue[]).map(c => c.cliente));
         }
       } catch (syncErr) {
         console.warn("[Import] Could not sync contract values:", syncErr);
@@ -53,7 +52,6 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
 
       // 1. Parse for recurring clients dashboard
       const dashboardData = parseXLSXData(buffer);
-      console.log("[Import] Recurring clients found:", dashboardData.clients.map(c => c.project));
       onDataUpdate(dashboardData, file.name);
 
       // 2. Also extract time entries for hours dashboard (current month)

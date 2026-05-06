@@ -19,7 +19,7 @@ import { useDashboardData } from "@/hooks/use-dashboard-data";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { dashboardData, isLoading, updateData } = useDashboardData();
+  const { dashboardData, isLoading, updateData, lastUpdated } = useDashboardData();
 
   if (isLoading) {
     return (
@@ -41,7 +41,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             {dashboardData ? (
-              <Dashboard data={dashboardData} />
+              <Dashboard data={dashboardData} lastUpdated={lastUpdated} />
             ) : (
               <div className="min-h-screen flex items-center justify-center bg-background">
                 <div className="text-center space-y-4 p-8">

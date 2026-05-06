@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, BarChart2, ChevronUp, Calendar, Clock, Users } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, BarChart2, ChevronUp, Calendar, Clock, Users, Download } from "lucide-react";
 import { DashboardData } from "@/lib/data-parser";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientValueTable, ClientValueTableHandle } from "@/components/dashboard/ClientValueTable";
@@ -33,6 +33,7 @@ interface AlertChip {
 
 interface DashboardProps {
   data: DashboardData;
+  lastUpdated?: Date | null;
 }
 
 function Variation({ value, label, white = false }: { value: number | null | undefined; label: string; white?: boolean }) {
@@ -54,7 +55,7 @@ function Variation({ value, label, white = false }: { value: number | null | und
   );
 }
 
-export function Dashboard({ data }: DashboardProps) {
+export function Dashboard({ data, lastUpdated }: DashboardProps) {
   const [selectedClient, setSelectedClient] = useState<string>("all");
   const [showValues, setShowValues] = useState<boolean>(true);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
@@ -76,6 +77,35 @@ export function Dashboard({ data }: DashboardProps) {
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+
+  const exportCSV = useCallback(() => {
+    const MONTH_NAMES_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    const rows = data.clients
+      .filter(c => c.valorMensal > 0)
+      .map(c => {
+        const pct = c.creditUsage?.percentualUsado ?? null;
+        const status = !c.creditUsage ? "Avulso" : pct! >= 100 ? "Estouro" : pct! >= 80 ? "Risco" : pct! >= 60 ? "Atenção" : "Saudável";
+        return [
+          `"${c.project}"`,
+          c.horasMensal.toFixed(1),
+          c.valorMensal.toFixed(2),
+          c.creditUsage?.valorPago.toFixed(2) ?? "",
+          c.creditUsage?.valorCredito.toFixed(2) ?? "",
+          pct != null ? pct.toFixed(1) : "",
+          status,
+        ].join(",");
+      });
+    const header = "Cliente,Horas,Valor Consumido,Valor Contrato,Crédito Total,% Crédito,Status";
+    const now = new Date();
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `recorrentes_${MONTH_NAMES_PT[now.getMonth()]}_${now.getFullYear()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [data]);
 
   const handleAlertClientClick = useCallback((clientName: string) => {
     tableRef.current?.scrollToClient(clientName);
@@ -159,7 +189,7 @@ export function Dashboard({ data }: DashboardProps) {
         <div className="flex gap-5 items-start">
 
           {/* ── SIDEBAR (desktop only, sticky) ── */}
-          <aside className="hidden lg:flex flex-col gap-3 w-72 xl:w-80 shrink-0 sticky top-20">
+          <aside className="hidden lg:flex flex-col gap-3 w-72 xl:w-80 shrink-0 sticky top-[70px]">
 
             {/* Hero: Valor Recorrente */}
             <div className="rounded-xl p-5 shadow-md" style={{ background: "#FB7435" }}>
@@ -291,6 +321,27 @@ export function Dashboard({ data }: DashboardProps) {
                 >
                   Limpar filtro
                 </Button>
+              )}
+            </div>
+
+            {/* Export + timestamp */}
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportCSV}
+                className="w-full h-8 text-xs"
+              >
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+                Exportar CSV
+              </Button>
+              {lastUpdated && (
+                <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+                  Atualizado em{" "}
+                  {lastUpdated.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "2-digit" })}
+                  {" "}às{" "}
+                  {lastUpdated.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                </p>
               )}
             </div>
 

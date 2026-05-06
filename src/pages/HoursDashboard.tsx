@@ -184,7 +184,7 @@ export default function HoursDashboard() {
         <div className="flex gap-5 items-start">
 
           {/* ── SIDEBAR (desktop only, sticky) ── */}
-          <aside className="hidden lg:flex flex-col gap-3 w-72 xl:w-80 shrink-0 sticky top-20">
+          <aside className="hidden lg:flex flex-col gap-3 w-72 xl:w-80 shrink-0 sticky top-[70px]">
 
             {/* Hero: progresso da meta */}
             {dashboardData ? (
