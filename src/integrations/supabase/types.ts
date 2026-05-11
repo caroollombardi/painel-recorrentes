@@ -323,6 +323,7 @@ export type Database = {
           assignee: string
           client: string | null
           completed_date: string | null
+          contract_type: string | null
           created_at: string
           hours_logged: number
           id: string
@@ -338,6 +339,7 @@ export type Database = {
           assignee: string
           client?: string | null
           completed_date?: string | null
+          contract_type?: string | null
           created_at?: string
           hours_logged?: number
           id?: string
@@ -353,6 +355,7 @@ export type Database = {
           assignee?: string
           client?: string | null
           completed_date?: string | null
+          contract_type?: string | null
           created_at?: string
           hours_logged?: number
           id?: string

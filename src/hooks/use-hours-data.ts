@@ -13,6 +13,7 @@ export interface TimeEntry {
   hours_logged: number;
   client: string | null;
   activity_type: string | null;
+  contract_type: string | null;
   month: number;
   year: number;
   updated_at?: string;
@@ -350,8 +351,9 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     const clientCol = findCol(["cliente", "client"]);
     const activityCol = findCol(["tipo de atividade", "tipo", "activity", "tags"]);
     const descCol = findCol(["descrição", "descrição ts", "description", "notes"]);
+    const contratoCol = findCol(["contrato"]);
 
-    console.log("CSV columns detected:", { taskCol, assigneeCol, projectCol, dateCol, hoursCol, clientCol, activityCol, descCol });
+    console.log("CSV columns detected:", { taskCol, assigneeCol, projectCol, dateCol, hoursCol, clientCol, activityCol, descCol, contratoCol });
     console.log("CSV header:", header);
 
     if (taskCol === -1 && assigneeCol === -1) {
@@ -400,6 +402,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
         hours_logged: Math.round(hours * 100) / 100,
         client: clientCol >= 0 ? (fields[clientCol] || "").trim() || null : null,
         activity_type: activityType,
+        contract_type: contratoCol >= 0 ? (fields[contratoCol] || "").trim() || null : null,
         month: month + 1,
         year,
         uploaded_by: userId || null,
