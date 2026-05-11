@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AsanaDrawer } from "@/components/dashboard/AsanaDrawer";
 import { exportRecorrentesPDF } from "@/lib/recorrentes-pdf-export";
+import { useHoursData, TimeEntry } from "@/hooks/use-hours-data";
 
 const MONTH_NAMES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -174,6 +175,7 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
     warning:  "text-warning-foreground",
   };
 
+  const { dashboardData: hoursData } = useHoursData(selectedMonth, selectedYear);
   const { percentElapsed, currentDay, totalDays, daysRemaining } = data.monthProgress;
   const currentMonthDisplay = MONTH_NAMES_DISPLAY[new Date().getMonth()];
   const recurringClientsCount = data.clients.filter(c => c.creditUsage !== null).length;
@@ -526,6 +528,7 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
                   showValues={showValues}
                   clientVariations={clientVariations}
                   onAsanaClick={(name) => setAsanaClient(name)}
+                  timeEntries={hoursData?.entries}
                 />
               </div>
             </section>

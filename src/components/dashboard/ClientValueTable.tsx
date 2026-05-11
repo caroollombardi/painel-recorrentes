@@ -8,7 +8,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, ListChecks } from "lucide-react";
+import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, ListChecks, FileText, Calendar } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { TimeEntry } from "@/hooks/use-hours-data";
 import { cn } from "@/lib/utils";
 import { CreditUsageBar } from "./CreditUsageBar";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +27,7 @@ interface ClientValueTableProps {
   showValues?: boolean;
   clientVariations?: Record<string, number | null>;
   onAsanaClick?: (clientName: string) => void;
+  timeEntries?: TimeEntry[];
 }
 
 function formatCurrency(value: number, show: boolean = true): string {
@@ -73,8 +77,9 @@ const badgeTooltips: Record<string, string> = {
 };
 
 export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTableProps>(
-  function ClientValueTable({ data, showValues = true, clientVariations = {}, onAsanaClick }, ref) {
+  function ClientValueTable({ data, showValues = true, clientVariations = {}, onAsanaClick, timeEntries }, ref) {
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const [expandedLawyers, setExpandedLawyers] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
@@ -147,6 +152,23 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
       newExpanded.add(project);
     }
     setExpandedClients(newExpanded);
+  };
+
+  const toggleLawyer = (key: string) => {
+    const next = new Set(expandedLawyers);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    setExpandedLawyers(next);
+  };
+
+  const getLawyerEntries = (clientProject: string, lawyerName: string): TimeEntry[] => {
+    if (!timeEntries) return [];
+    const cp = clientProject.toLowerCase();
+    return timeEntries.filter(e => {
+      if ((e.assignee || "").toLowerCase() !== lawyerName.toLowerCase()) return false;
+      const ep = (e.project || "").toLowerCase();
+      const ec = (e.client || "").toLowerCase();
+      return ep === cp || ep.startsWith(cp) || cp.startsWith(ep) || ec === cp || ec.includes(cp) || cp.includes(ec);
+    }).sort((a, b) => (b.completed_date || "").localeCompare(a.completed_date || ""));
   };
 
   if (sortedData.length === 0) {
@@ -312,37 +334,86 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
         {/* Expanded Lawyers */}
         {isExpanded && client.lawyers.map((lawyer) => {
           const pct = client.horasMensal > 0 ? (lawyer.hours / client.horasMensal) * 100 : 0;
+          const lawyerKey = `${client.project}::${lawyer.name}`;
+          const isLawyerExpanded = expandedLawyers.has(lawyerKey);
+          const entries = getLawyerEntries(client.project, lawyer.name);
           return (
-            <TableRow 
-              key={`${client.project}-${lawyer.name}`}
-              className="bg-muted/20 border-border"
-            >
-              <TableCell></TableCell>
-              <TableCell></TableCell>
-              <TableCell className="pl-12">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <User className="w-4 h-4" />
-                  <span className="font-medium text-foreground" translate="no">{lawyer.name}</span>
-                  {showValues && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                      {formatCurrency(lawyer.hourlyRate, showValues)}/h
-                    </span>
+            <React.Fragment key={lawyerKey}>
+              <TableRow
+                className={cn("bg-muted/20 border-border transition-colors", entries.length > 0 && "cursor-pointer hover:bg-muted/30")}
+                onClick={() => entries.length > 0 && toggleLawyer(lawyerKey)}
+              >
+                <TableCell className="p-2 pl-4">
+                  {entries.length > 0 && (
+                    isLawyerExpanded
+                      ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                      : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                   )}
-                </div>
-              </TableCell>
-              <TableCell className="text-center">
-                <div className="flex items-center gap-2 justify-center">
-                  <Progress value={Math.min(pct, 100)} className="w-12 h-1.5" />
-                  <span className="text-xs text-muted-foreground font-medium">{pct.toFixed(0)}%</span>
-                </div>
-              </TableCell>
-              <TableCell className="text-right text-muted-foreground">
-                {lawyer.hours.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h
-              </TableCell>
-              <TableCell className="text-right text-foreground">
-                {formatCurrency(lawyer.value, showValues)}
-              </TableCell>
-            </TableRow>
+                </TableCell>
+                <TableCell></TableCell>
+                <TableCell className="pl-8">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <User className="w-4 h-4" />
+                    <span className="font-medium text-foreground" translate="no">{lawyer.name}</span>
+                    {showValues && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                        {formatCurrency(lawyer.hourlyRate, showValues)}/h
+                      </span>
+                    )}
+                    {entries.length > 0 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        ({entries.length} lançamento{entries.length !== 1 ? "s" : ""})
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-center">
+                  <div className="flex items-center gap-2 justify-center">
+                    <Progress value={Math.min(pct, 100)} className="w-12 h-1.5" />
+                    <span className="text-xs text-muted-foreground font-medium">{pct.toFixed(0)}%</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  {lawyer.hours.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h
+                </TableCell>
+                <TableCell className="text-right text-foreground">
+                  {formatCurrency(lawyer.value, showValues)}
+                </TableCell>
+              </TableRow>
+
+              {/* Lançamentos do advogado */}
+              {isLawyerExpanded && entries.map((entry, idx) => (
+                <TableRow key={`${lawyerKey}-entry-${idx}`} className="bg-muted/10 border-border/50">
+                  <TableCell></TableCell>
+                  <TableCell></TableCell>
+                  <TableCell colSpan={2} className="pl-14">
+                    <div className="flex items-start gap-2 py-0.5">
+                      <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-muted-foreground/60" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground/80 leading-snug">{entry.task_name || "Sem descrição"}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {entry.completed_date && (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <Calendar className="w-3 h-3" />
+                              {format(parseISO(entry.completed_date), "dd/MM/yyyy", { locale: ptBR })}
+                            </span>
+                          )}
+                          {entry.activity_type && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                              {entry.activity_type}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground text-sm pr-4">
+                    {entry.hours_logged.toFixed(2)}h
+                  </TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              ))}
+            </React.Fragment>
           );
         })}
       </React.Fragment>
