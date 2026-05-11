@@ -40,6 +40,25 @@ export interface MemberSummary {
   projects: ProjectDetail[];
 }
 
+export interface ClientEntry {
+  taskName: string;
+  hours: number;
+  date: string | null;
+  activityType: string | null;
+}
+
+export interface ClientMemberDetail {
+  name: string;
+  totalHours: number;
+  entries: ClientEntry[];
+}
+
+export interface ClientSummary {
+  client: string;
+  totalHours: number;
+  members: ClientMemberDetail[];
+}
+
 export interface HoursDashboardData {
   entries: TimeEntry[];
   totalHours: number;
@@ -50,6 +69,7 @@ export interface HoursDashboardData {
   activeProjects: number;
   fillRate: number; // % of business days with entries
   memberSummaries: MemberSummary[];
+  clientSummaries: ClientSummary[];
   dailyHours: { date: string; hours: number }[];
   activityDistribution: { type: string; hours: number; percent: number }[];
   members: string[];
@@ -208,6 +228,36 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
       }
     });
 
+    // Client summaries (client → member → entries with descriptions)
+    const clientMap = new Map<string, { hours: number; members: Map<string, { hours: number; entries: ClientEntry[] }> }>();
+    entries.forEach(e => {
+      const clientName = e.client || e.project || "Sem cliente";
+      if (!clientMap.has(clientName)) clientMap.set(clientName, { hours: 0, members: new Map() });
+      const c = clientMap.get(clientName)!;
+      c.hours += Number(e.hours_logged);
+      const assignee = e.assignee || "Sem responsável";
+      if (!c.members.has(assignee)) c.members.set(assignee, { hours: 0, entries: [] });
+      const m = c.members.get(assignee)!;
+      m.hours += Number(e.hours_logged);
+      m.entries.push({
+        taskName: e.task_name || "Sem título",
+        hours: Number(e.hours_logged),
+        date: e.completed_date,
+        activityType: e.activity_type,
+      });
+    });
+    const clientSummaries: ClientSummary[] = Array.from(clientMap.entries())
+      .map(([client, data]) => ({
+        client,
+        totalHours: Math.round(data.hours * 100) / 100,
+        members: Array.from(data.members.entries()).map(([name, mData]) => ({
+          name,
+          totalHours: Math.round(mData.hours * 100) / 100,
+          entries: mData.entries.sort((a, b) => (b.date || "").localeCompare(a.date || "")),
+        })).sort((a, b) => b.totalHours - a.totalHours),
+      }))
+      .sort((a, b) => b.totalHours - a.totalHours);
+
     // Top contributor
     let topContributor = "";
     let topContributorHours = 0;
@@ -267,6 +317,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
       activeProjects: projectSet.size,
       fillRate: Math.round(fillRate * 10) / 10,
       memberSummaries,
+      clientSummaries,
       dailyHours,
       activityDistribution,
       members: Array.from(memberMap.keys()).sort(),

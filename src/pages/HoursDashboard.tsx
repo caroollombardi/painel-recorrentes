@@ -8,6 +8,7 @@ import { HoursDetailTable } from "@/components/hours/HoursDetailTable";
 import { DailyHoursChart } from "@/components/hours/DailyHoursChart";
 import { ActivityDistributionChart } from "@/components/hours/ActivityDistributionChart";
 import { EasyJurImport } from "@/components/hours/EasyJurImport";
+import { HoursClientTable } from "@/components/hours/HoursClientTable";
 import { HoursExecutiveSummary } from "@/components/hours/HoursExecutiveSummary";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { getMonthProgress } from "@/lib/month-progress";
@@ -522,6 +523,23 @@ export default function HoursDashboard() {
                     dailyTargetHours={DAILY_TARGET_HOURS}
                     month={selectedMonth}
                     year={selectedYear}
+                  />
+                </section>
+
+                {/* Horas por Cliente */}
+                <section className="bg-card rounded-xl border border-border p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <FolderOpen className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-display font-semibold text-foreground">Horas por Cliente</h3>
+                      <p className="text-xs text-muted-foreground">Clique no cliente para ver os advogados; clique no advogado para ver os lançamentos</p>
+                    </div>
+                  </div>
+                  <HoursClientTable
+                    data={dashboardData.clientSummaries}
+                    totalHours={dashboardData.totalHours}
                   />
                 </section>
 
