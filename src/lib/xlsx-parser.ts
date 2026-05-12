@@ -45,6 +45,8 @@ export function parseXLSXData(fileBuffer: ArrayBuffer): DashboardData {
     
     if (!project || !actualTime) continue;
 
+    if (project.trim() === 'APPLAUSE - Rodada Seed 2') continue;
+
     const projectName = extractProjectName(project);
     const isMensal = contrato?.trim() === 'MENSAL';
     const hasContract = !!getClientContract(projectName);
