@@ -6,14 +6,6 @@ import { toast } from "@/hooks/use-toast";
 import { getClientContract, calculateCreditUsage } from "@/lib/contract-values";
 import { analyzeConsumption } from "@/lib/month-progress";
 
-const EXCLUDED_PROJECTS = ["APPLAUSE"];
-
-function filterExcludedClients(data: DashboardData): DashboardData {
-  const clients = data.clients.filter(c => !EXCLUDED_PROJECTS.includes(c.project));
-  const totalHoras = clients.reduce((s, c) => s + c.horasMensal, 0);
-  const totalValor = clients.reduce((s, c) => s + c.valorMensal, 0);
-  return { ...data, clients, totalHoras, totalValor };
-}
 
 function recalculateCreditUsage(data: DashboardData): DashboardData {
   const clients = data.clients.map((client) => {
@@ -76,7 +68,7 @@ export function useDashboardData() {
         if (data.updated_at) setLastUpdated(new Date(data.updated_at));
         const result = dashboardDataSchema.safeParse(data.data);
         if (result.success) {
-          const recalculated = recalculateCreditUsage(filterExcludedClients(result.data as DashboardData));
+          const recalculated = recalculateCreditUsage(result.data as DashboardData);
           setDashboardData(recalculated);
           if (fromRealtime) {
             toast({ title: "Painel atualizado", description: "Novos dados foram importados." });
@@ -129,7 +121,7 @@ export function useDashboardData() {
 
   const updateData = useCallback(async (data: DashboardData, fileName?: string) => {
     ownUpdateRef.current = true;
-    setDashboardData(filterExcludedClients(data));
+    setDashboardData(data);
 
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -163,7 +155,7 @@ export function useDashboardData() {
       const month = now.getMonth() + 1;
       const year = now.getFullYear();
       const clientSnapshotData = data.clients
-        .filter(c => c.valorMensal > 0 && !EXCLUDED_PROJECTS.includes(c.project))
+        .filter(c => c.valorMensal > 0)
         .map(c => ({ project: c.project, horasMensal: c.horasMensal, valorMensal: c.valorMensal }));
 
       await supabase

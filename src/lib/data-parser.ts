@@ -97,7 +97,9 @@ export function parseCSVData(csvText: string): DashboardData {
     const assignee = fields[6]; // Assignee column
     
     if (!project || !actualTime) continue;
-    
+
+    if (project.trim() === 'APPLAUSE - Rodada Seed 2') continue;
+
     const projectName = extractProjectName(project);
     const isMensal = contrato?.trim() === 'MENSAL';
     const hasContract = !!getClientContract(projectName);
