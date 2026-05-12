@@ -349,10 +349,21 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     const dateCol = findCol(["data de conclusão", "completed at", "completed", "data"]);
     const hoursCol = findCol(["horas lançadas", "horas", "hours", "actual time"]);
     const clientCol = findCol(["cliente", "client"]);
-    const activityCol = findCol(["tipo de atividade", "tipo", "activity"]);
+    const activityCol = findCol(["tipo de atividade", "tipo", "activity", "tags"]);
     const descCol = findCol(["descrição", "descrição ts", "description", "notes"]);
-    // Tags column is separate from activity type — store in contract_type for MENSAL filtering
-    const tagsCol = header.findIndex((h, i) => i !== activityCol && h != null && (h === "tags" || h === "tag" || h.includes("contrato")));
+    // Find contract/tags column: try by name first, then scan data rows for "MENSAL"/"AVULSO" values
+    let tagsCol = header.findIndex((h, i) => i !== activityCol && h != null && (h === "tags" || h === "tag" || h.includes("contrato")));
+    if (tagsCol === -1) {
+      const contractValues = new Set(["mensal", "avulso", "recorrente", "pontual"]);
+      outer: for (let r = 1; r < Math.min(records.length, 30); r++) {
+        for (let c = 0; c < records[r].length; c++) {
+          if (contractValues.has((records[r][c] || "").toLowerCase().trim())) {
+            tagsCol = c;
+            break outer;
+          }
+        }
+      }
+    }
 
     console.log("CSV columns detected:", { taskCol, assigneeCol, projectCol, dateCol, hoursCol, clientCol, activityCol, descCol, tagsCol });
     console.log("CSV header:", header);
