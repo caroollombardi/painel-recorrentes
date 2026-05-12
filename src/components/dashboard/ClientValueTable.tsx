@@ -327,6 +327,11 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
               <span className="text-xs text-muted-foreground">—</span>
             )}
           </TableCell>
+          <TableCell className="text-right text-muted-foreground">
+            {client.creditUsage
+              ? formatCurrency(client.creditUsage.valorCredito, showValues)
+              : <span className="text-xs">—</span>}
+          </TableCell>
           <TableCell className="text-right font-semibold text-primary">
             {formatCurrency(client.valorMensal, showValues)}
           </TableCell>
@@ -377,6 +382,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                 <TableCell className="text-right text-muted-foreground">
                   {lawyer.hours.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h
                 </TableCell>
+                <TableCell></TableCell>
                 <TableCell className="text-right text-foreground">
                   {formatCurrency(lawyer.value, showValues)}
                 </TableCell>
@@ -412,6 +418,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                     {entry.hours_logged.toFixed(2)}h
                   </TableCell>
                   <TableCell></TableCell>
+                  <TableCell></TableCell>
                 </TableRow>
               ))}
             </React.Fragment>
@@ -439,6 +446,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
               <TableHead className="text-muted-foreground font-semibold text-center">
                 <SortableHeader label="Valor Médio/Hora" sortKeyName="valorMedioHora" />
               </TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-right">Valor Crédito</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">
                 <SortableHeader label="Valor Consumido" sortKeyName="valorConsumed" />
               </TableHead>
