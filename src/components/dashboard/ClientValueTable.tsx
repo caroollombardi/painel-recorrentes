@@ -165,7 +165,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
     const cp = clientProject.toLowerCase();
     return timeEntries.filter(e => {
       if ((e.assignee || "").toLowerCase() !== lawyerName.toLowerCase()) return false;
-      if (!(e.activity_type || "").toUpperCase().includes("MENSAL")) return false;
+      if (!(e.contract_type || "").toUpperCase().includes("MENSAL")) return false;
       const ep = (e.project || "").toLowerCase();
       const ec = (e.client || "").toLowerCase();
       return ep === cp || ep.startsWith(cp) || cp.startsWith(ep) || ec === cp || ec.includes(cp) || cp.includes(ec);

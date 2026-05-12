@@ -349,11 +349,12 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     const dateCol = findCol(["data de conclusão", "completed at", "completed", "data"]);
     const hoursCol = findCol(["horas lançadas", "horas", "hours", "actual time"]);
     const clientCol = findCol(["cliente", "client"]);
-    const activityCol = findCol(["tipo de atividade", "tipo", "activity", "tags"]);
+    const activityCol = findCol(["tipo de atividade", "tipo", "activity"]);
     const descCol = findCol(["descrição", "descrição ts", "description", "notes"]);
-    const contratoCol = findCol(["contrato"]);
+    // Tags column is separate from activity type — store in contract_type for MENSAL filtering
+    const tagsCol = header.findIndex((h, i) => i !== activityCol && h != null && (h === "tags" || h === "tag" || h.includes("contrato")));
 
-    console.log("CSV columns detected:", { taskCol, assigneeCol, projectCol, dateCol, hoursCol, clientCol, activityCol, descCol, contratoCol });
+    console.log("CSV columns detected:", { taskCol, assigneeCol, projectCol, dateCol, hoursCol, clientCol, activityCol, descCol, tagsCol });
     console.log("CSV header:", header);
 
     if (taskCol === -1 && assigneeCol === -1) {
@@ -402,7 +403,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
         hours_logged: Math.round(hours * 100) / 100,
         client: clientCol >= 0 ? (fields[clientCol] || "").trim() || null : null,
         activity_type: activityType,
-        contract_type: contratoCol >= 0 ? (fields[contratoCol] || "").trim() || null : null,
+        contract_type: tagsCol >= 0 ? (fields[tagsCol] || "").trim() || null : null,
         month: month + 1,
         year,
         uploaded_by: userId || null,
