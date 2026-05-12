@@ -364,9 +364,9 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
       console.warn("CONTRATO column not found in CSV header:", header);
     }
 
-    // Debug toast showing column detection result
+    // DEBUG: alert to verify deployment and column detection
     const sampleContract = tagsCol >= 0 && records.length > 1 ? (records[1][tagsCol] || "(vazio)") : "col não encontrada";
-    toast({ title: `Debug: coluna CONTRATO = índice ${tagsCol}`, description: `Valor linha 1: "${sampleContract}" | Header[${tagsCol}]: "${tagsCol >= 0 ? header[tagsCol] : "n/a"}"` });
+    window.alert(`DEBUG CONTRATO\nIndice detectado: ${tagsCol}\nHeader[${tagsCol}]: "${tagsCol >= 0 ? header[tagsCol] : "n/a"}"\nLinha 1 valor: "${sampleContract}"\nTotal headers: ${header.length}`);
 
     if (taskCol === -1 && assigneeCol === -1) {
       toast({ title: "Erro", description: "CSV não possui colunas reconhecidas (Nome da Tarefa, Responsável).", variant: "destructive" });
