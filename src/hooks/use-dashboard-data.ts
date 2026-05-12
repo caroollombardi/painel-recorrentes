@@ -6,7 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import { getClientContract, calculateCreditUsage } from "@/lib/contract-values";
 import { analyzeConsumption } from "@/lib/month-progress";
 
-const EXCLUDED_PROJECTS = ["APPLAUSE - Rodada Seed 2"];
+const EXCLUDED_PROJECTS = ["APPLAUSE"];
 
 function filterExcludedClients(data: DashboardData): DashboardData {
   const clients = data.clients.filter(c => !EXCLUDED_PROJECTS.includes(c.project));
