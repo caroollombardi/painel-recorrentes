@@ -351,22 +351,22 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     const clientCol = findCol(["cliente", "client"]);
     const activityCol = findCol(["tipo de atividade", "tipo", "activity", "tags"]);
     const descCol = findCol(["descrição", "descrição ts", "description", "notes"]);
-    // Find contract/tags column: try by name first, then scan data rows for "MENSAL"/"AVULSO" values
-    let tagsCol = header.findIndex((h, i) => i !== activityCol && h != null && (h === "tags" || h === "tag" || h.includes("contrato")));
-    if (tagsCol === -1) {
-      const contractValues = new Set(["mensal", "avulso", "recorrente", "pontual"]);
-      outer: for (let r = 1; r < Math.min(records.length, 30); r++) {
-        for (let c = 0; c < records[r].length; c++) {
-          if (contractValues.has((records[r][c] || "").toLowerCase().trim())) {
-            tagsCol = c;
-            break outer;
-          }
-        }
-      }
-    }
+    const tagsCol = findCol(["contrato"]);
 
     console.log("CSV columns detected:", { taskCol, assigneeCol, projectCol, dateCol, hoursCol, clientCol, activityCol, descCol, tagsCol });
     console.log("CSV header:", header);
+    // Log sample contract values from first 5 rows for debugging
+    if (tagsCol >= 0) {
+      for (let r = 1; r <= Math.min(5, records.length - 1); r++) {
+        console.log(`Row ${r} contract_type raw:`, JSON.stringify(records[r][tagsCol]));
+      }
+    } else {
+      console.warn("CONTRATO column not found in CSV header:", header);
+    }
+
+    // Debug toast showing column detection result
+    const sampleContract = tagsCol >= 0 && records.length > 1 ? (records[1][tagsCol] || "(vazio)") : "col não encontrada";
+    toast({ title: `Debug: coluna CONTRATO = índice ${tagsCol}`, description: `Valor linha 1: "${sampleContract}" | Header[${tagsCol}]: "${tagsCol >= 0 ? header[tagsCol] : "n/a"}"` });
 
     if (taskCol === -1 && assigneeCol === -1) {
       toast({ title: "Erro", description: "CSV não possui colunas reconhecidas (Nome da Tarefa, Responsável).", variant: "destructive" });
