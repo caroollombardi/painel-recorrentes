@@ -1,17 +1,15 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, FileText } from "lucide-react";
-import { DashboardData, ClientData } from "@/lib/data-parser";
+import { DashboardData } from "@/lib/data-parser";
 import { MonthProgress } from "@/lib/month-progress";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 
 interface ExecutiveSummaryProps {
   data: DashboardData;
   previousMonthTotalValor: number | null;
-  previousMonthTotalHoras: number | null;
   previousMonthName: string | null;
   showValues: boolean;
   defaultExpanded?: boolean;
+  monthProgress?: MonthProgress;
 }
 
 const MONTH_NAMES = [
@@ -22,10 +20,10 @@ const MONTH_NAMES = [
 export function ExecutiveSummary({
   data,
   previousMonthTotalValor,
-  previousMonthTotalHoras,
   previousMonthName,
   showValues,
   defaultExpanded = false,
+  monthProgress,
 }: ExecutiveSummaryProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -49,8 +47,9 @@ export function ExecutiveSummary({
     : null;
 
   // Projection
-  const projected = data.monthProgress.percentElapsed > 0
-    ? (data.totalValor / (data.monthProgress.percentElapsed / 100))
+  const effectiveProgress = monthProgress ?? data.monthProgress;
+  const projected = effectiveProgress.percentElapsed > 0
+    ? (data.totalValor / (effectiveProgress.percentElapsed / 100))
     : data.totalValor;
 
   // Build summary lines

@@ -17,6 +17,31 @@ export function isExcludedMember(name: string): boolean {
   return EXCLUDED_MEMBERS.some(ex => lower.includes(ex.toLowerCase()));
 }
 
+/** Membros completamente ocultos do dashboard (ex: desligados) */
+export const HIDDEN_MEMBERS = [
+  "Felipe Hauagge",
+];
+
+/** Verifica se um membro deve ser completamente ocultado do dashboard */
+export function isHiddenMember(name: string): boolean {
+  const lower = name.toLowerCase();
+  return HIDDEN_MEMBERS.some(h => lower.includes(h.toLowerCase()));
+}
+
+/**
+ * Feriados que não contam como dias úteis para a meta.
+ * Formato: "YYYY-MM-DD". Horas lançadas nesses dias continuam valendo.
+ */
+export const HOLIDAYS: Set<string> = new Set([
+  "2026-05-01", // Dia do Trabalho
+]);
+
+/** Verifica se uma data é feriado */
+export function isHoliday(year: number, month: number, day: number): boolean {
+  const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return HOLIDAYS.has(dateStr);
+}
+
 /** Número fixo de membros considerados para a meta */
 export const TARGET_MEMBER_COUNT = 8;
 
@@ -26,6 +51,7 @@ export const TARGET_MEMBER_COUNT = 8;
  */
 export const MEMBER_DAILY_TARGETS: Record<string, number> = {
   "Laura": 3.5,
+  "Sabrina": 7,
 };
 
 /**
@@ -33,8 +59,9 @@ export const MEMBER_DAILY_TARGETS: Record<string, number> = {
  * Chave: "NomeMembro-YYYY-MM", Valor: horas a descontar da meta do período.
  */
 export const MEMBER_TARGET_ADJUSTMENTS: Record<string, Record<string, number>> = {
-  "Sabrina": { "2026-03": 6 }, // Férias dia 13/03
+  "Sabrina": { "2026-03": 6, "2026-05": 77 }, // 2026-03: Férias dia 13/03 | 2026-05: Férias 11/05 a 25/05 (11 dias úteis × 7h)
   "Manuela": { "2026-03": 36 }, // Férias 02/03 a 09/03 (6 dias úteis × 6h)
+  "Gabriel": { "2026-05": 36 }, // Férias 01/05 a 08/05 (6 dias úteis × 6h)
 };
 
 /** Retorna a meta diária de um membro (customizada ou padrão) */

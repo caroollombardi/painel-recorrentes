@@ -97,7 +97,7 @@ export function CompactAlertStrip({ clients, monthProgress, onClientClick }: Com
                   <p className="font-semibold">{config.label}: {chip.client.project}</p>
                   <p className="text-xs">
                     Cliente {chip.client.project} consumiu {chip.percent.toFixed(1)}% do crédito contratado.
-                    {chip.level === "overflow" && " Risco de estouro."}
+                    {chip.level === "overflow" && " Estouro de crédito."}
                     {chip.level === "risk" && " Risco de estouro."}
                   </p>
                   <p className="text-xs">Valor consumido: {formatCurrency(cu.valorConsumido)} / {formatCurrency(cu.valorCredito)}</p>

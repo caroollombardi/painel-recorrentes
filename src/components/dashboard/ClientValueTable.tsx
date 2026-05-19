@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, ListChecks, FileText, Calendar } from "lucide-react";
+import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, ListChecks, FileText, Calendar, Bell, CheckCircle2, ClipboardList, XCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { TimeEntry } from "@/hooks/use-hours-data";
@@ -59,12 +59,12 @@ function getClientStatus(client: ClientData): StatusGroup {
   return 'healthy';
 }
 
-const statusConfig: Record<StatusGroup, { label: string; emoji: string; bgClass: string; headerBg: string }> = {
-  overflow: { label: 'Estouro', emoji: '🚨', bgClass: 'bg-destructive/5 hover:bg-destructive/10', headerBg: 'bg-destructive/10 border-destructive/20' },
-  risk: { label: 'Risco', emoji: '⚠️', bgClass: 'bg-risk/5 hover:bg-risk/10', headerBg: 'bg-risk/10 border-risk/20' },
-  warning: { label: 'Atenção', emoji: '🔔', bgClass: 'bg-warning/5 hover:bg-warning/10', headerBg: 'bg-warning/10 border-warning/20' },
-  healthy: { label: 'Saudável', emoji: '✅', bgClass: 'bg-success/5 hover:bg-success/10', headerBg: 'bg-success/10 border-success/20' },
-  avulso: { label: 'Avulso', emoji: '📋', bgClass: 'hover:bg-muted/50', headerBg: 'bg-muted/30 border-border' },
+const statusConfig: Record<StatusGroup, { label: string; icon: React.ReactNode; bgClass: string; headerBg: string }> = {
+  overflow: { label: 'Estouro', icon: <XCircle className="w-4 h-4 text-destructive inline-block mr-1.5 shrink-0" aria-hidden="true" />, bgClass: 'bg-destructive/5 hover:bg-destructive/10', headerBg: 'bg-destructive/10 border-destructive/20' },
+  risk:     { label: 'Risco',   icon: <AlertTriangle className="w-4 h-4 text-warning-foreground inline-block mr-1.5 shrink-0" aria-hidden="true" />, bgClass: 'bg-risk/5 hover:bg-risk/10', headerBg: 'bg-risk/10 border-risk/20' },
+  warning:  { label: 'Atenção', icon: <Bell className="w-4 h-4 text-warning-foreground inline-block mr-1.5 shrink-0" aria-hidden="true" />, bgClass: 'bg-warning/5 hover:bg-warning/10', headerBg: 'bg-warning/10 border-warning/20' },
+  healthy:  { label: 'Saudável', icon: <CheckCircle2 className="w-4 h-4 text-success-foreground inline-block mr-1.5 shrink-0" aria-hidden="true" />, bgClass: 'bg-success/5 hover:bg-success/10', headerBg: 'bg-success/10 border-success/20' },
+  avulso:   { label: 'Avulso',  icon: <ClipboardList className="w-4 h-4 text-muted-foreground inline-block mr-1.5 shrink-0" aria-hidden="true" />, bgClass: 'hover:bg-muted/50', headerBg: 'bg-muted/30 border-border' },
 };
 
 const statusOrder: StatusGroup[] = ['overflow', 'risk', 'warning', 'healthy', 'avulso'];
@@ -434,7 +434,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto">
-        <Table>
+        <Table className="min-w-[900px]">
           <TableHeader>
             <TableRow className="border-border">
               <TableHead className="text-muted-foreground font-semibold w-8"></TableHead>
@@ -461,9 +461,9 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                 return (
                   <React.Fragment key={status}>
                     <TableRow className={cn("border-border", config.headerBg)}>
-                      <TableCell colSpan={6} className="py-2 px-4">
-                        <span className="text-sm font-semibold">
-                          {config.emoji} {config.label}
+                      <TableCell colSpan={7} className="py-2 px-4">
+                        <span className="inline-flex items-center text-sm font-semibold">
+                          {config.icon}{config.label}
                           <span className="font-normal text-muted-foreground ml-2">
                             ({clients.length} cliente{clients.length !== 1 ? 's' : ''})
                           </span>

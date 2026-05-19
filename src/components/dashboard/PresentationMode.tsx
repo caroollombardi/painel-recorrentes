@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Clock, DollarSign, Users, TrendingUp, AlertTriangle, X, Monitor } from "lucide-react";
 import { DashboardData } from "@/lib/data-parser";
-import { generateTopClientPhrase } from "@/lib/month-progress";
+import { generateTopClientPhrase, MonthProgress } from "@/lib/month-progress";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientValueTable } from "@/components/dashboard/ClientValueTable";
@@ -20,6 +20,7 @@ interface PresentationModeProps {
   previousMonthTotalValor?: number | null;
   previousMonthTotalHoras?: number | null;
   previousMonthName?: string | null;
+  monthProgress?: MonthProgress;
 }
 
 function SlideIndicator({ current, total }: { current: number; total: number }) {
@@ -64,7 +65,10 @@ export function PresentationMode({
   previousMonthTotalValor = null,
   previousMonthTotalHoras = null,
   previousMonthName = null,
+  monthProgress,
 }: PresentationModeProps) {
+  const effectiveMonthProgress = monthProgress ?? data.monthProgress;
+
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
@@ -103,17 +107,17 @@ export function PresentationMode({
             <ExecutiveSummary
               data={data}
               previousMonthTotalValor={previousMonthTotalValor ?? null}
-              previousMonthTotalHoras={previousMonthTotalHoras ?? null}
               previousMonthName={previousMonthName ?? null}
               showValues={false}
               defaultExpanded={true}
+              monthProgress={effectiveMonthProgress}
             />
 
-            <MonthProgressIndicator monthProgress={data.monthProgress} className="mx-auto max-w-2xl justify-center" />
+            <MonthProgressIndicator monthProgress={effectiveMonthProgress} className="mx-auto max-w-2xl justify-center" />
 
             <CompactAlertStrip
               clients={data.clients}
-              monthProgress={data.monthProgress}
+              monthProgress={effectiveMonthProgress}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

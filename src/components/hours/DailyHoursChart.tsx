@@ -46,12 +46,12 @@ export function DailyHoursChart({ data, dailyTarget = DAILY_TARGET_HOURS }: Dail
           <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
           <Tooltip content={<CustomTooltip />} />
           {/* Shaded area from 0 to target */}
-          <ReferenceArea y1={0} y2={dailyTarget} fill="#EF4444" fillOpacity={0.04} />
+          <ReferenceArea y1={0} y2={dailyTarget} fill="hsl(var(--destructive))" fillOpacity={0.08} />
           <ReferenceLine
             y={dailyTarget}
-            stroke="#EF4444"
+            stroke="hsl(var(--destructive))"
             strokeDasharray="5 5"
-            label={{ value: `Meta: ${dailyTarget}h/dia`, position: "right", fontSize: 10, fill: "#EF4444" }}
+            label={{ value: `Meta: ${dailyTarget}h/dia`, position: "right", fontSize: 10, fill: "hsl(var(--destructive))" }}
           />
           <Area type="monotone" dataKey="hours" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#hoursGradient)" />
         </AreaChart>
@@ -71,11 +71,11 @@ export function DailyHoursChart({ data, dailyTarget = DAILY_TARGET_HOURS }: Dail
           <span className="text-xs text-muted-foreground">Horas lançadas</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-6 border-t-2 border-dashed" style={{ borderColor: "#EF4444" }} />
+          <div className="w-6 border-t-2 border-dashed border-destructive" />
           <span className="text-xs text-muted-foreground">Meta diária ({dailyTarget}h)</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.2)" }} />
+          <div className="w-3 h-3 rounded-sm bg-destructive/10 border border-destructive/30" />
           <span className="text-xs text-muted-foreground">Zona abaixo da meta</span>
         </div>
       </div>

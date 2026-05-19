@@ -12,7 +12,7 @@ import { HoursClientTable } from "@/components/hours/HoursClientTable";
 import { HoursExecutiveSummary } from "@/components/hours/HoursExecutiveSummary";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { getMonthProgress } from "@/lib/month-progress";
-import { DAILY_TARGET_HOURS, DAILY_ALERT_THRESHOLD, TARGET_MEMBER_COUNT, getMemberPeriodTarget, getTeamTargetAdjustment, isExcludedMember } from "@/lib/hours-constants";
+import { DAILY_TARGET_HOURS, DAILY_ALERT_THRESHOLD, TARGET_MEMBER_COUNT, getMemberPeriodTarget, getTeamTargetAdjustment, isExcludedMember, isHiddenMember } from "@/lib/hours-constants";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { exportHoursPDF } from "@/lib/hours-pdf-export";
@@ -21,6 +21,15 @@ const MONTH_NAMES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
+
+function filterEntries(entries: import("@/hooks/use-hours-data").TimeEntry[], memberFilter: string, projectFilter: string, activityFilter: string) {
+  return entries.filter(e => {
+    if (memberFilter !== "all" && e.assignee !== memberFilter) return false;
+    if (projectFilter !== "all" && e.project !== projectFilter) return false;
+    if (activityFilter !== "all" && ((e.activity_type || "").trim() || "Outros") !== activityFilter) return false;
+    return true;
+  });
+}
 
 function StatRow({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
@@ -52,30 +61,110 @@ export default function HoursDashboard() {
   const [memberFilter, setMemberFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
   const [activityFilter, setActivityFilter] = useState("all");
-  const [showBelowTargetOnly, setShowBelowTargetOnly] = useState(false);
-
   const { dashboardData, isLoading, previousMonthHours, lastUpdated, reload } = useHoursData(selectedMonth, selectedYear);
-  const monthProgress = useMemo(() => getMonthProgress(), []);
+  const monthProgress = useMemo(() => {
+    const now = new Date();
+    const isCurrentMonth = selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
+    const isPast = selectedYear < now.getFullYear() || (selectedYear === now.getFullYear() && selectedMonth < now.getMonth());
+    if (isCurrentMonth) return getMonthProgress();
+    if (isPast) return getMonthProgress(new Date(selectedYear, selectedMonth + 1, 0));
+    const totalDays = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    return { currentDay: 0, totalDays, percentElapsed: 0, daysRemaining: totalDays };
+  }, [selectedMonth, selectedYear]);
+
+  const activeFilterCount = [memberFilter, projectFilter, activityFilter].filter(f => f !== "all").length;
 
   const filteredData = useMemo(() => {
     if (!dashboardData) return null;
     if (memberFilter === "all" && projectFilter === "all" && activityFilter === "all") return dashboardData;
-    const filtered = dashboardData.entries.filter(e => {
-      if (memberFilter !== "all" && e.assignee !== memberFilter) return false;
-      if (projectFilter !== "all" && e.project !== projectFilter) return false;
-      if (activityFilter !== "all" && (e.activity_type || "Outros") !== activityFilter) return false;
-      return true;
+
+    const filtered = filterEntries(dashboardData.entries, memberFilter, projectFilter, activityFilter);
+    const totalHours = Math.round(filtered.reduce((s, e) => s + Number(e.hours_logged), 0) * 100) / 100;
+
+    // Recompute member summaries from filtered entries
+    const memberMap = new Map<string, { hours: number; projects: Map<string, { hours: number; activityType: string | null; dates: Set<string>; tasks: { taskName: string; hours: number; date: string | null; activityType: string | null }[] }> }>();
+    filtered.forEach(e => {
+      if (isHiddenMember(e.assignee)) return;
+      const assignee = e.assignee || "Sem responsável";
+      if (!memberMap.has(assignee)) memberMap.set(assignee, { hours: 0, projects: new Map() });
+      const m = memberMap.get(assignee)!;
+      m.hours += Number(e.hours_logged);
+      const proj = e.project || "Sem projeto";
+      if (!m.projects.has(proj)) m.projects.set(proj, { hours: 0, activityType: e.activity_type, dates: new Set(), tasks: [] });
+      const projData = m.projects.get(proj)!;
+      projData.hours += Number(e.hours_logged);
+      if (e.completed_date) projData.dates.add(e.completed_date);
+      projData.tasks.push({ taskName: e.task_name || "Sem título", hours: Number(e.hours_logged), date: e.completed_date, activityType: e.activity_type });
     });
-    const totalHours = filtered.reduce((s, e) => s + Number(e.hours_logged), 0);
-    return { ...dashboardData, totalHours: Math.round(totalHours * 100) / 100 };
+    const memberSummaries = Array.from(memberMap.entries())
+      .map(([name, data]) => ({
+        name,
+        totalHours: Math.round(data.hours * 100) / 100,
+        percentOfTotal: totalHours > 0 ? (data.hours / totalHours) * 100 : 0,
+        projects: Array.from(data.projects.entries()).map(([project, pData]) => ({
+          project,
+          hours: Math.round(pData.hours * 100) / 100,
+          activityType: pData.activityType,
+          dates: Array.from(pData.dates).sort(),
+          tasks: pData.tasks.sort((a, b) => (b.date || "").localeCompare(a.date || "")),
+        })).sort((a, b) => b.hours - a.hours),
+      }))
+      .sort((a, b) => b.totalHours - a.totalHours);
+
+    // Recompute client summaries from filtered entries
+    const clientMap = new Map<string, { hours: number; members: Map<string, { hours: number; entries: { taskName: string; hours: number; date: string | null; activityType: string | null }[] }> }>();
+    filtered.forEach(e => {
+      if (isHiddenMember(e.assignee)) return;
+      const assignee = e.assignee || "Sem responsável";
+      const clientName = e.client || e.project || "Sem cliente";
+      if (!clientMap.has(clientName)) clientMap.set(clientName, { hours: 0, members: new Map() });
+      const c = clientMap.get(clientName)!;
+      c.hours += Number(e.hours_logged);
+      if (!c.members.has(assignee)) c.members.set(assignee, { hours: 0, entries: [] });
+      const cm = c.members.get(assignee)!;
+      cm.hours += Number(e.hours_logged);
+      cm.entries.push({ taskName: e.task_name || "Sem título", hours: Number(e.hours_logged), date: e.completed_date, activityType: e.activity_type });
+    });
+    const clientSummaries = Array.from(clientMap.entries())
+      .map(([client, data]) => ({
+        client,
+        totalHours: Math.round(data.hours * 100) / 100,
+        members: Array.from(data.members.entries()).map(([name, mData]) => ({
+          name,
+          totalHours: Math.round(mData.hours * 100) / 100,
+          entries: mData.entries.sort((a, b) => (b.date || "").localeCompare(a.date || "")),
+        })).sort((a, b) => b.totalHours - a.totalHours),
+      }))
+      .sort((a, b) => b.totalHours - a.totalHours);
+
+    // Recompute daily hours from filtered entries
+    const dailyMap = new Map<string, number>();
+    filtered.forEach(e => {
+      if (!e.completed_date) return;
+      dailyMap.set(e.completed_date, (dailyMap.get(e.completed_date) || 0) + Number(e.hours_logged));
+    });
+    const dailyHours = Array.from(dailyMap.entries())
+      .map(([date, hours]) => ({ date, hours: Math.round(hours * 100) / 100 }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Recompute activity distribution from filtered entries
+    const activityMap = new Map<string, number>();
+    filtered.forEach(e => {
+      const type = (e.activity_type || "").trim() || "Outros";
+      activityMap.set(type, (activityMap.get(type) || 0) + Number(e.hours_logged));
+    });
+    const activityDistribution = Array.from(activityMap.entries())
+      .map(([type, hours]) => ({ type, hours: Math.round(hours * 100) / 100, percent: totalHours > 0 ? (hours / totalHours) * 100 : 0 }))
+      .sort((a, b) => b.hours - a.hours);
+
+    return { ...dashboardData, totalHours, memberSummaries, clientSummaries, dailyHours, activityDistribution };
   }, [dashboardData, memberFilter, projectFilter, activityFilter]);
 
   const hoursVariation = useMemo(() => {
+    if (activeFilterCount > 0) return null;
     if (!dashboardData || !previousMonthHours || previousMonthHours === 0) return null;
     return ((dashboardData.totalHours - previousMonthHours) / previousMonthHours) * 100;
-  }, [dashboardData, previousMonthHours]);
-
-  const activeFilterCount = [memberFilter, projectFilter, activityFilter].filter(f => f !== "all").length;
+  }, [dashboardData, previousMonthHours, activeFilterCount]);
 
   const clearFilters = () => {
     setMemberFilter("all");
@@ -88,11 +177,18 @@ export default function HoursDashboard() {
   const businessDaysInMonth = dashboardData?.businessDaysInMonth ?? 0;
   const businessDaysElapsed = dashboardData?.businessDaysElapsed ?? 0;
   const businessDaysRemaining = dashboardData?.businessDaysRemaining ?? 0;
-  const totalHoursLaunched = dashboardData?.totalHours ?? 0;
+  // C4: usa o total filtrado para que o sidebar reflita o filtro de membro/projeto/atividade
+  const totalHoursLaunched = filteredData?.totalHours ?? 0;
 
   const teamAdjustment = getTeamTargetAdjustment(selectedMonth, selectedYear);
-  const monthlyTarget = businessDaysInMonth * DAILY_TARGET_HOURS * activeMemberCount - teamAdjustment;
-  const hoursExpectedSoFar = businessDaysElapsed * DAILY_TARGET_HOURS * activeMemberCount - teamAdjustment;
+  // C1: filtro por membro usa a meta individual (já inclui ajuste de férias desse membro)
+  // C3: Math.max(0, …) evita meta negativa quando ajuste supera o bruto
+  const monthlyTarget = Math.max(0, memberFilter !== "all"
+    ? getMemberPeriodTarget(memberFilter, businessDaysInMonth, selectedMonth, selectedYear)
+    : businessDaysInMonth * DAILY_TARGET_HOURS * activeMemberCount - teamAdjustment);
+  const hoursExpectedSoFar = Math.max(0, memberFilter !== "all"
+    ? getMemberPeriodTarget(memberFilter, businessDaysElapsed, selectedMonth, selectedYear)
+    : businessDaysElapsed * DAILY_TARGET_HOURS * activeMemberCount - teamAdjustment);
   const hoursRemaining = Math.max(0, monthlyTarget - totalHoursLaunched);
   const hoursPerRemainingDayPerMember = businessDaysRemaining > 0 && activeMemberCount > 0
     ? hoursRemaining / businessDaysRemaining / activeMemberCount
@@ -121,28 +217,19 @@ export default function HoursDashboard() {
   const filteredEntries = useMemo(() => {
     if (!dashboardData) return 0;
     if (activeFilterCount === 0) return dashboardData.entries.length;
-    return dashboardData.entries.filter(e => {
-      if (memberFilter !== "all" && e.assignee !== memberFilter) return false;
-      if (projectFilter !== "all" && e.project !== projectFilter) return false;
-      if (activityFilter !== "all" && (e.activity_type || "Outros") !== activityFilter) return false;
-      return true;
-    }).length;
+    return filterEntries(dashboardData.entries, memberFilter, projectFilter, activityFilter).length;
   }, [dashboardData, memberFilter, projectFilter, activityFilter, activeFilterCount]);
 
   const exportCSV = useCallback(() => {
     if (!dashboardData) return;
     let entries = dashboardData.entries;
     if (activeFilterCount > 0) {
-      entries = entries.filter(e => {
-        if (memberFilter !== "all" && e.assignee !== memberFilter) return false;
-        if (projectFilter !== "all" && e.project !== projectFilter) return false;
-        if (activityFilter !== "all" && (e.activity_type || "Outros") !== activityFilter) return false;
-        return true;
-      });
+      entries = filterEntries(entries, memberFilter, projectFilter, activityFilter);
     }
+    const esc = (s: string) => `"${(s || "").replace(/"/g, '""')}"`;
     const header = "Membro,Projeto,Tarefa,Data,Horas,Tipo de Atividade,Cliente";
     const rows = entries.map(e =>
-      `"${e.assignee}","${e.project}","${e.task_name}","${e.completed_date || ""}",${e.hours_logged},"${e.activity_type || ""}","${e.client || ""}"`
+      [esc(e.assignee), esc(e.project), esc(e.task_name), esc(e.completed_date || ""), String(e.hours_logged), esc(e.activity_type || ""), esc(e.client || "")].join(",")
     );
     const csv = [header, ...rows].join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
@@ -162,6 +249,10 @@ export default function HoursDashboard() {
       return m.totalHours < memberTarget;
     });
   }, [dashboardData, businessDaysElapsed, selectedMonth, selectedYear]);
+
+  const filteredMemberSummaries = useMemo(() => {
+    return filteredData?.memberSummaries ?? [];
+  }, [filteredData]);
 
   const { percentElapsed, currentDay, totalDays, daysRemaining } = monthProgress;
   const prevMonthName = MONTH_NAMES[(selectedMonth - 1 + 12) % 12];
@@ -203,7 +294,7 @@ export default function HoursDashboard() {
                       style={{ width: `${Math.min(progressPercent, 100)}%` }}
                     />
                     <div
-                      className="absolute top-0 h-full w-0.5 bg-foreground/30 rounded-full"
+                      className="absolute top-0 h-full w-0.5 bg-foreground/60 rounded-full"
                       style={{ left: `${Math.min(expectedProgressPercent, 100)}%` }}
                     />
                   </div>
@@ -322,7 +413,7 @@ export default function HoursDashboard() {
                   {belowTargetMembers.map(m => (
                     <button
                       key={m.name}
-                      onClick={() => { setMemberFilter(m.name); setShowBelowTargetOnly(false); }}
+                      onClick={() => setMemberFilter(m.name)}
                       className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold border bg-warning/10 border-warning/40 text-warning-foreground hover:bg-warning/20 transition-colors cursor-pointer"
                     >
                       {m.name.split(" ")[0]}
@@ -346,9 +437,10 @@ export default function HoursDashboard() {
                 <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Membro</label>
                 <select
                   value={memberFilter}
-                  onChange={(e) => { setMemberFilter(e.target.value); setShowBelowTargetOnly(false); }}
+                  onChange={(e) => setMemberFilter(e.target.value)}
                   className={cn("w-full h-8 rounded-md border bg-background px-3 text-sm",
                     memberFilter !== "all" ? "border-primary bg-primary/5" : "border-border")}
+                  aria-label="Filtrar por membro"
                 >
                   <option value="all">Todos</option>
                   {dashboardData?.members.map(m => <option key={m} value={m}>{m}</option>)}
@@ -361,6 +453,7 @@ export default function HoursDashboard() {
                   onChange={(e) => setProjectFilter(e.target.value)}
                   className={cn("w-full h-8 rounded-md border bg-background px-3 text-sm",
                     projectFilter !== "all" ? "border-primary bg-primary/5" : "border-border")}
+                  aria-label="Filtrar por projeto"
                 >
                   <option value="all">Todos</option>
                   {dashboardData?.projects.map(p => <option key={p} value={p}>{p}</option>)}
@@ -373,6 +466,7 @@ export default function HoursDashboard() {
                   onChange={(e) => setActivityFilter(e.target.value)}
                   className={cn("w-full h-8 rounded-md border bg-background px-3 text-sm",
                     activityFilter !== "all" ? "border-primary bg-primary/5" : "border-border")}
+                  aria-label="Filtrar por tipo de atividade"
                 >
                   <option value="all">Todas</option>
                   {dashboardData?.activityTypes.map(a => <option key={a} value={a}>{a}</option>)}
@@ -412,6 +506,7 @@ export default function HoursDashboard() {
                     <div className={cn("h-full rounded-full", progressBarColor)} style={{ width: `${Math.min(progressPercent, 100)}%` }} />
                   </div>
                   <p className="text-xs text-muted-foreground mt-1.5">{totalHoursLaunched.toFixed(1)}h de {monthlyTarget.toFixed(0)}h</p>
+                  <Variation value={hoursVariation} label={prevMonthName} />
                 </div>
               ) : null}
               <div className="grid grid-cols-2 gap-3">
@@ -442,14 +537,43 @@ export default function HoursDashboard() {
               )}
               <div className="flex flex-wrap gap-2">
                 <select value={memberFilter} onChange={(e) => setMemberFilter(e.target.value)}
+                  aria-label="Filtrar por membro"
                   className={cn("h-8 flex-1 min-w-[120px] rounded-md border bg-background px-3 text-sm",
-                    memberFilter !== "all" ? "border-primary" : "border-border")}>
+                    memberFilter !== "all" ? "border-primary bg-primary/5" : "border-border")}>
                   <option value="all">Todos os membros</option>
                   {dashboardData?.members.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
+                <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}
+                  className={cn("h-8 flex-1 min-w-[120px] rounded-md border bg-background px-3 text-sm",
+                    projectFilter !== "all" ? "border-primary bg-primary/5" : "border-border")}>
+                  <option value="all">Todos os projetos</option>
+                  {dashboardData?.projects.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <select value={activityFilter} onChange={(e) => setActivityFilter(e.target.value)}
+                  className={cn("h-8 flex-1 min-w-[120px] rounded-md border bg-background px-3 text-sm",
+                    activityFilter !== "all" ? "border-primary bg-primary/5" : "border-border")}>
+                  <option value="all">Todas as atividades</option>
+                  {dashboardData?.activityTypes.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
                 <MonthSelector currentMonth={selectedMonth} currentYear={selectedYear}
                   onChange={(m, y) => { setSelectedMonth(m); setSelectedYear(y); }} />
+                {activeFilterCount > 0 && (
+                  <button onClick={clearFilters} className="h-8 px-3 rounded-md border border-destructive/50 text-xs text-destructive font-semibold bg-destructive/5">
+                    Limpar ({activeFilterCount})
+                  </button>
+                )}
               </div>
+              {dashboardData && (
+                <div className="bg-card border border-border rounded-xl p-4 space-y-2">
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Ritmo e Projeção</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    <StatRow label="Horas restantes" value={`${hoursRemaining.toFixed(1)}h`} />
+                    <StatRow label="Necessário/dia/membro" value={`${hoursPerRemainingDayPerMember.toFixed(1)}h`} valueClass={needsAcceleration ? "text-warning-foreground" : undefined} />
+                    <StatRow label="Ritmo atual/membro" value={`${currentPace.toFixed(1)}h/dia`} />
+                    <StatRow label="Projeção" value={`${projectedCompletion.toFixed(0)}%`} valueClass={projectedCompletion >= 90 ? "text-success-foreground" : projectedCompletion >= 70 ? "text-warning-foreground" : "text-destructive"} />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Toolbar: contagem + exports */}
@@ -494,7 +618,7 @@ export default function HoursDashboard() {
                   <h3 className="text-base font-display font-semibold text-foreground mb-1">Horas por Membro</h3>
                   <p className="text-xs text-muted-foreground mb-4">Ordenado do maior para o menor lançamento</p>
                   <HoursMemberChart
-                    data={showBelowTargetOnly ? belowTargetMembers : dashboardData.memberSummaries}
+                    data={filteredMemberSummaries}
                     individualTarget={individualTargetForPeriod}
                     businessDaysElapsed={businessDaysElapsed}
                     dailyTargetHours={DAILY_TARGET_HOURS}
@@ -515,8 +639,8 @@ export default function HoursDashboard() {
                     </div>
                   </div>
                   <HoursDetailTable
-                    data={showBelowTargetOnly ? belowTargetMembers : dashboardData.memberSummaries}
-                    totalHours={dashboardData.totalHours}
+                    data={filteredMemberSummaries}
+                    totalHours={filteredData?.totalHours ?? dashboardData.totalHours}
                     individualTarget={individualTargetForPeriod}
                     businessDaysElapsed={businessDaysElapsed}
                     businessDaysRemaining={businessDaysRemaining}
@@ -538,8 +662,8 @@ export default function HoursDashboard() {
                     </div>
                   </div>
                   <HoursClientTable
-                    data={dashboardData.clientSummaries}
-                    totalHours={dashboardData.totalHours}
+                    data={filteredData?.clientSummaries ?? dashboardData.clientSummaries}
+                    totalHours={filteredData?.totalHours ?? dashboardData.totalHours}
                   />
                 </section>
 
@@ -547,11 +671,11 @@ export default function HoursDashboard() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <section className="bg-card rounded-xl border border-border p-6 shadow-sm">
                     <h3 className="text-base font-display font-semibold text-foreground mb-4">Evolução Diária</h3>
-                    <DailyHoursChart data={dashboardData.dailyHours} dailyTarget={dailyChartTarget} />
+                    <DailyHoursChart data={filteredData?.dailyHours ?? dashboardData.dailyHours} dailyTarget={dailyChartTarget} />
                   </section>
                   <section className="bg-card rounded-xl border border-border p-6 shadow-sm">
                     <h3 className="text-base font-display font-semibold text-foreground mb-4">Distribuição por Atividade</h3>
-                    <ActivityDistributionChart data={dashboardData.activityDistribution} />
+                    <ActivityDistributionChart data={filteredData?.activityDistribution ?? dashboardData.activityDistribution} />
                   </section>
                 </div>
 
@@ -566,6 +690,7 @@ export default function HoursDashboard() {
                   businessDaysRemaining={businessDaysRemaining}
                   month={selectedMonth}
                   year={selectedYear}
+                  activeFilterCount={activeFilterCount}
                 />
               </>
             ) : (

@@ -57,6 +57,14 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
     return null;
   };
 
+  if (data.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground text-sm">
+        Nenhum dado disponível para o período selecionado.
+      </div>
+    );
+  }
+
   return (
     <div className="w-full animate-fade-in" style={{ animationDelay: "300ms" }}>
       <div style={{ height: `${chartHeight}px` }}>
@@ -70,7 +78,6 @@ export function HoursMemberChart({ data, individualTarget, businessDaysElapsed =
                 x={individualTarget}
                 stroke="hsl(var(--muted-foreground))"
                 strokeDasharray="5 5"
-                label={{ value: `Meta padrão: ${individualTarget.toFixed(0)}h (${dailyTargetHours}h × ${businessDaysElapsed} dias)`, position: "top", fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
               />
             )}
             <Bar dataKey="horas" radius={[0, 4, 4, 0]} maxBarSize={20}>

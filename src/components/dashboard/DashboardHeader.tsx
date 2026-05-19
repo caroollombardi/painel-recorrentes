@@ -59,10 +59,13 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
               />
             </div>
             {/* Tabs */}
-            <nav className="flex items-center gap-0.5 sm:gap-1 min-w-0">
+            <nav role="tablist" aria-label="Seções do dashboard" className="flex items-center gap-0.5 sm:gap-1 min-w-0">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
+                  role="tab"
+                  aria-selected={activeTab === tab.id}
+                  aria-current={activeTab === tab.id ? "page" : undefined}
                   onClick={() => navigate(tab.path)}
                   className={cn(
                     "relative px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-all duration-200 rounded-full whitespace-nowrap",

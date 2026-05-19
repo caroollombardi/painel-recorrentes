@@ -59,6 +59,11 @@ export function HoursClientTable({ data, totalHours }: HoursClientTableProps) {
                   <TableRow
                     className="border-border cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => toggleClient(client.client)}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isClientExpanded}
+                    aria-label={`${isClientExpanded ? "Recolher" : "Expandir"} advogados de ${client.client}`}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleClient(client.client); } }}
                   >
                     <TableCell className="p-2">
                       {isClientExpanded
@@ -100,6 +105,11 @@ export function HoursClientTable({ data, totalHours }: HoursClientTableProps) {
                         <TableRow
                           className="bg-muted/20 border-border cursor-pointer hover:bg-muted/30 transition-colors"
                           onClick={() => toggleMember(memberKey)}
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={isMemberExpanded}
+                          aria-label={`${isMemberExpanded ? "Recolher" : "Expandir"} lançamentos de ${member.name} em ${client.client}`}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleMember(memberKey); } }}
                         >
                           <TableCell className="p-2 pl-4">
                             {isMemberExpanded

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronDown, ChevronUp, FileText, AlertTriangle } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, AlertTriangle, Filter } from "lucide-react";
 import { HoursDashboardData } from "@/hooks/use-hours-data";
 import { DAILY_TARGET_HOURS, getMemberDailyTarget, getMemberPeriodTarget, isExcludedMember } from "@/lib/hours-constants";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ interface HoursExecutiveSummaryProps {
   businessDaysRemaining?: number;
   month?: number;
   year?: number;
+  activeFilterCount?: number;
 }
 
 const MONTH_NAMES = [
@@ -21,10 +22,10 @@ const MONTH_NAMES = [
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
 
-export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget = 0, hoursExpectedSoFar = 0, individualTargetForPeriod = 0, activeMemberCount = 0, businessDaysRemaining = 0, month = new Date().getMonth(), year = new Date().getFullYear() }: HoursExecutiveSummaryProps) {
+export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget = 0, hoursExpectedSoFar = 0, individualTargetForPeriod = 0, activeMemberCount = 0, businessDaysRemaining = 0, month = new Date().getMonth(), year = new Date().getFullYear(), activeFilterCount = 0 }: HoursExecutiveSummaryProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const currentMonthName = MONTH_NAMES[new Date().getMonth()];
+  const currentMonthName = MONTH_NAMES[month];
   const memberCount = data.memberSummaries.length;
 
   const lines: string[] = [];
@@ -45,7 +46,7 @@ export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget 
   );
 
   if (data.fillRate < 70) {
-    lines.push(`⚠️ A taxa de preenchimento está abaixo de 70%. Incentive o time a registrar horas diariamente.`);
+    lines.push(`A taxa de preenchimento está abaixo de 70%. Incentive o time a registrar horas diariamente.`);
   }
 
   if (previousMonthHours && previousMonthHours > 0) {
@@ -61,7 +62,7 @@ export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget 
     const projectedPercent = (projectedTotal / monthlyTarget) * 100;
 
     if (projectedPercent < 90) {
-      alerts.push(`🚨 No ritmo atual, o time atingirá apenas ${projectedPercent.toFixed(0)}% da meta de ${currentMonthName}.`);
+      alerts.push(`No ritmo atual, o time atingirá apenas ${projectedPercent.toFixed(0)}% da meta de ${currentMonthName}.`);
     }
   }
 
@@ -133,10 +134,19 @@ export function HoursExecutiveSummary({ data, previousMonthHours, monthlyTarget 
 
       {isExpanded && (
         <div className="px-5 pb-4 space-y-3">
+          {activeFilterCount > 0 && (
+            <div className="p-3 rounded-md bg-muted/50 border border-border flex items-center gap-2 text-xs text-muted-foreground">
+              <Filter className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+              Este resumo reflete os dados completos do período. Os {activeFilterCount} filtro{activeFilterCount > 1 ? "s" : ""} ativo{activeFilterCount > 1 ? "s" : ""} não são aplicados aqui.
+            </div>
+          )}
           {alerts.length > 0 && (
             <div className="p-3 rounded-md bg-destructive/5 border border-destructive/20 space-y-1">
               {alerts.map((alert, i) => (
-                <p key={i} className="text-sm text-destructive font-medium">{alert}</p>
+                <div key={i} className="flex items-start gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" aria-hidden="true" />
+                  <p className="text-sm text-destructive font-medium">{alert}</p>
+                </div>
               ))}
             </div>
           )}

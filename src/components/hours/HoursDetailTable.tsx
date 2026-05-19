@@ -100,6 +100,11 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
                     <TableRow
                       className="border-border transition-all cursor-pointer hover:bg-muted/50"
                       onClick={() => toggle(member.name)}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={isExpanded}
+                      aria-label={`${isExpanded ? "Recolher" : "Expandir"} detalhes de ${member.name}`}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(member.name); } }}
                     >
                       <TableCell className="p-2">
                         {member.projects.length > 0 && (
@@ -116,23 +121,25 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
                       <TableCell className="text-right font-semibold text-primary">
                         {member.totalHours.toFixed(1)}h
                       </TableCell>
-                      {diff !== null && diffPercent !== null && (
-                        <TableCell className="text-right">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className={cn(
-                                "inline-flex items-center gap-1 font-semibold text-sm px-2 py-0.5 rounded-full cursor-help",
-                                diff >= 0 ? "text-success-foreground bg-success/10" : "text-destructive bg-destructive/10"
-                              )}>
-                                {diff >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                <span>{diff >= 0 ? "+" : ""}{diff.toFixed(1)}h ({diffPercent >= 0 ? "+" : ""}{diffPercent.toFixed(0)}%)</span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="text-xs max-w-xs">
-                              Meta individual: {memberTarget?.toFixed(0)}h ({businessDaysElapsed} dias × {memberDailyTargetVal}h). Lançado: {member.totalHours.toFixed(1)}h.
-                            </TooltipContent>
-                          </Tooltip>
-                        </TableCell>
+                      {individualTarget !== undefined && (
+                        diff !== null && diffPercent !== null
+                          ? <TableCell className="text-right">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className={cn(
+                                    "inline-flex items-center gap-1 font-semibold text-sm px-2 py-0.5 rounded-full cursor-help",
+                                    diff >= 0 ? "text-success-foreground bg-success/10" : "text-destructive bg-destructive/10"
+                                  )}>
+                                    {diff >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                    <span>{diff >= 0 ? "+" : ""}{diff.toFixed(1)}h ({diffPercent >= 0 ? "+" : ""}{diffPercent.toFixed(0)}%)</span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs max-w-xs">
+                                  Meta individual: {memberTarget?.toFixed(0)}h ({businessDaysElapsed} dias × {memberDailyTargetVal}h{memberDailyTargetVal !== DAILY_TARGET_HOURS ? " — meta customizada" : ""}). Lançado: {member.totalHours.toFixed(1)}h.
+                                </TooltipContent>
+                              </Tooltip>
+                            </TableCell>
+                          : <TableCell></TableCell>
                       )}
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1.5">
@@ -158,6 +165,11 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
                           <TableRow
                             className={cn("bg-muted/20 border-border", hasTasks && "cursor-pointer hover:bg-muted/30")}
                             onClick={() => hasTasks && toggleProject(projKey)}
+                            role={hasTasks ? "button" : undefined}
+                            tabIndex={hasTasks ? 0 : undefined}
+                            aria-expanded={hasTasks ? isProjExpanded : undefined}
+                            aria-label={hasTasks ? `${isProjExpanded ? "Recolher" : "Expandir"} tarefas de ${proj.project}` : undefined}
+                            onKeyDown={hasTasks ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleProject(projKey); } } : undefined}
                           >
                             <TableCell className="p-2 pl-4">
                               {hasTasks && (
@@ -246,7 +258,7 @@ export function HoursDetailTable({ data, totalHours, individualTarget, businessD
         </div>
 
         <div className="flex items-center justify-between pt-4 border-t border-border">
-          <span className="text-sm text-muted-foreground">{data.length} membros do time</span>
+          <span className="text-sm text-muted-foreground">{data.length} {data.length === 1 ? "membro" : "membros"} do time</span>
           <div className="text-right">
             <span className="text-sm text-muted-foreground">Total: </span>
             <span className="text-lg font-bold text-primary">{totalHours.toFixed(1)}h</span>

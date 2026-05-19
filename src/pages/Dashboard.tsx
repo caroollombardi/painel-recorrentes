@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { AsanaDrawer } from "@/components/dashboard/AsanaDrawer";
 import { exportRecorrentesPDF } from "@/lib/recorrentes-pdf-export";
 import { useHoursData, TimeEntry } from "@/hooks/use-hours-data";
+import { getMonthProgress } from "@/lib/month-progress";
 
 const MONTH_NAMES = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -90,8 +91,18 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
     return MONTH_NAMES[pm];
   })();
 
+  const displayMonthProgressEarly = (() => {
+    const now = new Date();
+    const isCurrentMonth = selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
+    const isPast = selectedYear < now.getFullYear() || (selectedYear === now.getFullYear() && selectedMonth < now.getMonth());
+    if (isCurrentMonth) return data.monthProgress;
+    if (isPast) return getMonthProgress(new Date(selectedYear, selectedMonth + 1, 0));
+    const totalDays = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    return { currentDay: 0, totalDays, percentElapsed: 0, daysRemaining: totalDays };
+  })();
+
   const { filteredData, filteredKPIs, clientList, horasVariation, valorVariation, clientVariations, projected } =
-    useFilteredKPIs(data, selectedClient, prevSnapshot ?? null);
+    useFilteredKPIs(data, selectedClient, prevSnapshot ?? null, displayMonthProgressEarly);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -176,8 +187,10 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
   };
 
   const { dashboardData: hoursData } = useHoursData(selectedMonth, selectedYear);
-  const { percentElapsed, currentDay, totalDays, daysRemaining } = data.monthProgress;
-  const currentMonthDisplay = MONTH_NAMES_DISPLAY[new Date().getMonth()];
+  const displayMonthProgress = displayMonthProgressEarly;
+  const { percentElapsed, currentDay, totalDays, daysRemaining } = displayMonthProgress;
+  const dataMonthDisplay = MONTH_NAMES_DISPLAY[new Date().getMonth()];
+  const currentMonthDisplay = MONTH_NAMES_DISPLAY[selectedMonth];
   const recurringClientsCount = data.clients.filter(c => c.creditUsage !== null).length;
   const visibleClientCount = filteredData.filter(c => c.valorMensal > 0).length;
 
@@ -191,6 +204,7 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
         previousMonthTotalValor={prevSnapshot?.total_valor ?? null}
         previousMonthTotalHoras={prevSnapshot?.total_horas ?? null}
         previousMonthName={prevMonthName}
+        monthProgress={displayMonthProgress}
       />
     );
   }
@@ -213,7 +227,7 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
             {/* Hero: Valor Recorrente */}
             <div className="rounded-xl px-5 pt-5 pb-6" style={{ background: "#FB7435" }}>
               <p className="text-[9px] uppercase tracking-[0.18em] text-white/50 font-medium mb-5">
-                {currentMonthDisplay}
+                {dataMonthDisplay}
               </p>
               <div className="mb-1">
                 <span className="text-sm text-white/60 font-medium block mb-0.5">R$</span>
@@ -520,8 +534,8 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
             )}
 
             {/* Tabela principal */}
-            <section className="bg-card rounded-xl border border-border/50 overflow-hidden shadow-sm">
-              <div className="p-6">
+            <section className="bg-card rounded-xl border border-border/50 shadow-sm">
+              <div className="p-6 overflow-x-auto">
                 <ClientValueTable
                   ref={tableRef}
                   data={filteredData}
@@ -537,10 +551,10 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
             <ExecutiveSummary
               data={data}
               previousMonthTotalValor={prevSnapshot?.total_valor ?? null}
-              previousMonthTotalHoras={prevSnapshot?.total_horas ?? null}
               previousMonthName={prevSnapshot ? prevMonthName : null}
               showValues={showValues}
               defaultExpanded={false}
+              monthProgress={displayMonthProgress}
             />
 
           </div>

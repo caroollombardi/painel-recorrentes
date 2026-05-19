@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { DashboardData, ClientData } from "@/lib/data-parser";
 import { ClientSnapshotData } from "@/hooks/use-monthly-snapshots";
+import { MonthProgress } from "@/lib/month-progress";
 
 interface FilteredKPIs {
   totalHoras: number;
@@ -28,7 +29,8 @@ interface UseFilteredKPIsResult {
 export function useFilteredKPIs(
   data: DashboardData,
   selectedClient: string,
-  prevSnapshot: { total_horas: number; total_valor: number; client_data: unknown } | null
+  prevSnapshot: { total_horas: number; total_valor: number; client_data: unknown } | null,
+  monthProgress?: MonthProgress
 ): UseFilteredKPIsResult {
   const filteredData = useMemo<ClientData[]>(() => {
     if (selectedClient !== "all") {
@@ -94,10 +96,9 @@ export function useFilteredKPIs(
   }, [prevSnapshot]);
 
   const projected = useMemo(() => {
-    return data.monthProgress.percentElapsed > 0
-      ? filteredKPIs.totalValor / (data.monthProgress.percentElapsed / 100)
-      : filteredKPIs.totalValor;
-  }, [filteredKPIs.totalValor, data.monthProgress.percentElapsed]);
+    const pct = (monthProgress ?? data.monthProgress).percentElapsed;
+    return pct > 0 ? filteredKPIs.totalValor / (pct / 100) : filteredKPIs.totalValor;
+  }, [filteredKPIs.totalValor, monthProgress, data.monthProgress]);
 
   return { filteredData, filteredKPIs, clientList, horasVariation, valorVariation, clientVariations, projected };
 }

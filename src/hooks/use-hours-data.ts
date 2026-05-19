@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { parseImportDate } from "@/lib/import-date";
-import { EXCLUDED_MEMBERS, isExcludedMember } from "@/lib/hours-constants";
+import { EXCLUDED_MEMBERS, isExcludedMember, isHiddenMember, isHoliday } from "@/lib/hours-constants";
 
 export interface TimeEntry {
   id: string;
@@ -86,8 +86,8 @@ function getBusinessDaysInMonth(month: number, year: number): number {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   let businessDays = 0;
   for (let d = 1; d <= daysInMonth; d++) {
-    const day = new Date(year, month, d).getDay();
-    if (day !== 0 && day !== 6) businessDays++;
+    const weekday = new Date(year, month, d).getDay();
+    if (weekday !== 0 && weekday !== 6 && !isHoliday(year, month, d)) businessDays++;
   }
   return businessDays;
 }
@@ -105,8 +105,8 @@ function getBusinessDaysElapsed(month: number, year: number): number {
     : new Date(year, month + 1, 0).getDate();
   let businessDays = 0;
   for (let d = 1; d <= lastDay; d++) {
-    const day = new Date(year, month, d).getDay();
-    if (day !== 0 && day !== 6) businessDays++;
+    const weekday = new Date(year, month, d).getDay();
+    if (weekday !== 0 && weekday !== 6 && !isHoliday(year, month, d)) businessDays++;
   }
   return businessDays;
 }
@@ -202,6 +202,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
 
     entries.forEach(e => {
       const assignee = e.assignee || "Sem responsável";
+      if (isHiddenMember(assignee)) return;
       if (!memberMap.has(assignee)) memberMap.set(assignee, { hours: 0, projects: new Map() });
       const m = memberMap.get(assignee)!;
       m.hours += Number(e.hours_logged);
@@ -219,7 +220,7 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
         activityType: e.activity_type,
       });
 
-      const at = e.activity_type || "Outros";
+      const at = (e.activity_type || "").trim() || "Outros";
       activitySet.add(at);
       activityMap.set(at, (activityMap.get(at) || 0) + Number(e.hours_logged));
 
@@ -232,11 +233,12 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     // Client summaries (client → member → entries with descriptions)
     const clientMap = new Map<string, { hours: number; members: Map<string, { hours: number; entries: ClientEntry[] }> }>();
     entries.forEach(e => {
+      const assignee = e.assignee || "Sem responsável";
+      if (isHiddenMember(assignee)) return;
       const clientName = e.client || e.project || "Sem cliente";
       if (!clientMap.has(clientName)) clientMap.set(clientName, { hours: 0, members: new Map() });
       const c = clientMap.get(clientName)!;
       c.hours += Number(e.hours_logged);
-      const assignee = e.assignee || "Sem responsável";
       if (!c.members.has(assignee)) c.members.set(assignee, { hours: 0, entries: [] });
       const m = c.members.get(assignee)!;
       m.hours += Number(e.hours_logged);
@@ -363,10 +365,6 @@ export function useHoursData(selectedMonth: number, selectedYear: number) {
     } else {
       console.warn("CONTRATO column not found in CSV header:", header);
     }
-
-    // DEBUG: alert to verify deployment and column detection
-    const sampleContract = tagsCol >= 0 && records.length > 1 ? (records[1][tagsCol] || "(vazio)") : "col não encontrada";
-    window.alert(`DEBUG CONTRATO\nIndice detectado: ${tagsCol}\nHeader[${tagsCol}]: "${tagsCol >= 0 ? header[tagsCol] : "n/a"}"\nLinha 1 valor: "${sampleContract}"\nTotal headers: ${header.length}`);
 
     if (taskCol === -1 && assigneeCol === -1) {
       toast({ title: "Erro", description: "CSV não possui colunas reconhecidas (Nome da Tarefa, Responsável).", variant: "destructive" });
