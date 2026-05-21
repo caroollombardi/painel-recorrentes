@@ -102,10 +102,9 @@ export function parseCSVData(csvText: string): DashboardData {
 
     const projectName = extractProjectName(project);
     const isMensal = contrato?.trim() === 'MENSAL';
-    const hasContract = !!getClientContract(projectName);
-    
-    // Include if explicitly MENSAL or if client exists in contract mapping
-    if (!isMensal && !hasContract) continue;
+
+    // Only include entries explicitly tagged as MENSAL in Asana
+    if (!isMensal) continue;
     
     const hours = parseTimeToHours(actualTime);
     if (hours === 0) continue;
