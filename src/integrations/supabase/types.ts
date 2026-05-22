@@ -47,7 +47,86 @@ export type Database = {
         }
         Relationships: []
       }
-      client_notification_settings: {
+            atos_projetos: {
+        Row: {
+          asana_project_id: string
+          created_at: string
+          id: string
+          incluir_nao_billable: boolean
+          nome_projeto: string
+          updated_at: string
+          uploaded_by: string | null
+          valor_combinado: number
+        }
+        Insert: {
+          asana_project_id: string
+          created_at?: string
+          id?: string
+          incluir_nao_billable?: boolean
+          nome_projeto: string
+          updated_at?: string
+          uploaded_by?: string | null
+          valor_combinado?: number
+        }
+        Update: {
+          asana_project_id?: string
+          created_at?: string
+          id?: string
+          incluir_nao_billable?: boolean
+          nome_projeto?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          valor_combinado?: number
+        }
+        Relationships: []
+      }
+      atos_lancamentos: {
+        Row: {
+          asana_task_id: string | null
+          billable: boolean
+          colaborador_nome: string
+          created_at: string
+          data_lancamento: string | null
+          descricao: string | null
+          duracao_minutos: number
+          id: string
+          projeto_id: string
+          tarefa_nome: string | null
+        }
+        Insert: {
+          asana_task_id?: string | null
+          billable?: boolean
+          colaborador_nome: string
+          created_at?: string
+          data_lancamento?: string | null
+          descricao?: string | null
+          duracao_minutos?: number
+          id?: string
+          projeto_id: string
+          tarefa_nome?: string | null
+        }
+        Update: {
+          asana_task_id?: string | null
+          billable?: boolean
+          colaborador_nome?: string
+          created_at?: string
+          data_lancamento?: string | null
+          descricao?: string | null
+          duracao_minutos?: number
+          id?: string
+          projeto_id?: string
+          tarefa_nome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atos_lancamentos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "atos_projetos"
+            referencedColumns: ["id"]
+          }
+        ]
+      }client_notification_settings: {
         Row: {
           client_name: string
           created_at: string
