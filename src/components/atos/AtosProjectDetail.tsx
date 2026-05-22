@@ -13,6 +13,7 @@ import {
   Paperclip,
   Upload,
   Eye,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,9 +71,16 @@ export function AtosProjectDetail({
   const [customOpen, setCustomOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const handleClose = () => setIsClosing(true);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingContrato, setUploadingContrato] = useState(false);
+  const [loadingViewer, setLoadingViewer] = useState(false);
   const [removingContrato, setRemovingContrato] = useState(false);
+  const [confirmingRemoveContrato, setConfirmingRemoveContrato] = useState(false);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [editingNotas, setEditingNotas] = useState(false);
   const [notasDraft, setNotasDraft] = useState(projeto.contrato_notas ?? "");
@@ -90,6 +98,25 @@ export function AtosProjectDetail({
     return () => {
       document.body.style.overflow = originalOverflow;
     };
+  }, []);
+
+  useEffect(() => {
+    const r1 = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setIsVisible(true));
+    });
+    return () => cancelAnimationFrame(r1);
+  }, []);
+
+  useEffect(() => {
+    if (!isClosing) return;
+    const t = setTimeout(onClose, 220);
+    return () => clearTimeout(t);
+  }, [isClosing, onClose]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") handleClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, []);
 
   const handleSaveValor = async () => {
@@ -141,7 +168,9 @@ export function AtosProjectDetail({
 
   const handleViewContrato = async () => {
     if (!projeto.contrato_url) return;
+    setLoadingViewer(true);
     const r = await getContratoSignedUrl(projeto.contrato_url);
+    setLoadingViewer(false);
     if (r.url) {
       setViewerUrl(r.url);
     } else {
@@ -155,6 +184,7 @@ export function AtosProjectDetail({
     const r = await removeContrato(projeto.id, projeto.contrato_url);
     setRemovingContrato(false);
     if (r.success) {
+      setConfirmingRemoveContrato(false);
       onChanged();
       toast({ title: "Contrato removido" });
     } else {
@@ -179,7 +209,7 @@ export function AtosProjectDetail({
     if (r.success) {
       toast({ title: "Projeto removido" });
       onChanged();
-      onClose();
+      handleClose();
     } else {
       toast({
         title: "Erro ao remover",
@@ -222,14 +252,25 @@ export function AtosProjectDetail({
       .sort((a, b) => b.minutos - a.minutos);
   }, [lancamentos, projeto.incluir_nao_billable, calc.porColaborador]);
 
+  const active = isVisible && !isClosing;
+  const overlayTransition = isClosing ? "opacity 160ms ease-in" : "opacity 180ms ease-out";
+  const contentTransition = isClosing
+    ? "transform 160ms ease-in, opacity 160ms ease-in"
+    : "transform 180ms ease-out, opacity 180ms ease-out";
+  const contentTransform = active
+    ? "translateY(0) scale(1)"
+    : "translateY(16px) scale(0.97)";
+
   const modal = (
     <div
-      className="fixed inset-0 z-[9998] isolate flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
+      style={{ opacity: active ? 1 : 0, transition: overlayTransition }}
+      className="fixed inset-0 z-[9998] isolate flex items-center justify-center bg-background/80 backdrop-blur-sm"
+      onClick={handleClose}
     >
       <div
         role="dialog"
         aria-modal="true"
+        style={{ transform: contentTransform, opacity: active ? 1 : 0, transition: contentTransition }}
         className="relative z-10 mx-4 flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
@@ -243,7 +284,7 @@ export function AtosProjectDetail({
               Asana ID: {projeto.asana_project_id}
             </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={handleClose}>
             <X className="w-4 h-4" />
           </Button>
         </div>
@@ -381,9 +422,12 @@ export function AtosProjectDetail({
                       variant="outline"
                       className="h-7 gap-1.5 text-xs"
                       onClick={handleViewContrato}
+                      disabled={loadingViewer}
                     >
-                      <Eye className="w-3 h-3" />
-                      Abrir
+                      {loadingViewer
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <Eye className="w-3 h-3" />}
+                      {loadingViewer ? "Abrindo..." : "Abrir"}
                     </Button>
                     <Button
                       size="sm"
@@ -392,18 +436,42 @@ export function AtosProjectDetail({
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploadingContrato}
                     >
-                      <Upload className="w-3 h-3" />
+                      {uploadingContrato
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <Upload className="w-3 h-3" />}
                       {uploadingContrato ? "Enviando..." : "Trocar"}
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={handleRemoveContrato}
-                      disabled={removingContrato}
-                    >
-                      {removingContrato ? "..." : "Remover"}
-                    </Button>
+                    {confirmingRemoveContrato ? (
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-destructive">Remover?</span>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 text-xs px-2"
+                          onClick={handleRemoveContrato}
+                          disabled={removingContrato}
+                        >
+                          Sim
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs px-2"
+                          onClick={() => setConfirmingRemoveContrato(false)}
+                        >
+                          Não
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => setConfirmingRemoveContrato(true)}
+                      >
+                        Remover
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -677,7 +745,7 @@ export function AtosProjectDetail({
               Remover projeto
             </Button>
           )}
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleClose}>
             Fechar
           </Button>
         </div>

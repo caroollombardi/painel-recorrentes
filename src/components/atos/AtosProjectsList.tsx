@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import {
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   ChevronRight,
   Search,
   TrendingUp,
@@ -118,23 +120,27 @@ export function AtosProjectsList({ projetos, onSelect }: AtosProjectsListProps) 
     label: string;
     skey: SortKey;
     align?: "left" | "right";
-  }) => (
-    <button
-      onClick={() => toggleSort(skey)}
-      className={cn(
-        "inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors",
-        align === "right" && "flex-row-reverse"
-      )}
-    >
-      {label}
-      <ArrowUpDown
+  }) => {
+    const isActive = sortKey === skey;
+    const Icon = isActive ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <button
+        onClick={() => toggleSort(skey)}
         className={cn(
-          "w-3 h-3",
-          sortKey === skey ? "text-primary" : "opacity-40"
+          "inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors",
+          align === "right" && "flex-row-reverse"
         )}
-      />
-    </button>
-  );
+      >
+        {label}
+        <Icon
+          className={cn(
+            "w-3 h-3",
+            isActive ? "text-primary" : "opacity-40"
+          )}
+        />
+      </button>
+    );
+  };
 
   if (projetos.length === 0) return null;
 
@@ -159,7 +165,7 @@ export function AtosProjectsList({ projetos, onSelect }: AtosProjectsListProps) 
               <th className="text-left px-3 py-2.5">
                 <SortHeader label="Projeto" skey="nome" />
               </th>
-              <th className="text-right px-3 py-2.5">
+              <th className="text-right px-3 py-2.5 hidden sm:table-cell">
                 <SortHeader label="Horas" skey="horas" align="right" />
               </th>
               <th className="text-right px-3 py-2.5">
@@ -169,7 +175,7 @@ export function AtosProjectsList({ projetos, onSelect }: AtosProjectsListProps) 
                   align="right"
                 />
               </th>
-              <th className="text-right px-3 py-2.5">
+              <th className="text-right px-3 py-2.5 hidden sm:table-cell">
                 <SortHeader label="Valor horas" skey="valor_horas" align="right" />
               </th>
               <th className="text-right px-3 py-2.5">
@@ -235,7 +241,7 @@ export function AtosProjectsList({ projetos, onSelect }: AtosProjectsListProps) 
                           : "só billable"}
                       </p>
                     </td>
-                    <td className="px-3 py-3 text-right font-mono text-foreground">
+                    <td className="px-3 py-3 text-right font-mono text-foreground hidden sm:table-cell">
                       {(calc.totalMinutos / 60).toFixed(2)}h
                     </td>
                     <td className="px-3 py-3 text-right font-mono">
@@ -249,7 +255,7 @@ export function AtosProjectsList({ projetos, onSelect }: AtosProjectsListProps) 
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-3 text-right font-mono text-foreground">
+                    <td className="px-3 py-3 text-right font-mono text-foreground hidden sm:table-cell">
                       {brl(calc.valorHoras)}
                     </td>
                     <td className="px-3 py-3 text-right">
