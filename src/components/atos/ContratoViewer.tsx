@@ -15,49 +15,47 @@ export function ContratoViewer({ filename, signedUrl, notas, onClose }: Contrato
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
-  const handleClose = () => {
-    setIsClosing(true);
-  };
+  const handleClose = () => setIsClosing(true);
 
-  // Dispara a animação de entrada no próximo frame
+  // Dois frames para garantir que o estado inicial (invisible) seja pintado antes de animar
   useEffect(() => {
-    const timer = requestAnimationFrame(() => setIsVisible(true));
-    return () => cancelAnimationFrame(timer);
+    const r1 = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setIsVisible(true));
+    });
+    return () => cancelAnimationFrame(r1);
   }, []);
 
-  // Quando isClosing disparar, espera a animação terminar e desmonta
+  // Espera animação de saída terminar antes de desmontar
   useEffect(() => {
     if (!isClosing) return;
-    const timer = setTimeout(onClose, 220);
-    return () => clearTimeout(timer);
+    const t = setTimeout(onClose, 220);
+    return () => clearTimeout(t);
   }, [isClosing, onClose]);
 
-  // Fecha também com Escape
+  // Fecha com Esc
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") handleClose(); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  const active = isVisible && !isClosing;
+
   const modal = (
     <div
-      className={[
-        "fixed inset-0 z-[9999] isolate flex flex-col",
-        "transition-[opacity,backdrop-filter] duration-200 ease-in-out",
-        isClosing || !isVisible
-          ? "opacity-0 backdrop-blur-none"
-          : "opacity-100 backdrop-blur-sm",
-        "bg-background/95",
-      ].join(" ")}
+      style={{
+        opacity: active ? 1 : 0,
+        transition: "opacity 200ms ease-in-out",
+      }}
+      className="fixed inset-0 z-[9999] isolate flex flex-col bg-background/95 backdrop-blur-sm"
       onClick={handleClose}
     >
       <div
-        className={[
-          "flex flex-col h-full",
-          "transition-transform duration-200 ease-in-out",
-          isClosing ? "-translate-y-3" : isVisible ? "translate-y-0" : "translate-y-3",
-        ].join(" ")}
-        style={{ willChange: "transform" }}
+        style={{
+          transform: active ? "translateY(0)" : isClosing ? "translateY(-10px)" : "translateY(10px)",
+          transition: "transform 200ms ease-in-out",
+        }}
+        className="flex flex-col h-full"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
