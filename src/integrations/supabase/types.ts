@@ -126,7 +126,8 @@ export type Database = {
             referencedColumns: ["id"]
           }
         ]
-      } client_notification_settings: {
+      }
+      client_notification_settings: {
         Row: {
           client_name: string
           created_at: string
