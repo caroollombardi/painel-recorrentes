@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,14 +12,52 @@ interface ContratoViewerProps {
 
 export function ContratoViewer({ filename, signedUrl, notas, onClose }: ContratoViewerProps) {
   const isPdf = filename.toLowerCase().endsWith(".pdf");
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const handleClose = () => {
+    setIsClosing(true);
+  };
+
+  // Dispara a animação de entrada no próximo frame
+  useEffect(() => {
+    const timer = requestAnimationFrame(() => setIsVisible(true));
+    return () => cancelAnimationFrame(timer);
+  }, []);
+
+  // Quando isClosing disparar, espera a animação terminar e desmonta
+  useEffect(() => {
+    if (!isClosing) return;
+    const timer = setTimeout(onClose, 220);
+    return () => clearTimeout(timer);
+  }, [isClosing, onClose]);
+
+  // Fecha também com Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") handleClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const modal = (
     <div
-      className="fixed inset-0 z-[9999] isolate flex flex-col bg-background/95 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
+      className={[
+        "fixed inset-0 z-[9999] isolate flex flex-col",
+        "transition-[opacity,backdrop-filter] duration-200 ease-in-out",
+        isClosing || !isVisible
+          ? "opacity-0 backdrop-blur-none"
+          : "opacity-100 backdrop-blur-sm",
+        "bg-background/95",
+      ].join(" ")}
+      onClick={handleClose}
     >
       <div
-        className="flex flex-col h-full"
+        className={[
+          "flex flex-col h-full",
+          "transition-transform duration-200 ease-in-out",
+          isClosing ? "-translate-y-3" : isVisible ? "translate-y-0" : "translate-y-3",
+        ].join(" ")}
+        style={{ willChange: "transform" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -39,7 +78,7 @@ export function ContratoViewer({ filename, signedUrl, notas, onClose }: Contrato
                 Baixar
               </Button>
             </a>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={handleClose}>
               <X className="w-4 h-4" />
             </Button>
           </div>
