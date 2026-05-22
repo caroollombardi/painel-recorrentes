@@ -537,7 +537,10 @@ export async function uploadContrato(
   projetoId: string,
   file: File
 ): Promise<{ success: boolean; error?: string }> {
-  const path = `${projetoId}/${Date.now()}_${file.name}`;
+  const ext = file.name.split(".").pop() ?? "";
+  const base = file.name.slice(0, file.name.length - (ext ? ext.length + 1 : 0));
+  const safeName = base.replace(/[^a-zA-Z0-9_-]/g, "_") + (ext ? "." + ext : "");
+  const path = `${projetoId}/${Date.now()}_${safeName}`;
 
   const { error: uploadErr } = await supabase.storage
     .from("contratos")
