@@ -7,6 +7,7 @@ import {
   TrendingDown,
   Minus,
   AlertTriangle,
+  Paperclip,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -213,6 +214,9 @@ export function AtosProjectsList({ projetos, onSelect }: AtosProjectsListProps) 
                         <p className="font-medium text-foreground">
                           {projeto.nome_projeto}
                         </p>
+                        {projeto.contrato_url && (
+                          <Paperclip className="w-3 h-3 text-muted-foreground shrink-0" title="Contrato vinculado" />
+                        )}
                         {calc.colaboradoresSemCusto.length > 0 && (
                           <Badge
                             variant="outline"

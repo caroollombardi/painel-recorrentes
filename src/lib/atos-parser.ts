@@ -39,6 +39,8 @@ export interface AtoProjetoDB {
   nome_projeto: string;
   valor_combinado: number;
   incluir_nao_billable: boolean;
+  contrato_url: string | null;
+  contrato_notas: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -526,6 +528,18 @@ export async function updateProjetoIncluirNaoBillable(
   const { error } = await supabase
     .from("atos_projetos")
     .update({ incluir_nao_billable: incluir })
+    .eq("id", projetoId);
+  return error ? { success: false, error: error.message } : { success: true };
+}
+
+export async function updateProjetoContrato(
+  projetoId: string,
+  contrato_url: string | null,
+  contrato_notas: string | null
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from("atos_projetos")
+    .update({ contrato_url, contrato_notas })
     .eq("id", projetoId);
   return error ? { success: false, error: error.message } : { success: true };
 }

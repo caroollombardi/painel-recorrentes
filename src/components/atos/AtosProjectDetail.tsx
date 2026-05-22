@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   UserPlus,
   Save,
+  Paperclip,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +23,7 @@ import {
   calcularProjeto,
   updateProjetoValorCombinado,
   updateProjetoIncluirNaoBillable,
+  updateProjetoContrato,
   deleteProjeto,
   type AtoLancamentoDB,
   type AtoProjetoDB,
@@ -61,6 +64,11 @@ export function AtosProjectDetail({
   const [saving, setSaving] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  const [editingContrato, setEditingContrato] = useState(false);
+  const [contratoUrlDraft, setContratoUrlDraft] = useState(projeto.contrato_url ?? "");
+  const [contratoNotasDraft, setContratoNotasDraft] = useState(projeto.contrato_notas ?? "");
+  const [savingContrato, setSavingContrato] = useState(false);
 
   // Recalcula sempre que projeto ou lancamentos mudarem
   const calc = useMemo(
@@ -108,6 +116,21 @@ export function AtosProjectDetail({
         description: r.error,
         variant: "destructive",
       });
+    }
+  };
+
+  const handleSaveContrato = async () => {
+    setSavingContrato(true);
+    const url = contratoUrlDraft.trim() || null;
+    const notas = contratoNotasDraft.trim() || null;
+    const r = await updateProjetoContrato(projeto.id, url, notas);
+    setSavingContrato(false);
+    if (r.success) {
+      setEditingContrato(false);
+      onChanged();
+      toast({ title: "Contrato atualizado" });
+    } else {
+      toast({ title: "Erro ao salvar", description: r.error, variant: "destructive" });
     }
   };
 
@@ -284,6 +307,75 @@ export function AtosProjectDetail({
                 </p>
               )}
             </div>
+          </div>
+
+          {/* Contrato vinculado */}
+          <div className="p-4 bg-muted/20 border border-border rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Contrato</span>
+              </div>
+              {!editingContrato && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => {
+                    setContratoUrlDraft(projeto.contrato_url ?? "");
+                    setContratoNotasDraft(projeto.contrato_notas ?? "");
+                    setEditingContrato(true);
+                  }}
+                >
+                  <Pencil className="w-3 h-3 mr-1" />
+                  {projeto.contrato_url ? "Editar" : "Vincular"}
+                </Button>
+              )}
+            </div>
+
+            {editingContrato ? (
+              <div className="space-y-2">
+                <Input
+                  placeholder="URL do contrato (Clicksign, SharePoint, Drive...)"
+                  value={contratoUrlDraft}
+                  onChange={e => setContratoUrlDraft(e.target.value)}
+                  className="h-8 text-sm"
+                  autoFocus
+                />
+                <Input
+                  placeholder="Notas (ex: Contrato n° 2024/087, assinado em 10/03)"
+                  value={contratoNotasDraft}
+                  onChange={e => setContratoNotasDraft(e.target.value)}
+                  className="h-8 text-sm"
+                />
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" className="h-7 gap-1.5" onClick={handleSaveContrato} disabled={savingContrato}>
+                    <Save className="w-3 h-3" />
+                    Salvar
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditingContrato(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            ) : projeto.contrato_url ? (
+              <div className="space-y-1">
+                <a
+                  href={projeto.contrato_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-medium"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Abrir contrato
+                </a>
+                {projeto.contrato_notas && (
+                  <p className="text-xs text-muted-foreground">{projeto.contrato_notas}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Nenhum contrato vinculado.</p>
+            )}
           </div>
 
           {/* Alerta colaboradores sem custo */}
