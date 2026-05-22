@@ -11,7 +11,8 @@ import {
   UserPlus,
   Save,
   Paperclip,
-  ExternalLink,
+  Upload,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,11 +24,15 @@ import {
   calcularProjeto,
   updateProjetoValorCombinado,
   updateProjetoIncluirNaoBillable,
-  updateProjetoContrato,
+  uploadContrato,
+  getContratoSignedUrl,
+  removeContrato,
+  updateContratoNotas,
   deleteProjeto,
   type AtoLancamentoDB,
   type AtoProjetoDB,
 } from "@/lib/atos-parser";
+import { ContratoViewer } from "./ContratoViewer";
 import { toast } from "@/hooks/use-toast";
 import { CustomLawyersManager } from "./CustomLawyersManager";
 
@@ -65,10 +70,12 @@ export function AtosProjectDetail({
   const [customOpen, setCustomOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  const [editingContrato, setEditingContrato] = useState(false);
-  const [contratoUrlDraft, setContratoUrlDraft] = useState(projeto.contrato_url ?? "");
-  const [contratoNotasDraft, setContratoNotasDraft] = useState(projeto.contrato_notas ?? "");
-  const [savingContrato, setSavingContrato] = useState(false);
+  const [uploadingContrato, setUploadingContrato] = useState(false);
+  const [removingContrato, setRemovingContrato] = useState(false);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [editingNotas, setEditingNotas] = useState(false);
+  const [notasDraft, setNotasDraft] = useState(projeto.contrato_notas ?? "");
+  const [savingNotas, setSavingNotas] = useState(false);
 
   // Recalcula sempre que projeto ou lancamentos mudarem
   const calc = useMemo(
@@ -119,18 +126,50 @@ export function AtosProjectDetail({
     }
   };
 
-  const handleSaveContrato = async () => {
-    setSavingContrato(true);
-    const url = contratoUrlDraft.trim() || null;
-    const notas = contratoNotasDraft.trim() || null;
-    const r = await updateProjetoContrato(projeto.id, url, notas);
-    setSavingContrato(false);
+  const handleUploadContrato = async (file: File) => {
+    setUploadingContrato(true);
+    const r = await uploadContrato(projeto.id, file);
+    setUploadingContrato(false);
     if (r.success) {
-      setEditingContrato(false);
       onChanged();
-      toast({ title: "Contrato atualizado" });
+      toast({ title: "Contrato anexado" });
     } else {
-      toast({ title: "Erro ao salvar", description: r.error, variant: "destructive" });
+      toast({ title: "Erro ao enviar", description: r.error, variant: "destructive" });
+    }
+  };
+
+  const handleViewContrato = async () => {
+    if (!projeto.contrato_url) return;
+    const r = await getContratoSignedUrl(projeto.contrato_url);
+    if (r.url) {
+      setViewerUrl(r.url);
+    } else {
+      toast({ title: "Erro ao abrir contrato", description: r.error, variant: "destructive" });
+    }
+  };
+
+  const handleRemoveContrato = async () => {
+    if (!projeto.contrato_url) return;
+    setRemovingContrato(true);
+    const r = await removeContrato(projeto.id, projeto.contrato_url);
+    setRemovingContrato(false);
+    if (r.success) {
+      onChanged();
+      toast({ title: "Contrato removido" });
+    } else {
+      toast({ title: "Erro ao remover", description: r.error, variant: "destructive" });
+    }
+  };
+
+  const handleSaveNotas = async () => {
+    setSavingNotas(true);
+    const r = await updateContratoNotas(projeto.id, notasDraft.trim() || null);
+    setSavingNotas(false);
+    if (r.success) {
+      setEditingNotas(false);
+      onChanged();
+    } else {
+      toast({ title: "Erro ao salvar notas", description: r.error, variant: "destructive" });
     }
   };
 
@@ -309,72 +348,105 @@ export function AtosProjectDetail({
             </div>
           </div>
 
-          {/* Contrato vinculado */}
-          <div className="p-4 bg-muted/20 border border-border rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">Contrato</span>
-              </div>
-              {!editingContrato && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => {
-                    setContratoUrlDraft(projeto.contrato_url ?? "");
-                    setContratoNotasDraft(projeto.contrato_notas ?? "");
-                    setEditingContrato(true);
-                  }}
-                >
-                  <Pencil className="w-3 h-3 mr-1" />
-                  {projeto.contrato_url ? "Editar" : "Vincular"}
-                </Button>
-              )}
+          {/* Contrato */}
+          <div className="p-4 bg-muted/20 border border-border rounded-lg space-y-3">
+            <div className="flex items-center gap-2">
+              <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">Contrato</span>
             </div>
 
-            {editingContrato ? (
+            {projeto.contrato_filename ? (
               <div className="space-y-2">
-                <Input
-                  placeholder="URL do contrato (Clicksign, SharePoint, Drive...)"
-                  value={contratoUrlDraft}
-                  onChange={e => setContratoUrlDraft(e.target.value)}
-                  className="h-8 text-sm"
-                  autoFocus
-                />
-                <Input
-                  placeholder="Notas (ex: Contrato n° 2024/087, assinado em 10/03)"
-                  value={contratoNotasDraft}
-                  onChange={e => setContratoNotasDraft(e.target.value)}
-                  className="h-8 text-sm"
-                />
-                <div className="flex gap-2 pt-1">
-                  <Button size="sm" className="h-7 gap-1.5" onClick={handleSaveContrato} disabled={savingContrato}>
-                    <Save className="w-3 h-3" />
-                    Salvar
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditingContrato(false)}>
-                    Cancelar
-                  </Button>
+                {/* Arquivo anexado */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-sm text-foreground truncate max-w-xs">
+                    {projeto.contrato_filename}
+                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1.5 text-xs"
+                      onClick={handleViewContrato}
+                    >
+                      <Eye className="w-3 h-3" />
+                      Abrir
+                    </Button>
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".pdf,.docx"
+                        className="hidden"
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (f) handleUploadContrato(f);
+                          e.target.value = "";
+                        }}
+                      />
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" asChild disabled={uploadingContrato}>
+                        <span>
+                          <Upload className="w-3 h-3 mr-1" />
+                          {uploadingContrato ? "Enviando..." : "Trocar"}
+                        </span>
+                      </Button>
+                    </label>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={handleRemoveContrato}
+                      disabled={removingContrato}
+                    >
+                      {removingContrato ? "..." : "Remover"}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ) : projeto.contrato_url ? (
-              <div className="space-y-1">
-                <a
-                  href={projeto.contrato_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-medium"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  Abrir contrato
-                </a>
-                {projeto.contrato_notas && (
-                  <p className="text-xs text-muted-foreground">{projeto.contrato_notas}</p>
+
+                {/* Notas */}
+                {editingNotas ? (
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      value={notasDraft}
+                      onChange={e => setNotasDraft(e.target.value)}
+                      placeholder="Notas sobre o contrato..."
+                      className="h-7 text-xs"
+                      autoFocus
+                    />
+                    <Button size="sm" className="h-7 px-2" onClick={handleSaveNotas} disabled={savingNotas}>
+                      <Save className="w-3 h-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingNotas(false)}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setNotasDraft(projeto.contrato_notas ?? ""); setEditingNotas(true); }}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors text-left"
+                  >
+                    {projeto.contrato_notas || "+ Adicionar notas"}
+                  </button>
                 )}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">Nenhum contrato vinculado.</p>
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept=".pdf,.docx"
+                  className="hidden"
+                  onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) handleUploadContrato(f);
+                    e.target.value = "";
+                  }}
+                />
+                <Button variant="outline" size="sm" className="gap-2" asChild disabled={uploadingContrato}>
+                  <span>
+                    <Upload className="w-3.5 h-3.5" />
+                    {uploadingContrato ? "Enviando..." : "Importar contrato (PDF ou Word)"}
+                  </span>
+                </Button>
+              </label>
             )}
           </div>
 
@@ -621,6 +693,15 @@ export function AtosProjectDetail({
         onChanged={onChanged}
         suggestedNames={calc.colaboradoresSemCusto}
       />
+
+      {viewerUrl && projeto.contrato_filename && (
+        <ContratoViewer
+          filename={projeto.contrato_filename}
+          signedUrl={viewerUrl}
+          notas={projeto.contrato_notas}
+          onClose={() => setViewerUrl(null)}
+        />
+      )}
     </div>
   );
 

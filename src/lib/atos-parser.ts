@@ -39,7 +39,8 @@ export interface AtoProjetoDB {
   nome_projeto: string;
   valor_combinado: number;
   incluir_nao_billable: boolean;
-  contrato_url: string | null;
+  contrato_url: string | null;       // path no Supabase Storage
+  contrato_filename: string | null;  // nome original do arquivo
   contrato_notas: string | null;
   created_at: string;
   updated_at: string;
@@ -532,14 +533,61 @@ export async function updateProjetoIncluirNaoBillable(
   return error ? { success: false, error: error.message } : { success: true };
 }
 
-export async function updateProjetoContrato(
+export async function uploadContrato(
   projetoId: string,
-  contrato_url: string | null,
+  file: File
+): Promise<{ success: boolean; error?: string }> {
+  const path = `${projetoId}/${Date.now()}_${file.name}`;
+
+  const { error: uploadErr } = await supabase.storage
+    .from("contratos")
+    .upload(path, file, { upsert: true });
+  if (uploadErr) return { success: false, error: uploadErr.message };
+
+  const { error: dbErr } = await supabase
+    .from("atos_projetos")
+    .update({ contrato_url: path, contrato_filename: file.name })
+    .eq("id", projetoId);
+  if (dbErr) return { success: false, error: dbErr.message };
+
+  return { success: true };
+}
+
+export async function getContratoSignedUrl(
+  path: string
+): Promise<{ url?: string; error?: string }> {
+  const { data, error } = await supabase.storage
+    .from("contratos")
+    .createSignedUrl(path, 3600);
+  if (error) return { error: error.message };
+  return { url: data.signedUrl };
+}
+
+export async function removeContrato(
+  projetoId: string,
+  storagePath: string
+): Promise<{ success: boolean; error?: string }> {
+  const { error: storageErr } = await supabase.storage
+    .from("contratos")
+    .remove([storagePath]);
+  if (storageErr) return { success: false, error: storageErr.message };
+
+  const { error: dbErr } = await supabase
+    .from("atos_projetos")
+    .update({ contrato_url: null, contrato_filename: null })
+    .eq("id", projetoId);
+  if (dbErr) return { success: false, error: dbErr.message };
+
+  return { success: true };
+}
+
+export async function updateContratoNotas(
+  projetoId: string,
   contrato_notas: string | null
 ): Promise<{ success: boolean; error?: string }> {
   const { error } = await supabase
     .from("atos_projetos")
-    .update({ contrato_url, contrato_notas })
+    .update({ contrato_notas })
     .eq("id", projetoId);
   return error ? { success: false, error: error.message } : { success: true };
 }
