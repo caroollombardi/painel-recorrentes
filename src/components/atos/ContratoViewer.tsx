@@ -41,19 +41,35 @@ export function ContratoViewer({ filename, signedUrl, notas, onClose }: Contrato
 
   const active = isVisible && !isClosing;
 
+  // Abrir: ease-out 180ms — resposta imediata, pouso suave
+  // Fechar: ease-in 160ms — saída rápida, sem espera
+  const overlayTransition = isClosing
+    ? "opacity 160ms ease-in"
+    : "opacity 180ms ease-out";
+
+  const contentTransition = isClosing
+    ? "transform 160ms ease-in"
+    : "transform 180ms ease-out";
+
+  const contentTransform = active
+    ? "translateY(0) scale(1)"
+    : isClosing
+      ? "translateY(16px) scale(0.98)"   // sai para baixo — espelho da entrada
+      : "translateY(16px) scale(0.98)";  // começa de baixo
+
   const modal = (
     <div
       style={{
         opacity: active ? 1 : 0,
-        transition: "opacity 200ms ease-in-out",
+        transition: overlayTransition,
       }}
       className="fixed inset-0 z-[9999] isolate flex flex-col bg-background/95 backdrop-blur-sm"
       onClick={handleClose}
     >
       <div
         style={{
-          transform: active ? "translateY(0)" : isClosing ? "translateY(-10px)" : "translateY(10px)",
-          transition: "transform 200ms ease-in-out",
+          transform: contentTransform,
+          transition: contentTransition,
         }}
         className="flex flex-col h-full"
         onClick={e => e.stopPropagation()}
