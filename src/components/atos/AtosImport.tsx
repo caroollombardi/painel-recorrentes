@@ -40,6 +40,8 @@ const EXPECTED_COLUMNS = [
 
 export function AtosImport({ onImportComplete }: AtosImportProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [step, setStep] = useState<ImportStep>("upload");
   const [parsedResult, setParsedResult] = useState<AtosCSVValidationResult | null>(
     null
@@ -63,8 +65,8 @@ export function AtosImport({ onImportComplete }: AtosImportProps) {
   };
 
   const handleClose = () => {
-    setIsOpen(false);
-    reset();
+    if (isClosing) return;
+    setIsClosing(true);
   };
 
   const handleFile = async (file: File) => {
@@ -164,14 +166,46 @@ export function AtosImport({ onImportComplete }: AtosImportProps) {
     };
   }, [isOpen]);
 
+  // Entrada: dispara animação ao abrir
+  useEffect(() => {
+    if (!isOpen) return;
+    setIsVisible(false);
+    setIsClosing(false);
+    const r1 = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setIsVisible(true));
+    });
+    return () => cancelAnimationFrame(r1);
+  }, [isOpen]);
+
+  // Saída: aguarda animação antes de desmontar
+  useEffect(() => {
+    if (!isClosing) return;
+    const t = setTimeout(() => {
+      setIsOpen(false);
+      setIsVisible(false);
+      setIsClosing(false);
+      reset();
+    }, 220);
+    return () => clearTimeout(t);
+  }, [isClosing]);
+
+  const active = isVisible && !isClosing;
+  const overlayTransition = isClosing ? "opacity 160ms ease-in" : "opacity 180ms ease-out";
+  const contentTransition = isClosing
+    ? "transform 160ms ease-in, opacity 160ms ease-in"
+    : "transform 180ms ease-out, opacity 180ms ease-out";
+  const contentTransform = active ? "translateY(0) scale(1)" : "translateY(16px) scale(0.97)";
+
   const modalContent = (
     <div
-      className="fixed inset-0 z-[9998] isolate flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in"
+      style={{ opacity: active ? 1 : 0, transition: overlayTransition }}
+      className="fixed inset-0 z-[9998] isolate flex items-center justify-center bg-background/80 backdrop-blur-sm"
       onClick={handleClose}
     >
       <div
         role="dialog"
         aria-modal="true"
+        style={{ transform: contentTransform, opacity: active ? 1 : 0, transition: contentTransition }}
         className="relative z-10 mx-4 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
@@ -518,7 +552,7 @@ export function AtosImport({ onImportComplete }: AtosImportProps) {
         className="gap-2 border-primary/30 hover:border-primary hover:bg-primary/5"
       >
         <FileSpreadsheet className="w-4 h-4" />
-        Importar Atos
+        Importar Projetos
       </Button>
 
       {isOpen && typeof document !== "undefined"

@@ -14,12 +14,14 @@ import {
   Upload,
   Eye,
   Loader2,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
   calcularProjeto,
@@ -52,9 +54,12 @@ function brl(value: number) {
   });
 }
 
-function fmtHoras(min: number) {
-  const h = min / 60;
-  return `${h.toFixed(2)}h`;
+function fmtHoras(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
 }
 
 export function AtosProjectDetail({
@@ -276,13 +281,22 @@ export function AtosProjectDetail({
       >
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-border gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 flex items-center gap-2">
             <h2 className="text-xl font-display font-semibold text-foreground truncate">
               {projeto.nome_projeto}
             </h2>
-            <p className="text-xs text-muted-foreground mt-1 font-mono">
-              Asana ID: {projeto.asana_project_id}
-            </p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button className="shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors">
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="font-mono text-xs">Asana ID: {projeto.asana_project_id}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <Button variant="ghost" size="icon" onClick={handleClose}>
             <X className="w-4 h-4" />
@@ -290,7 +304,7 @@ export function AtosProjectDetail({
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Hero: resultado */}
+          {/* Hero: resultado + toggle não-billable compacto */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="p-4 bg-muted/30 border border-border rounded-lg">
               <p className="text-xs text-muted-foreground mb-1">
@@ -300,10 +314,11 @@ export function AtosProjectDetail({
                 <div className="flex gap-2 items-center mt-1">
                   <span className="text-sm text-foreground">R$</span>
                   <Input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={valorDraft}
                     onChange={e => setValorDraft(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleSaveValor(); }}
                     className="h-8 text-sm"
                     autoFocus
                   />
@@ -388,6 +403,21 @@ export function AtosProjectDetail({
                 </p>
               )}
             </div>
+          </div>
+
+          {/* Toggle não-billable — logo abaixo dos cards para deixar claro que afeta os números */}
+          <div className="flex items-center gap-3 px-1 py-0.5">
+            <Switch
+              id="toggle-nb"
+              checked={projeto.incluir_nao_billable}
+              onCheckedChange={handleToggleNaoBillable}
+            />
+            <Label htmlFor="toggle-nb" className="text-xs text-muted-foreground cursor-pointer leading-tight">
+              Incluir horas não-billable no cálculo
+              <span className="ml-1 text-muted-foreground/60">
+                (billable: {fmtHoras(calc.totalMinutosBillable)} · não-billable: {fmtHoras(calc.totalMinutosNaoBillable)})
+              </span>
+            </Label>
           </div>
 
           {/* Contrato */}
@@ -549,33 +579,6 @@ export function AtosProjectDetail({
             </div>
           )}
 
-          {/* Toggle não-billable */}
-          <div className="flex items-center justify-between p-3 bg-muted/20 border border-border rounded-lg">
-            <div>
-              <Label
-                htmlFor="toggle-nb"
-                className="text-sm font-medium text-foreground cursor-pointer"
-              >
-                Incluir horas não-billable no cálculo
-              </Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Quando ligado: horas marcadas como{" "}
-                <code className="text-foreground">nonBillable</code> entram no
-                valor. Útil pra contabilizar alinhamentos internos como custo do
-                ato.
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Billable: {fmtHoras(calc.totalMinutosBillable)} · Não-billable:{" "}
-                {fmtHoras(calc.totalMinutosNaoBillable)}
-              </p>
-            </div>
-            <Switch
-              id="toggle-nb"
-              checked={projeto.incluir_nao_billable}
-              onCheckedChange={handleToggleNaoBillable}
-            />
-          </div>
-
           {/* Breakdown por colaborador */}
           <section>
             <h3 className="text-sm font-semibold text-foreground mb-2">
@@ -629,11 +632,25 @@ export function AtosProjectDetail({
                       <td className="px-3 py-2 text-right font-mono text-foreground">
                         {brl(c.valorTotal)}
                       </td>
-                      <td className="px-3 py-2 text-right text-muted-foreground text-xs">
-                        {calc.valorHoras > 0
-                          ? ((c.valorTotal / calc.valorHoras) * 100).toFixed(1)
-                          : "0"}
-                        %
+                      <td className="px-3 py-2">
+                        {(() => {
+                          const pct = calc.valorHoras > 0
+                            ? (c.valorTotal / calc.valorHoras) * 100
+                            : 0;
+                          return (
+                            <div className="flex items-center justify-end gap-2">
+                              <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-primary/50 rounded-full"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground tabular-nums w-10 text-right">
+                                {pct.toFixed(1)}%
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))}
@@ -651,7 +668,10 @@ export function AtosProjectDetail({
                       {brl(calc.valorHoras)}
                     </td>
                     <td className="px-3 py-2 text-right text-xs text-muted-foreground">
-                      100%
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-16 h-1.5 bg-primary/20 rounded-full" />
+                        <span className="w-10 text-right tabular-nums">100%</span>
+                      </div>
                     </td>
                   </tr>
                 </tfoot>
@@ -684,8 +704,8 @@ export function AtosProjectDetail({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {topTarefas.map((t, i) => (
-                      <tr key={i} className="hover:bg-muted/20">
+                    {topTarefas.map((t) => (
+                      <tr key={t.nome} className="hover:bg-muted/20">
                         <td
                           className="px-3 py-2 text-foreground max-w-xs truncate"
                           title={t.nome}
@@ -739,9 +759,9 @@ export function AtosProjectDetail({
               variant="ghost"
               size="sm"
               onClick={() => setConfirmingDelete(true)}
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive gap-1.5"
+              className="text-destructive/50 hover:text-destructive hover:bg-destructive/10 gap-1.5 text-xs"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3 h-3" />
               Remover projeto
             </Button>
           )}

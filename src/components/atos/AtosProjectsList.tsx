@@ -41,6 +41,14 @@ function brl(value: number) {
   });
 }
 
+function fmtHoras(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
 export function AtosProjectsList({ projetos, onSelect }: AtosProjectsListProps) {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("updated");
@@ -242,7 +250,7 @@ export function AtosProjectsList({ projetos, onSelect }: AtosProjectsListProps) 
                       </p>
                     </td>
                     <td className="px-3 py-3 text-right font-mono text-foreground hidden sm:table-cell">
-                      {(calc.totalMinutos / 60).toFixed(2)}h
+                      {fmtHoras(calc.totalMinutos)}
                     </td>
                     <td className="px-3 py-3 text-right font-mono">
                       {semValor ? (
@@ -291,10 +299,12 @@ export function AtosProjectsList({ projetos, onSelect }: AtosProjectsListProps) 
         </table>
       </div>
 
-      <p className="text-xs text-muted-foreground text-center">
-        {filtered.length} de {projetos.length} projeto
-        {projetos.length > 1 ? "s" : ""}
-      </p>
+      {search.trim() && (
+        <p className="text-xs text-muted-foreground text-center">
+          {filtered.length} de {projetos.length} projeto
+          {projetos.length > 1 ? "s" : ""} encontrado{filtered.length !== 1 ? "s" : ""}
+        </p>
+      )}
     </div>
   );
 }

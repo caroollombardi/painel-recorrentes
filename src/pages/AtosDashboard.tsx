@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { FolderKanban, UserCog, TrendingUp, TrendingDown, Wallet, Clock } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { FolderKanban, UserCog, TrendingUp, TrendingDown, Minus, Wallet, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { AtosImport } from "@/components/atos/AtosImport";
@@ -17,6 +17,14 @@ function brl(value: number) {
   });
 }
 
+function fmtHoras(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
 export default function AtosDashboard() {
   const { projetos, isLoading, error, reload } = useAtosData();
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
@@ -28,6 +36,17 @@ export default function AtosDashboard() {
     () => projetos.find(p => p.projeto.id === selectedProjectId) ?? null,
     [projetos, selectedProjectId]
   );
+
+  const lastImport = useMemo(() => {
+    if (projetos.length === 0) return null;
+    const latest = projetos.reduce((max, p) =>
+      p.projeto.updated_at > max ? p.projeto.updated_at : max,
+      projetos[0].projeto.updated_at
+    );
+    return new Date(latest).toLocaleDateString("pt-BR", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+    });
+  }, [projetos]);
 
   // Agregados globais
   const stats = useMemo(() => {
@@ -77,6 +96,9 @@ export default function AtosDashboard() {
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Compare valor fechado em contrato vs custo das horas trabalhadas
+                {lastImport && (
+                  <span className="ml-2 text-muted-foreground/60">· última importação: {lastImport}</span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -132,7 +154,7 @@ export default function AtosDashboard() {
                   icon={Clock}
                   label="Valor das horas (soma)"
                   value={brl(stats.totalValorHoras)}
-                  hint={`${(stats.totalMinutos / 60).toFixed(1)}h totais`}
+                  hint={`${fmtHoras(stats.totalMinutos)} totais`}
                 />
                 <StatCard
                   icon={stats.resultado >= 0 ? TrendingUp : TrendingDown}
@@ -154,11 +176,30 @@ export default function AtosDashboard() {
                 <StatCard
                   icon={FolderKanban}
                   label="Distribuição de projetos"
-                  value={`${stats.positivos} ↑ · ${stats.negativos} ↓`}
+                  value={
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <div className="flex items-center gap-1 text-success-foreground">
+                        <TrendingUp className="w-4 h-4" />
+                        <span className="text-lg font-bold">{stats.positivos}</span>
+                        <span className="text-xs font-normal">lucro</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-destructive">
+                        <TrendingDown className="w-4 h-4" />
+                        <span className="text-lg font-bold">{stats.negativos}</span>
+                        <span className="text-xs font-normal">déficit</span>
+                      </div>
+                      {stats.neutros > 0 && (
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Minus className="w-3.5 h-3.5" />
+                          <span className="text-lg font-bold">{stats.neutros}</span>
+                        </div>
+                      )}
+                    </div>
+                  }
                   hint={
                     stats.semValor > 0
                       ? `${stats.semValor} sem valor combinado definido`
-                      : `${stats.neutros} no zero · ${projetos.length} no total`
+                      : `${projetos.length} projeto${projetos.length > 1 ? "s" : ""} no total`
                   }
                 />
               </div>
@@ -225,7 +266,7 @@ function StatCard({
 }: {
   icon: any;
   label: string;
-  value: string;
+  value: string | React.ReactNode;
   hint?: string;
   valueClass?: string;
 }) {
@@ -237,11 +278,13 @@ function StatCard({
         </div>
         <p className="text-xs text-muted-foreground">{label}</p>
       </div>
-      <p
-        className={`text-lg font-bold text-foreground ${valueClass || ""}`.trim()}
-      >
-        {value}
-      </p>
+      {typeof value === "string" ? (
+        <p className={`text-lg font-bold text-foreground ${valueClass || ""}`.trim()}>
+          {value}
+        </p>
+      ) : (
+        value
+      )}
       {hint && <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>}
     </div>
   );
