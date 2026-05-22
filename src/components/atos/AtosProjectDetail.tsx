@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   X,
@@ -70,6 +70,7 @@ export function AtosProjectDetail({
   const [customOpen, setCustomOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingContrato, setUploadingContrato] = useState(false);
   const [removingContrato, setRemovingContrato] = useState(false);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
@@ -355,9 +356,21 @@ export function AtosProjectDetail({
               <span className="text-sm font-medium text-foreground">Contrato</span>
             </div>
 
+            {/* Input oculto — acionado via ref */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx"
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0];
+                if (f) handleUploadContrato(f);
+                e.target.value = "";
+              }}
+            />
+
             {projeto.contrato_filename ? (
               <div className="space-y-2">
-                {/* Arquivo anexado */}
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="text-sm text-foreground truncate max-w-xs">
                     {projeto.contrato_filename}
@@ -372,24 +385,16 @@ export function AtosProjectDetail({
                       <Eye className="w-3 h-3" />
                       Abrir
                     </Button>
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        accept=".pdf,.docx"
-                        className="hidden"
-                        onChange={e => {
-                          const f = e.target.files?.[0];
-                          if (f) handleUploadContrato(f);
-                          e.target.value = "";
-                        }}
-                      />
-                      <Button size="sm" variant="ghost" className="h-7 text-xs" asChild disabled={uploadingContrato}>
-                        <span>
-                          <Upload className="w-3 h-3 mr-1" />
-                          {uploadingContrato ? "Enviando..." : "Trocar"}
-                        </span>
-                      </Button>
-                    </label>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 gap-1 text-xs"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingContrato}
+                    >
+                      <Upload className="w-3 h-3" />
+                      {uploadingContrato ? "Enviando..." : "Trocar"}
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -402,7 +407,6 @@ export function AtosProjectDetail({
                   </div>
                 </div>
 
-                {/* Notas */}
                 {editingNotas ? (
                   <div className="flex gap-2 items-center">
                     <Input
@@ -429,24 +433,16 @@ export function AtosProjectDetail({
                 )}
               </div>
             ) : (
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept=".pdf,.docx"
-                  className="hidden"
-                  onChange={e => {
-                    const f = e.target.files?.[0];
-                    if (f) handleUploadContrato(f);
-                    e.target.value = "";
-                  }}
-                />
-                <Button variant="outline" size="sm" className="gap-2" asChild disabled={uploadingContrato}>
-                  <span>
-                    <Upload className="w-3.5 h-3.5" />
-                    {uploadingContrato ? "Enviando..." : "Importar contrato (PDF ou Word)"}
-                  </span>
-                </Button>
-              </label>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingContrato}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                {uploadingContrato ? "Enviando..." : "Importar contrato (PDF ou Word)"}
+              </Button>
             )}
           </div>
 
