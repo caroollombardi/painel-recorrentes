@@ -584,4 +584,3 @@ function parseISODate(dateStr: string): string | null {
   }
   return null;
 }
-
