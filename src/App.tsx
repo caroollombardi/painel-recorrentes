@@ -38,6 +38,14 @@ function AppRoutes() {
       <Route path="/setup" element={<Setup />} />
       
       {/* Protected routes */}
+      <Route
+  path="/prospeccao"
+  element={
+    <ProtectedRoute>
+      <ProspeccaoDashboard />
+    </ProtectedRoute>
+  }
+/>
       <Route 
         path="/" 
         element={
