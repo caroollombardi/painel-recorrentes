@@ -6,7 +6,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useProspeccaoData } from "@/hooks/use-prospeccao-data";
@@ -40,10 +40,15 @@ export default function ProspeccaoDashboard() {
     ];
   }, [data]);
 
-  const responsavelChartData = useMemo(() => {
+  const responsavelData = useMemo(() => {
     if (!data) return [];
     return Object.entries(data.porResponsavel)
-      .map(([owner, v]) => ({ owner, semMotivo: v.semMotivo, concluidos: v.concluidos }))
+      .map(([owner, v]) => ({
+        owner,
+        semMotivo: v.semMotivo,
+        concluidos: v.concluidos,
+        pct: v.concluidos > 0 ? Math.round((v.semMotivo / v.concluidos) * 100) : 0,
+      }))
       .sort((a, b) => b.semMotivo - a.semMotivo);
   }, [data]);
 
@@ -111,17 +116,25 @@ export default function ProspeccaoDashboard() {
                 <p className="text-xs text-muted-foreground mb-4">
                   {data.resumo.concluidos} projetos marcados como concluídos no total
                 </p>
-                <div className="h-[220px]">
+                <div className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={desfechoChartData} layout="vertical" margin={{ left: 24 }}>
+                    <BarChart data={desfechoChartData} layout="vertical" margin={{ left: 8, right: 28 }} barCategoryGap={16}>
                       <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
-                      <XAxis type="number" allowDecimals={false} />
-                      <YAxis type="category" dataKey="label" width={110} />
-                      <Tooltip />
-                      <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                      <XAxis type="number" allowDecimals={false} hide />
+                      <YAxis
+                        type="category"
+                        dataKey="label"
+                        width={110}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 13, fill: "hsl(var(--foreground))" }}
+                      />
+                      <Tooltip cursor={{ fill: "hsl(var(--muted))" }} />
+                      <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={28}>
                         {desfechoChartData.map((d) => (
                           <Cell key={d.key} fill={DESFECHO_COLOR[d.key]} />
                         ))}
+                        <LabelList dataKey="value" position="right" style={{ fontSize: 13, fontWeight: 500, fill: "hsl(var(--foreground))" }} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -134,26 +147,46 @@ export default function ProspeccaoDashboard() {
                   Quem não preenche o motivo de fechamento
                 </h3>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Concluídos sem "resumo" preenchido, por responsável — clique numa barra pra filtrar a lista abaixo
+                  Concluídos sem "resumo" preenchido, por responsável — clique num nome pra filtrar a lista abaixo
                 </p>
-                <div className="h-[180px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={responsavelChartData} layout="vertical" margin={{ left: 24 }}>
-                      <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
-                      <XAxis type="number" allowDecimals={false} />
-                      <YAxis type="category" dataKey="owner" width={110} />
-                      <Tooltip />
-                      <Bar
-                        dataKey="semMotivo"
-                        radius={[0, 4, 4, 0]}
-                        fill="hsl(var(--destructive))"
-                        cursor="pointer"
-                        onClick={(entry: { owner: string }) =>
-                          setOwnerFilter((cur) => (cur === entry.owner ? null : entry.owner))
-                        }
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="space-y-3">
+                  {responsavelData.map((r) => {
+                    const isActive = ownerFilter === r.owner;
+                    const initials = r.owner
+                      .split(" ")
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((w) => w[0])
+                      .join("")
+                      .toUpperCase();
+                    return (
+                      <button
+                        key={r.owner}
+                        onClick={() => setOwnerFilter((cur) => (cur === r.owner ? null : r.owner))}
+                        className={`w-full flex items-center gap-3 rounded-lg p-2 -mx-2 text-left transition-colors ${
+                          isActive ? "bg-muted" : "hover:bg-muted/50"
+                        }`}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary shrink-0">
+                          {initials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline justify-between gap-2 mb-1">
+                            <span className="text-sm font-medium text-foreground truncate">{r.owner}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              {r.semMotivo} de {r.concluidos} ({r.pct}%)
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-destructive/70"
+                              style={{ width: `${r.pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
 
