@@ -46,6 +46,7 @@ interface ProspeccaoItem {
   statusGeral: StatusGeral;
   desfecho: Desfecho;
   resumo: string;
+  createdAt: string;
   modifiedAt: string;
 }
 
@@ -105,13 +106,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           statusGeral,
           desfecho: statusGeral === "concluido" ? classifyDesfecho(resumo) : null,
           resumo,
+          createdAt: p.created_at,
           modifiedAt: p.modified_at,
         };
       });
 
     const total = items.length;
-    const emDia = items.filter((i) => i.statusGeral === "em_dia").length;
-    const emEspera = items.filter((i) => i.statusGeral === "em_espera").length;
+    const emDiaItems = items.filter((i) => i.statusGeral === "em_dia");
+    const emEsperaItems = items.filter((i) => i.statusGeral === "em_espera");
+    const emDia = emDiaItems.length;
+    const emEspera = emEsperaItems.length;
     const semStatus = items.filter((i) => i.statusGeral === "sem_status").length;
     const concluidos = items.filter((i) => i.statusGeral === "concluido");
     const ganho = concluidos.filter((i) => i.desfecho === "ganho").length;
@@ -119,17 +123,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const generico = concluidos.filter((i) => i.desfecho === "generico").length;
     const vazio = concluidos.filter((i) => i.desfecho === "vazio").length;
 
+    const now = Date.now();
+    const seteDias = 7 * 86400000;
+    const trintaDias = 30 * 86400000;
+    const emEsperaAntigos = emEsperaItems.filter((i) => now - new Date(i.modifiedAt).getTime() > seteDias).length;
+    const novosUltimos30Dias = items.filter((i) => now - new Date(i.createdAt).getTime() <= trintaDias).length;
+
     const pendentes = concluidos
       .filter((i) => i.desfecho === "vazio" || i.desfecho === "generico")
       .map((i) => ({ gid: i.gid, name: i.name, owner: i.owner, desfecho: i.desfecho }))
       .sort((a, b) => (a.owner ?? "").localeCompare(b.owner ?? ""));
 
-    const porResponsavel: Record<string, { concluidos: number; semMotivo: number }> = {};
+    const porResponsavel: Record<string, { concluidos: number; semMotivo: number; pct: number }> = {};
     for (const i of concluidos) {
       const owner = i.owner ?? "Sem responsável";
-      if (!porResponsavel[owner]) porResponsavel[owner] = { concluidos: 0, semMotivo: 0 };
+      if (!porResponsavel[owner]) porResponsavel[owner] = { concluidos: 0, semMotivo: 0, pct: 0 };
       porResponsavel[owner].concluidos += 1;
       if (i.desfecho === "vazio" || i.desfecho === "generico") porResponsavel[owner].semMotivo += 1;
+    }
+    for (const owner of Object.keys(porResponsavel)) {
+      const r = porResponsavel[owner];
+      r.pct = r.concluidos > 0 ? Math.round((r.semMotivo / r.concluidos) * 100) : 0;
     }
 
     return res.json({
@@ -144,7 +158,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         perdido,
         generico,
         vazio,
+        emEsperaAntigos,
+        novosUltimos30Dias,
+        semMotivo: vazio + generico,
         taxaSemMotivo: concluidos.length > 0 ? Math.round(((vazio + generico) / concluidos.length) * 100) : 0,
+        taxaConversaoClassificados: ganho + perdido > 0 ? Math.round((ganho / (ganho + perdido)) * 100) : null,
       },
       porResponsavel,
       pendentes,
