@@ -14,6 +14,7 @@ import Settings from "./pages/Settings";
 import Metas2026 from "./pages/Metas2026";
 import HoursDashboard from "./pages/HoursDashboard";
 import AtosDashboard from "./pages/AtosDashboard";
+import ProspeccaoDashboard from "./pages/ProspeccaoDashboard";
 import NotFound from "./pages/NotFound";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 
