@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 
 export type Desfecho = "ganho" | "perdido" | "generico" | "vazio" | null;
 export type StatusGeral = "em_dia" | "em_espera" | "concluido" | "sem_status";
+export type MotivoFonte = "tarefa_funil" | "status_projeto" | "nao_encontrado";
+export type Etapa =
+  | "Lead recebido" | "Reunião" | "Proposta enviada" | "Negociação"
+  | "Ganho" | "Perdido" | "Sem estrutura de funil";
 
 export interface ProspeccaoItem {
   gid: string;
@@ -9,7 +13,11 @@ export interface ProspeccaoItem {
   owner: string | null;
   statusGeral: StatusGeral;
   desfecho: Desfecho;
-  resumo: string;
+  motivo: string;
+  motivoFonte: MotivoFonte;
+  etapaAtual: Etapa;
+  areaJuridica: string | null;
+  origemLead: string | null;
   createdAt: string;
   modifiedAt: string;
 }
@@ -31,9 +39,14 @@ export interface ProspeccaoData {
     semMotivo: number;
     taxaSemMotivo: number;
     taxaConversaoClassificados: number | null;
+    comEstruturaFunil: number;
+    semEstruturaFunil: number;
   };
+  funilEtapas: Record<Etapa, number>;
+  origemLeadCounts: Record<string, number>;
+  areaJuridicaCounts: Record<string, number>;
   porResponsavel: Record<string, { concluidos: number; semMotivo: number; pct: number }>;
-  pendentes: { gid: string; name: string; owner: string | null; desfecho: Desfecho }[];
+  pendentes: { gid: string; name: string; owner: string | null; desfecho: Desfecho; motivoFonte: MotivoFonte }[];
   items: ProspeccaoItem[];
 }
 
