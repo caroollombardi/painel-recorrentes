@@ -14,7 +14,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { useProspeccaoData } from "@/hooks/use-prospeccao-data";
+import { useProspeccaoData, type Etapa, type MotivoFonte } from "@/hooks/use-prospeccao-data";
 
 const DESFECHO_LABEL: Record<string, string> = {
   ganho: "Ganho",
@@ -28,6 +28,24 @@ const DESFECHO_COLOR: Record<string, string> = {
   perdido: "hsl(var(--destructive))",
   generico: "hsl(var(--warning))",
   vazio: "hsl(var(--muted-foreground))",
+};
+
+const ETAPA_ORDER: Etapa[] = ["Lead recebido", "Reunião", "Proposta enviada", "Negociação", "Ganho", "Perdido", "Sem estrutura de funil"];
+
+const ETAPA_COLOR: Record<Etapa, string> = {
+  "Lead recebido": "hsl(var(--muted-foreground))",
+  "Reunião": "#378ADD",
+  "Proposta enviada": "#7F77DD",
+  "Negociação": "hsl(var(--warning))",
+  "Ganho": "hsl(var(--success))",
+  "Perdido": "hsl(var(--destructive))",
+  "Sem estrutura de funil": "hsl(var(--border))",
+};
+
+const MOTIVO_FONTE_LABEL: Record<MotivoFonte, string> = {
+  tarefa_funil: "Tarefa do funil (Asana)",
+  status_projeto: "Status do projeto",
+  nao_encontrado: "Não encontrado",
 };
 
 function pctBadgeClass(pct: number) {
@@ -61,6 +79,13 @@ export default function ProspeccaoDashboard() {
         };
       })
       .sort((a, b) => b.value - a.value);
+  }, [data]);
+
+  const funilChartData = useMemo(() => {
+    if (!data) return [];
+    return ETAPA_ORDER
+      .map((etapa) => ({ etapa, value: data.funilEtapas[etapa] ?? 0 }))
+      .filter((d) => d.value > 0);
   }, [data]);
 
   const responsavelData = useMemo(() => {
@@ -108,6 +133,7 @@ export default function ProspeccaoDashboard() {
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <p className="text-xs text-muted-foreground ml-3">Lendo tarefas de cada projeto no Asana, pode levar alguns segundos...</p>
             </div>
           ) : error ? (
             <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg">
@@ -115,6 +141,12 @@ export default function ProspeccaoDashboard() {
             </div>
           ) : !data ? null : (
             <>
+              {/* Cobertura da estrutura de funil */}
+              <p className="text-xs text-muted-foreground">
+                {data.resumo.comEstruturaFunil} de {data.resumo.total} projetos usam o padrão de funil (Lead → Reunião → Proposta → Negociação → Ganho/Perdido) na estrutura de tarefas do Asana
+                {data.resumo.semEstruturaFunil > 0 && <> · {data.resumo.semEstruturaFunil} ainda em modelo antigo, sem essa estrutura</>}
+              </p>
+
               {/* Filtros */}
               <div className="flex flex-wrap items-center gap-2">
                 <Select value={ownerFilter} onValueChange={setOwnerFilter}>
@@ -133,7 +165,7 @@ export default function ProspeccaoDashboard() {
                   </SelectContent>
                 </Select>
                 <span className="text-xs text-muted-foreground/60">
-                  Período, etapa, origem do lead e tipo de serviço ainda não têm dado confiável pra filtrar
+                  Período e tipo de serviço ainda não têm dado confiável pra filtrar
                 </span>
               </div>
 
@@ -169,6 +201,32 @@ export default function ProspeccaoDashboard() {
                   onClick={scrollToPendentes}
                 />
               </div>
+
+              {/* Funil real por etapa */}
+              {funilChartData.length > 0 && (
+                <section className="bg-card rounded-xl border border-border p-4 shadow-sm">
+                  <h3 className="text-sm font-display font-semibold text-foreground mb-1">
+                    Etapa atual do pipeline
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Onde cada oportunidade está agora, com base nas tarefas concluídas no Asana
+                  </p>
+                  <div className="h-[190px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={funilChartData} layout="vertical" margin={{ left: 8, right: 30 }} barCategoryGap={10}>
+                        <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
+                        <XAxis type="number" allowDecimals={false} hide />
+                        <YAxis type="category" dataKey="etapa" width={120} tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }} />
+                        <Tooltip cursor={{ fill: "hsl(var(--muted))" }} />
+                        <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                          {funilChartData.map((d) => <Cell key={d.etapa} fill={ETAPA_COLOR[d.etapa]} />)}
+                          <LabelList dataKey="value" position="right" style={{ fontSize: 12, fontWeight: 500, fill: "hsl(var(--foreground))" }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </section>
+              )}
 
               {/* Desfecho + alerta de qualidade lado a lado */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -218,7 +276,7 @@ export default function ProspeccaoDashboard() {
                       encerradas não possuem motivo informado.
                     </p>
                     <p className="text-xs text-muted-foreground mt-2">
-                      Sem esse dado preenchido, a taxa de conversão real do pipeline não pode ser calculada com confiança.
+                      Isso vem só dos projetos em modelo antigo, sem a tarefa Ganho/Perdido no funil — os que já usam o novo padrão têm o motivo automaticamente.
                     </p>
                   </div>
                   <Button variant="outline" size="sm" className="gap-2 mt-4 self-start border-destructive/30 text-destructive hover:bg-destructive/10" onClick={scrollToPendentes}>
@@ -292,6 +350,7 @@ export default function ProspeccaoDashboard() {
                       <TableHead>Projeto</TableHead>
                       <TableHead>Responsável</TableHead>
                       <TableHead>Situação</TableHead>
+                      <TableHead>Fonte checada</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -308,6 +367,7 @@ export default function ProspeccaoDashboard() {
                             {p.desfecho === "generico" ? "Motivo genérico" : "Sem classificação"}
                           </Badge>
                         </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{MOTIVO_FONTE_LABEL[p.motivoFonte]}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
