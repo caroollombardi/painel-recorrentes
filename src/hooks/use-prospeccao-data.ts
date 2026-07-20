@@ -10,6 +10,7 @@ export interface ProspeccaoItem {
   statusGeral: StatusGeral;
   desfecho: Desfecho;
   resumo: string;
+  createdAt: string;
   modifiedAt: string;
 }
 
@@ -25,9 +26,13 @@ export interface ProspeccaoData {
     perdido: number;
     generico: number;
     vazio: number;
+    emEsperaAntigos: number;
+    novosUltimos30Dias: number;
+    semMotivo: number;
     taxaSemMotivo: number;
+    taxaConversaoClassificados: number | null;
   };
-  porResponsavel: Record<string, { concluidos: number; semMotivo: number }>;
+  porResponsavel: Record<string, { concluidos: number; semMotivo: number; pct: number }>;
   pendentes: { gid: string; name: string; owner: string | null; desfecho: Desfecho }[];
   items: ProspeccaoItem[];
 }
