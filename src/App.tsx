@@ -15,6 +15,7 @@ import Metas2026 from "./pages/Metas2026";
 import HoursDashboard from "./pages/HoursDashboard";
 import AtosDashboard from "./pages/AtosDashboard";
 import ProspeccaoDashboard from "./pages/ProspeccaoDashboard";
+import SistemaHome from "./pages/SistemaHome";
 import NotFound from "./pages/NotFound";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 
@@ -39,15 +40,15 @@ function AppRoutes() {
       
       {/* Protected routes */}
       <Route
-  path="/prospeccao"
-  element={
-    <ProtectedRoute>
-      <ProspeccaoDashboard />
-    </ProtectedRoute>
-  }
-/>
+        path="/"
+        element={
+          <ProtectedRoute>
+            <SistemaHome dashboardData={dashboardData} lastUpdated={lastUpdated} />
+          </ProtectedRoute>
+        }
+      />
       <Route 
-        path="/" 
+        path="/recorrentes" 
         element={
           <ProtectedRoute>
             {dashboardData ? (
@@ -113,6 +114,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AtosDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/prospeccao"
+        element={
+          <ProtectedRoute>
+            <ProspeccaoDashboard />
           </ProtectedRoute>
         }
       />
