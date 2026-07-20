@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Upload, UsersRound, Settings, Eye, EyeOff, Monitor, MoreVertical } from "lucide-react";
+import { Upload, UsersRound, Settings, Eye, EyeOff, Monitor, MoreVertical, ChevronDown, LayoutGrid, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -43,6 +43,8 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
     adminActions.push({ label: "Configurações", icon: Settings, action: () => navigate("/settings") });
   }
 
+  const currentTab = tabs.find((t) => t.id === activeTab) ?? tabs[0];
+
   return (
     <header className={cn(
       "bg-card/50 backdrop-blur-sm sticky top-0 z-10 transition-all duration-300",
@@ -60,27 +62,29 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
                 className="object-contain h-8 sm:h-10"
               />
             </div>
-            {/* Tabs */}
-            <nav role="tablist" aria-label="Seções do dashboard" className="flex items-center gap-0.5 sm:gap-1 min-w-0">
-              {tabs.map(tab => (
-                <button
-                  key={tab.id}
-                  role="tab"
-                  aria-selected={activeTab === tab.id}
-                  aria-current={activeTab === tab.id ? "page" : undefined}
-                  onClick={() => navigate(tab.path)}
-                  className={cn(
-                    "relative px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-all duration-200 rounded-full whitespace-nowrap",
-                    activeTab === tab.id
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  )}
-                >
-                  <span className="hidden md:inline">{tab.label}</span>
-                  <span className="md:hidden">{tab.shortLabel}</span>
-                </button>
-              ))}
-            </nav>
+            {/* Seletor de módulos */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 font-medium">
+                  <LayoutGrid className="w-4 h-4 text-muted-foreground" />
+                  <span className="hidden md:inline">{currentTab.label}</span>
+                  <span className="md:hidden">{currentTab.shortLabel}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                {tabs.map((tab) => (
+                  <DropdownMenuItem
+                    key={tab.id}
+                    onClick={() => navigate(tab.path)}
+                    className="justify-between"
+                  >
+                    {tab.label}
+                    {activeTab === tab.id && <Check className="w-4 h-4 text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
