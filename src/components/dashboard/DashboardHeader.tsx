@@ -18,16 +18,17 @@ interface DashboardHeaderProps {
   showValues?: boolean;
   onShowValuesChange?: (v: boolean) => void;
   onPresentationToggle?: () => void;
+  hideModuleSelector?: boolean;
 }
 
 const tabs = [
-  { id: "recorrentes" as const, label: "Clientes Recorrentes", shortLabel: "Recorrentes", path: "/" },
+  { id: "recorrentes" as const, label: "Clientes Recorrentes", shortLabel: "Recorrentes", path: "/recorrentes" },
   { id: "horas" as const, label: "Lançamento de Horas", shortLabel: "Horas", path: "/horas" },
   { id: "atos" as const, label: "Calculadora de Atos", shortLabel: "Atos", path: "/atos" },
   { id: "prospeccao" as const, label: "Funil de Prospecção", shortLabel: "Prospecção", path: "/prospeccao" },
 ];
 
-export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onPresentationToggle }: DashboardHeaderProps) {
+export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onPresentationToggle, hideModuleSelector }: DashboardHeaderProps) {
   const navigate = useNavigate();
   const { isAdmin, signOut, user, hasRole } = useAuth();
   const { isDark, toggle: toggleTheme } = useTheme();
@@ -55,7 +56,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
       <div className="container py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 sm:gap-6 min-w-0 flex-shrink-0">
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-3 shrink-0 cursor-pointer" onClick={() => navigate("/")}>
               <img
                 src={wsaLogo}
                 alt="Wolff e Scripes Advogados"
@@ -63,6 +64,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
               />
             </div>
             {/* Seletor de módulos */}
+            {!hideModuleSelector && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 font-medium">
@@ -85,6 +87,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            )}
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
