@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Database, ArrowLeft, UsersRound, LogOut, Calendar, CheckCircle2, Loader2 } from "lucide-react";
+import { BarChart3, Database, ArrowLeft, UsersRound, LogOut, Calendar, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { FileUpload } from "@/components/dashboard/FileUpload";
 import { parseXLSXData } from "@/lib/xlsx-parser";
 import { importTimeEntriesFromXLSX } from "@/lib/unified-import";
+import { fetchDashboardDataFromAsana } from "@/lib/asana-recorrentes-import";
 import { DashboardData } from "@/lib/data-parser";
-import { saveContractValues, ContractValue } from "@/lib/contract-values";
+import { saveContractValues, getContractValues, ContractValue } from "@/lib/contract-values";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
@@ -26,6 +27,7 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
   const { availableMonths } = useMonthlySnapshots();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSyncingAsana, setIsSyncingAsana] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [importResult, setImportResult] = useState<{ clients: boolean; hours: boolean; hoursCount: number } | null>(null);
 
@@ -79,6 +81,30 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
         description: "Falha ao processar o arquivo. Verifique o formato.",
         variant: "destructive",
       });
+    }
+  }, [onDataUpdate, toast]);
+
+  const handleAsanaSync = useCallback(async () => {
+    setIsSyncingAsana(true);
+    try {
+      const clientNames = getContractValues().map((c) => c.cliente);
+      const data = await fetchDashboardDataFromAsana(clientNames);
+      onDataUpdate(data, "asana-sync");
+      setLastUpdate(new Date());
+      setImportResult({ clients: true, hours: false, hoursCount: 0 });
+      toast({
+        title: "Dados atualizados do Asana",
+        description: `${data.clients.length} cliente(s) recalculado(s) com base no mês atual.`,
+      });
+    } catch (error) {
+      console.error("Error syncing from Asana:", error);
+      toast({
+        title: "Erro ao buscar do Asana",
+        description: error instanceof Error ? error.message : "Falha ao buscar dados.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncingAsana(false);
     }
   }, [onDataUpdate, toast]);
 
@@ -165,6 +191,40 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
                 Última atualização: {lastUpdate.toLocaleString('pt-BR')}
               </p>
             )}
+          </div>
+
+          {/* Asana Sync Card */}
+          <div className="bg-card rounded-xl border border-border p-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <RefreshCw className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Atualizar do Asana
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Busca direto no Asana as horas do mês atual de Clientes Recorrentes, sem precisar exportar planilha
+                </p>
+              </div>
+            </div>
+
+            <Button onClick={handleAsanaSync} disabled={isSyncingAsana} className="w-full gap-2">
+              {isSyncingAsana ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Buscando no Asana...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  Atualizar agora
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center mt-3">
+              Atualiza só Clientes Recorrentes. Lançamento de Horas continua vindo da planilha.
+            </p>
           </div>
 
           {/* Historical Data */}
