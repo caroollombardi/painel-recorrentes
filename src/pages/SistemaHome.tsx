@@ -53,8 +53,15 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
   const horasFillRate = horasDashboardData?.fillRate ?? 0;
   const { data: prospeccaoData } = useProspeccaoData();
 
-  const firstName = (user?.email || "").split("@")[0].split(".")[0];
-  const greetingName = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : "";
+  const fullName = user?.user_metadata?.name || (user?.email || "").split("@")[0].split(".")[0];
+  const greetingName = fullName ? fullName.trim().split(/\s+/)[0].replace(/^\w/, (c: string) => c.toUpperCase()) : "";
+
+  const greetingWord = (() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Bom dia";
+    if (hour < 18) return "Boa tarde";
+    return "Boa noite";
+  })();
 
   // --- Números reais por módulo ---
   const recorrentes = useMemo(() => {
@@ -180,9 +187,8 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
 
       <div className="container py-6">
         <div className="mb-5">
-          <p className="text-sm text-muted-foreground mb-0.5">Wolff e Scripes Advogados</p>
           <h1 className="text-xl font-display font-semibold text-foreground">
-            Bom dia{greetingName ? `, ${greetingName}` : ""}
+            {greetingWord}{greetingName ? `, ${greetingName}` : ""}
           </h1>
         </div>
 
