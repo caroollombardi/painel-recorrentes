@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
 import wsaLogo from "@/assets/wsa-logo.png";
+import wsaLogoDark from "@/assets/wsa-logo-dark.png";
 
 interface DashboardHeaderProps {
   activeTab: "recorrentes" | "horas" | "atos" | "prospeccao";
@@ -58,9 +59,9 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
           <div className="flex items-center gap-3 sm:gap-6 min-w-0 flex-shrink-0">
             <div className="flex items-center gap-3 shrink-0 cursor-pointer" onClick={() => navigate("/")}>
               <img
-                src={wsaLogo}
+                src={isDark ? wsaLogoDark : wsaLogo}
                 alt="Wolff e Scripes Advogados"
-                className="object-contain h-8 sm:h-10"
+                className="object-contain h-10 sm:h-12"
               />
             </div>
             {/* Seletor de módulos */}
@@ -166,7 +167,7 @@ export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onP
 
             <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
 
-            <UserProfileDropdown email={user?.email || ""} onLogout={handleLogout} />
+            <UserProfileDropdown name={user?.user_metadata?.name || user?.email || ""} onLogout={handleLogout} />
           </div>
         </div>
 
