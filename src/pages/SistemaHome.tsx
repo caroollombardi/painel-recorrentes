@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Users, Clock4, Calculator, Filter as FunnelIcon, MessageCircle,
-  CircleCheck, AlertTriangle, Upload,
+  CircleCheck, AlertTriangle, Upload, X, Send,
 } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,7 +11,7 @@ import { useHoursData } from "@/hooks/use-hours-data";
 import { useProspeccaoData } from "@/hooks/use-prospeccao-data";
 import { calcularProjeto } from "@/lib/atos-parser";
 import { DashboardData } from "@/lib/data-parser";
-import { useToast } from "@/hooks/use-toast";
+import { responderPergunta } from "@/lib/assistant-rules";
 
 interface SistemaHomeProps {
   dashboardData: DashboardData | null;
@@ -38,8 +38,13 @@ interface Activity {
 export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast } = useToast();
   const [query, setQuery] = useState("");
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([
+    { role: "assistant", text: "Oi! Pergunte sobre contratos, horas, atos ou prospecção. Digite \"ajuda\" pra ver exemplos." },
+  ]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { projetos: atosProjetos } = useAtosData();
   const now = new Date();
@@ -55,13 +60,16 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
   const recorrentes = useMemo(() => {
     const contratos = dashboardData?.clients.length ?? 0;
     const emAlerta = (dashboardData?.clientsAtCritical ?? 0) + (dashboardData?.clientsAtOverflow ?? 0);
-    return { contratos, emAlerta };
+    const clientesAlerta = (dashboardData?.clients ?? [])
+      .filter((c) => c.creditUsage?.isCritical)
+      .map((c) => c.project);
+    return { contratos, emAlerta, clientesAlerta };
   }, [dashboardData]);
 
   const atos = useMemo(() => {
     const total = atosProjetos.length;
-    const deficit = atosProjetos.filter((p) => calcularProjeto(p.projeto, p.lancamentos).resultado < 0).length;
-    return { total, deficit };
+    const emDeficit = atosProjetos.filter((p) => calcularProjeto(p.projeto, p.lancamentos).resultado < 0);
+    return { total, deficit: emDeficit.length, projetosDeficit: emDeficit.map((p) => p.projeto.nome_projeto) };
   }, [atosProjetos]);
 
   const horas = useMemo(() => {
@@ -146,6 +154,24 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     else if (q.includes("ato")) navigate("/atos");
     else if (q.includes("prospec") || q.includes("funil")) navigate("/prospeccao");
     else navigate("/recorrentes");
+  };
+
+  useEffect(() => {
+    if (chatOpen) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, chatOpen]);
+
+  const handleAsk = (e: React.FormEvent) => {
+    e.preventDefault();
+    const pergunta = chatInput.trim();
+    if (!pergunta) return;
+    const resposta = responderPergunta(pergunta, {
+      recorrentes,
+      atos,
+      horas,
+      prospeccao: { total: prospeccao.total, semMotivo: prospeccao.semMotivo, porResponsavel: prospeccaoData?.porResponsavel ?? {} },
+    });
+    setMessages((m) => [...m, { role: "user", text: pergunta }, { role: "assistant", text: resposta }]);
+    setChatInput("");
   };
 
   return (
@@ -236,12 +262,49 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
         </div>
       </div>
 
+      {chatOpen && (
+        <div className="fixed bottom-24 right-6 w-80 sm:w-96 bg-card border border-border rounded-xl shadow-lg flex flex-col z-20" style={{ height: 420 }}>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <p className="text-sm font-medium text-foreground">Assistente do painel</p>
+            <button onClick={() => setChatOpen(false)} aria-label="Fechar">
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            {messages.map((m, i) => (
+              <div key={i} className={`text-sm whitespace-pre-line ${m.role === "user" ? "text-right" : "text-left"}`}>
+                <span
+                  className={`inline-block px-3 py-2 rounded-lg max-w-[85%] ${
+                    m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                  }`}
+                >
+                  {m.text}
+                </span>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+          <form onSubmit={handleAsk} className="flex items-center gap-2 p-3 border-t border-border">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Pergunte sobre os dados..."
+              className="flex-1 h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <button type="submit" aria-label="Enviar" className="w-9 h-9 rounded-lg bg-[#FB7435] hover:bg-[#e2632b] flex items-center justify-center shrink-0">
+              <Send className="w-4 h-4 text-white" />
+            </button>
+          </form>
+        </div>
+      )}
+
       <button
-        onClick={() => toast({ title: "Em breve", description: "O assistente ainda não está disponível." })}
-        className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-[#FB7435] hover:bg-[#e2632b] flex items-center justify-center shadow-lg transition-colors"
-        aria-label="Assistente (em breve)"
+        onClick={() => setChatOpen((v) => !v)}
+        className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-[#FB7435] hover:bg-[#e2632b] flex items-center justify-center shadow-lg transition-colors z-20"
+        aria-label="Assistente do painel"
       >
-        <MessageCircle className="w-5 h-5 text-white" />
+        {chatOpen ? <X className="w-5 h-5 text-white" /> : <MessageCircle className="w-5 h-5 text-white" />}
       </button>
     </div>
   );
