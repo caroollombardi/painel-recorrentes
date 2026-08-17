@@ -5,9 +5,15 @@ export interface AsanaAtosSyncResult extends ImportAtosResult {
   source: string;
   stats: {
     projetosEncontrados: number;
+    porNome?: number;
+    porTag?: number;
+    projetosVarridos?: number;
+    totalProjetosAtivos?: number;
+    varreduraParcial?: boolean;
     tasksComHoras: number;
     lancamentos: number;
     minutos: number;
+    duracaoMs?: number;
   };
 }
 
