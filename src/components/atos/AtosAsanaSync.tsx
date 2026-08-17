@@ -32,9 +32,13 @@ export function AtosAsanaSync({ onSyncComplete }: AtosAsanaSyncProps) {
       const res = await syncAtosFromAsana();
       setResult(res);
       if (res.success) {
+        const quebra =
+          res.stats.porTag !== undefined
+            ? ` (${res.stats.porNome ?? 0} por nome, ${res.stats.porTag} por tag)`
+            : "";
         toast({
           title: "Atos atualizados",
-          description: `${res.stats.projetosEncontrados} projeto(s) de ato · ${res.stats.lancamentos} lançamento(s) · ${fmtHoras(res.stats.minutos)}`,
+          description: `${res.stats.projetosEncontrados} ato(s)${quebra} · ${res.stats.lancamentos} lançamento(s) · ${fmtHoras(res.stats.minutos)}`,
         });
         onSyncComplete();
       } else {
