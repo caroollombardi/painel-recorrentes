@@ -4,11 +4,15 @@ export const config = { maxDuration: 60 };
 
 const WORKSPACE_GID = "1209757363771221";
 const ASANA_BASE = "https://app.asana.com/api/1.0";
-const CONCURRENCY = 8;
+const CONCURRENCY = 10;
+
+// Orçamento de tempo: a Vercel corta a função em 60s. Paramos antes disso e
+// devolvemos resultado parcial COM AVISO, em vez de estourar e não devolver nada.
+const TIME_BUDGET_MS = 46_000;
 
 // O Asana marca o tipo de contrato de cada TASK no custom field "CONTRATO".
-// ATENÇÃO: esse campo é MULTI-SELECT (multi_enum), então display_value vem como
-// lista concatenada (ex: "MENSAL, ATO"). Comparação tem que ser "contém", nunca "igual".
+// ATENÇÃO: o campo é MULTI-SELECT (multi_enum) — display_value vem como lista
+// concatenada ("MENSAL, ATO"). Comparação sempre por "contém", nunca por "igual".
 const CONTRACT_FIELD_NAME = "CONTRATO";
 const ATO_FIELD_VALUE = "ATO";
 
@@ -25,11 +29,11 @@ const normalize = (s: string) =>
     .toUpperCase();
 
 /**
- * Um projeto é de ATO quando o último segmento do nome (separado por " - ")
- * começa com "ATO".
- *   "ARTUR AMARANTE (SE MEXA) - Estruturação Societária - ATO"      → true
- *   "CAPITARE TECNOLOGIA - Assessoria Societária - Ato com Êxito"   → true
- *   "GENIA - Assessoria Jurídica Societário - Mensal"               → false
+ * CAMINHO 1 — o projeto inteiro é um ato, identificado pelo nome:
+ * o último segmento (separado por " - ") começa com "ATO".
+ *   "ARTUR AMARANTE (SE MEXA) - Estruturação Societária - ATO"    → true
+ *   "CAPITARE TECNOLOGIA - Assessoria Societária - Ato com Êxito" → true
+ *   "GENIA - Assessoria Jurídica Societário - Mensal"             → false
  */
 function isAtoProject(name: string): boolean {
   const segments = normalize(name)
@@ -40,6 +44,7 @@ function isAtoProject(name: string): boolean {
   return /^ATO\b/.test(segments[segments.length - 1]);
 }
 
+/** CAMINHO 2 — a atividade individual está marcada como ATO no campo CONTRATO. */
 function taskHasAtoTag(task: AsanaTask): boolean {
   const field = (task.custom_fields ?? []).find(
     (f) => normalize(f.name ?? "") === CONTRACT_FIELD_NAME
@@ -51,13 +56,25 @@ function taskHasAtoTag(task: AsanaTask): boolean {
     .includes(ATO_FIELD_VALUE);
 }
 
-async function asanaGet(path: string, pat: string): Promise<unknown> {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function asanaGet(path: string, pat: string, attempt = 0): Promise<unknown> {
   const res = await fetch(`${ASANA_BASE}${path}`, {
     headers: { Authorization: `Bearer ${pat}` },
   });
+
+  // Rate limit: respeita o Retry-After e tenta de novo (até 2 vezes)
+  if (res.status === 429 && attempt < 2) {
+    const retryAfter = Number(res.headers.get("Retry-After") ?? "1");
+    await sleep(Math.min(retryAfter * 1000, 5000));
+    return asanaGet(path, pat, attempt + 1);
+  }
+
   if (!res.ok) {
     const text = await res.text();
-    const err = new Error(`Asana ${path} → ${res.status}: ${text}`) as Error & { status?: number };
+    const err = new Error(`Asana ${path} → ${res.status}: ${text}`) as Error & {
+      status?: number;
+    };
     err.status = res.status;
     throw err;
   }
@@ -120,13 +137,12 @@ interface AsanaTask {
 }
 
 interface AsanaTimeEntry {
-  gid: string;
   duration_minutes: number | null;
   entered_on: string | null;
   created_by: { name: string } | null;
 }
 
-/** Mesmo shape que o parser do CSV produz (ParsedAtoLancamento). */
+/** Mesmo shape de ParsedAtoLancamento (src/lib/atos-parser.ts). */
 interface Lancamento {
   colaborador_nome: string;
   tarefa_nome: string;
@@ -137,7 +153,7 @@ interface Lancamento {
   descricao: string;
 }
 
-/** Mesmo shape que ParsedAtoProjeto. */
+/** Mesmo shape de ParsedAtoProjeto. */
 interface Projeto {
   asana_project_id: string;
   nome_projeto: string;
@@ -154,69 +170,140 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const startedAt = Date.now();
+  const budgetLeft = () => TIME_BUDGET_MS - (Date.now() - startedAt);
+
   try {
     const pat = process.env.ASANA_PAT;
     if (!pat) return res.status(500).json({ error: "ASANA_PAT não configurado" });
 
-    // 1. Todos os projetos do workspace → filtra os de ato
+    const warnings: string[] = [];
+
+    // ---------------------------------------------------------------
+    // 1. Todos os projetos ativos do workspace
+    // ---------------------------------------------------------------
     const allProjects = await asanaGetAll<AsanaProject>(
-      `/workspaces/${WORKSPACE_GID}/projects?opt_fields=name,archived&limit=100`,
+      `/workspaces/${WORKSPACE_GID}/projects?archived=false&opt_fields=name,archived&limit=100`,
       pat
     );
+    const ativos = allProjects.filter((p) => !p.archived);
 
-    const atoProjects = allProjects.filter((p) => !p.archived && isAtoProject(p.name));
+    // Caminho 1: projeto de ato pelo nome
+    const porNome = ativos.filter((p) => isAtoProject(p.name));
+    const porNomeIds = new Set(porNome.map((p) => p.gid));
+    // Caminho 2: candidatos a varredura de tag (todos os outros)
+    const candidatos = ativos.filter((p) => !porNomeIds.has(p.gid));
 
-    if (atoProjects.length === 0) {
+    let projetosVarridos = 0;
+    let varreduraParcial = false;
+
+    // ---------------------------------------------------------------
+    // 2. Busca as tasks. Nos projetos de ato pelo NOME, toda atividade
+    //    com hora conta. Nos demais, só as atividades marcadas ATO.
+    // ---------------------------------------------------------------
+    const TASK_FIELDS =
+      `?opt_fields=name,actual_time_minutes,assignee.name,` +
+      `custom_fields.name,custom_fields.display_value&limit=100`;
+
+    async function tasksDoProjeto(project: AsanaProject): Promise<AsanaTask[]> {
+      try {
+        return await asanaGetAll<AsanaTask>(`/projects/${project.gid}/tasks${TASK_FIELDS}`, pat);
+      } catch {
+        warnings.push(`${project.name}: não foi possível ler as atividades no Asana.`);
+        return [];
+      }
+    }
+
+    // 2a. Projetos de ato pelo nome
+    const grupoNome = await mapWithConcurrency(porNome, CONCURRENCY, async (project) => {
+      const tasks = await tasksDoProjeto(project);
+      projetosVarridos++;
+      return { project, tasks, origem: "nome" as const };
+    });
+
+    // 2b. Varredura de tag nos demais projetos, dentro do orçamento de tempo
+    const grupoTag: { project: AsanaProject; tasks: AsanaTask[]; origem: "tag" }[] = [];
+    let idx = 0;
+    while (idx < candidatos.length) {
+      if (budgetLeft() < 12_000) {
+        varreduraParcial = true;
+        break;
+      }
+      const lote = candidatos.slice(idx, idx + CONCURRENCY * 4);
+      idx += lote.length;
+
+      const resultados = await mapWithConcurrency(lote, CONCURRENCY, async (project) => {
+        const tasks = await tasksDoProjeto(project);
+        projetosVarridos++;
+        return { project, tasks: tasks.filter(taskHasAtoTag), origem: "tag" as const };
+      });
+
+      for (const r of resultados) {
+        if (r.tasks.length > 0) grupoTag.push(r);
+      }
+    }
+
+    if (varreduraParcial) {
+      warnings.unshift(
+        `A varredura por tag ATO ficou incompleta: ${projetosVarridos} de ${ativos.length} projetos ` +
+          `foram verificados antes do limite de tempo. Os atos identificados pelo NOME do projeto ` +
+          `estão todos aqui; pode faltar algum que só tem a tag nas atividades. Rode de novo pra continuar.`
+      );
+    }
+
+    const todos = [...grupoNome, ...grupoTag];
+
+    if (todos.length === 0) {
       return res.status(200).json({
         projetos: [],
         warnings: [
-          "Nenhum projeto de ato encontrado. O padrão esperado é o nome terminar em \"- Ato\" (ex: \"CLIENTE - Assessoria Societária - Ato\").",
+          "Nenhum ato encontrado — nem por nome de projeto terminando em \"- Ato\", nem por atividade marcada como ATO no campo CONTRATO.",
         ],
         source: "none",
-        stats: { projetosEncontrados: 0, tasksComHoras: 0, lancamentos: 0, minutos: 0 },
+        stats: {
+          projetosEncontrados: 0,
+          porNome: 0,
+          porTag: 0,
+          projetosVarridos,
+          tasksComHoras: 0,
+          lancamentos: 0,
+          minutos: 0,
+        },
       });
     }
 
-    // 2. Tasks de cada projeto de ato
-    const perProject = await mapWithConcurrency(atoProjects, CONCURRENCY, async (project) => {
-      const tasks = await asanaGetAll<AsanaTask>(
-        `/projects/${project.gid}/tasks` +
-          `?opt_fields=name,actual_time_minutes,assignee.name,custom_fields.name,custom_fields.display_value` +
-          `&limit=100`,
-        pat
-      );
-      return { project, tasks };
-    });
-
-    // 3. Lançamentos de tempo, task por task.
-    //    Caminho preferido: /tasks/{gid}/time_tracking_entries — traz QUEM lançou
-    //    cada hora (created_by), fiel ao export CSV de Time Tracking.
-    //    Se o plano do Asana não expõe esse endpoint, cai pro fallback:
-    //    actual_time_minutes atribuído ao responsável da task.
+    // ---------------------------------------------------------------
+    // 3. Lançamentos de tempo, atividade por atividade.
+    //    Preferido: /tasks/{gid}/time_tracking_entries — traz QUEM lançou
+    //    cada hora, fiel ao export CSV. Se o plano do Asana não expuser,
+    //    cai pro total da atividade atribuído ao responsável.
+    // ---------------------------------------------------------------
     let entriesAvailable = true;
     let usedFallback = false;
 
-    const warnings: string[] = [];
     const projetos: Projeto[] = [];
     let totalLancamentos = 0;
     let totalMinutos = 0;
     let totalTasksComHoras = 0;
 
-    for (const { project, tasks } of perProject) {
-      const tasksComHoras = tasks.filter((t) => (t.actual_time_minutes ?? 0) > 0);
-      totalTasksComHoras += tasksComHoras.length;
+    for (const { project, tasks, origem } of todos) {
+      const comHoras = tasks.filter((t) => (t.actual_time_minutes ?? 0) > 0);
+      totalTasksComHoras += comHoras.length;
 
-      // Conferência de dados: task com hora lançada mas sem a tag ATO no CONTRATO
-      const semTag = tasksComHoras.filter((t) => !taskHasAtoTag(t));
-      if (semTag.length > 0) {
-        warnings.push(
-          `${project.name}: ${semTag.length} atividade(s) com horas lançadas sem a tag ATO no campo CONTRATO. ` +
-            `As horas foram contadas (o projeto é de ato), mas vale corrigir a marcação no Asana.`
-        );
+      // Conferência de dados: só faz sentido no grupo "nome", onde a task
+      // deveria estar marcada e não está. No grupo "tag" a marcação é o filtro.
+      if (origem === "nome") {
+        const semTag = comHoras.filter((t) => !taskHasAtoTag(t));
+        if (semTag.length > 0) {
+          warnings.push(
+            `${project.name}: ${semTag.length} atividade(s) com horas lançadas sem a tag ATO no campo ` +
+              `CONTRATO. As horas foram contadas (o projeto é de ato pelo nome), mas vale corrigir no Asana.`
+          );
+        }
       }
 
-      const lancamentosPorTask = await mapWithConcurrency(
-        tasksComHoras,
+      const porTask = await mapWithConcurrency(
+        comHoras,
         CONCURRENCY,
         async (task): Promise<Lancamento[]> => {
           if (entriesAvailable) {
@@ -234,18 +321,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     tarefa_nome: task.name,
                     asana_task_id: task.gid,
                     duracao_minutos: e.duration_minutes ?? 0,
-                    billable: true, // a API não expõe o status billable por lançamento
+                    billable: true, // a API não expõe billable por lançamento
                     data_lancamento: e.entered_on ?? null,
                     descricao: "",
                   }));
               }
-              // Task com actual_time_minutes mas sem entries detalhados → usa o total
             } catch (err) {
               const status = (err as { status?: number }).status;
-              if (status === 402 || status === 403 || status === 404) {
-                entriesAvailable = false;
-              }
-              // qualquer outro erro nessa task: cai pro fallback só nela
+              if (status === 402 || status === 403 || status === 404) entriesAvailable = false;
             }
           }
 
@@ -264,17 +347,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       );
 
-      const lancamentos = lancamentosPorTask.flat();
+      const lancamentos = porTask.flat();
+      if (lancamentos.length === 0) {
+        if (origem === "nome") {
+          warnings.push(`${project.name}: nenhuma hora lançada no Asana ainda.`);
+        }
+        // Grupo "tag" sem hora nenhuma não vira linha no painel
+        if (origem === "tag") continue;
+      }
+
       totalLancamentos += lancamentos.length;
       totalMinutos += lancamentos.reduce((s, l) => s + l.duracao_minutos, 0);
 
-      if (lancamentos.length === 0) {
-        warnings.push(`${project.name}: nenhuma hora lançada no Asana ainda.`);
-      }
-
       projetos.push({
         asana_project_id: project.gid,
-        nome_projeto: project.name,
+        // No grupo "tag" a linha representa só as atividades marcadas, não o
+        // projeto inteiro — o sufixo deixa isso explícito na tabela do painel.
+        nome_projeto:
+          origem === "tag" ? `${project.name} (atividades ATO)` : project.name,
         lancamentos,
       });
     }
@@ -287,7 +377,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     } else if (usedFallback) {
       warnings.push(
-        "Algumas atividades tinham horas no total mas sem lançamentos detalhados; " +
+        "Algumas atividades tinham hora no total mas sem lançamentos detalhados; " +
           "nessas, a hora foi atribuída ao responsável da atividade."
       );
     }
@@ -301,10 +391,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       warnings,
       source: entriesAvailable ? "time_tracking_entries" : "actual_time_minutes",
       stats: {
-        projetosEncontrados: atoProjects.length,
+        projetosEncontrados: projetos.length,
+        porNome: porNome.length,
+        porTag: projetos.length - porNome.length,
+        projetosVarridos,
+        totalProjetosAtivos: ativos.length,
+        varreduraParcial,
         tasksComHoras: totalTasksComHoras,
         lancamentos: totalLancamentos,
         minutos: totalMinutos,
+        duracaoMs: Date.now() - startedAt,
       },
     });
   } catch (err) {
