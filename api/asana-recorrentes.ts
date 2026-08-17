@@ -43,7 +43,13 @@ function isRecurringTask(task: AsanaTask): boolean {
   const field = (task.custom_fields ?? []).find(
     (f) => f.name?.trim().toUpperCase() === CONTRACT_FIELD_NAME
   );
-  return field?.display_value?.trim().toUpperCase() === RECURRING_FIELD_VALUE;
+  // CONTRATO é multi-select: display_value vem como lista ("MENSAL, ATO").
+  // Comparar com === descartava silenciosamente toda task com mais de um valor.
+  if (!field?.display_value) return false;
+  return field.display_value
+    .split(",")
+    .map((v) => v.trim().toUpperCase())
+    .includes(RECURRING_FIELD_VALUE);
 }
 
 async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
