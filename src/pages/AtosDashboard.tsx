@@ -3,6 +3,7 @@ import { FolderKanban, UserCog, TrendingUp, TrendingDown, Minus, Wallet, Clock }
 import { Button } from "@/components/ui/button";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { AtosImport } from "@/components/atos/AtosImport";
+import { AtosAsanaSync } from "@/components/atos/AtosAsanaSync";
 import { AtosProjectsList } from "@/components/atos/AtosProjectsList";
 import { AtosProjectDetail } from "@/components/atos/AtosProjectDetail";
 import { CustomLawyersManager } from "@/components/atos/CustomLawyersManager";
@@ -111,6 +112,7 @@ export default function AtosDashboard() {
                 <UserCog className="w-4 h-4" />
                 Colaboradores
               </Button>
+              <AtosAsanaSync onSyncComplete={reload} />
               <AtosImport onImportComplete={reload} />
             </div>
           </div>
@@ -134,9 +136,9 @@ export default function AtosDashboard() {
                   Nenhum ato importado ainda
                 </h2>
                 <p className="text-muted-foreground max-w-md mx-auto text-sm">
-                  Exporte a planilha de Time Tracking do Asana e clique em
-                  "Importar Atos" pra começar. Você pode importar vários
-                  projetos de uma vez.
+                  Clique em "Atualizar do Asana" que o painel busca sozinho todos
+                  os projetos de ato e as horas lançadas. A importação por planilha
+                  de Time Tracking continua disponível como alternativa.
                 </p>
               </div>
             </div>
