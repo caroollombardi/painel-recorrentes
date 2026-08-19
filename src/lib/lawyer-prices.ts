@@ -19,6 +19,7 @@ export const lawyerPrices: LawyerPrice[] = [
   { name: "Marianna Moura Machado", role: "Trainee", hourlyRate: 250, area: "Societário" },
   { name: "Natalí Perera Batista", role: "Adv. Pleno 2", hourlyRate: 730, area: "Contencioso" },
   { name: "Pedro Wolff", role: "Sócio Fundador", hourlyRate: 1080, area: "Societário" },
+  { name: "Rafael Filipkowski Rocha", role: "Adv. Pleno 2", hourlyRate: 730, area: "Societário" },
   { name: "Sabrina Yohana Bona", role: "Adv. Pleno 2", hourlyRate: 680, area: "Contratos" },
   { name: "Maria Victória Vieira Hauer Malschitzky", role: "Adv. Júnior", hourlyRate: 450, area: "Contratos" }
 ];
