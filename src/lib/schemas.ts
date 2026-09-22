@@ -1,11 +1,20 @@
 import { z } from "zod";
 
 // Schema for validating LawyerWork
+const lawyerTaskSchema = z.object({
+  taskId: z.string(),
+  taskName: z.string(),
+  completedAt: z.string(),
+  hours: z.number(),
+  value: z.number(),
+});
+
 const lawyerWorkSchema = z.object({
   name: z.string(),
   hours: z.number(),
   hourlyRate: z.number(),
   value: z.number(),
+  tasks: z.array(lawyerTaskSchema).optional(),
 });
 
 // Schema for ConsumptionAnalysis
