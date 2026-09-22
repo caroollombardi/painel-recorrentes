@@ -2,7 +2,7 @@ import { ReactNode, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Home, Users, Filter as FunnelIcon, Target, Settings as SettingsIcon,
-  UsersRound, Upload, PanelLeftClose, PanelLeft, Menu, X,
+  UsersRound, Upload, PanelLeftClose, PanelLeft, Menu, X, Search,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/hooks/use-theme";
@@ -49,6 +49,17 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
   const { isDark, toggle: alternarTema } = useTheme();
   const [recolhida, setRecolhida] = useState(defaultCollapsed);
   const [menuMobile, setMenuMobile] = useState(false);
+  const [busca, setBusca] = useState("");
+
+  // Busca transversal: leva direto ao módulo, de qualquer tela.
+  const buscar = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = busca.trim().toLowerCase();
+    if (!q) return;
+    const alvo = [...NAVEGACAO, ...ADMINISTRACAO].find((i) =>
+      i.label.toLowerCase().includes(q) || i.path.slice(1).includes(q));
+    if (alvo) { navigate(alvo.path); setBusca(""); }
+  };
 
   const podeVer = (item: ItemNav) => {
     if (!item.restrito) return true;
@@ -65,7 +76,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
 
   const Navegacao = ({ aoNavegar }: { aoNavegar?: () => void }) => (
     <nav className="flex-1 overflow-y-auto py-3">
-      <ul className="space-y-0.5 px-2">
+      <ul className="space-y-px">
         {NAVEGACAO.map((item) => (
           <li key={item.path}>
             <BotaoNav item={item} ativo={ativo(item.path)} recolhida={recolhida}
@@ -76,12 +87,12 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
 
       {administracao.length > 0 && (
         <>
-          <div className={cn("mt-5 mb-2 px-4", recolhida && "px-2")}>
+          <div className={cn("mt-5 mb-1.5 px-3", recolhida && "px-2")}>
             {recolhida
               ? <div className="h-px bg-sidebar-border" />
               : <p className="text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/60">Administração</p>}
           </div>
-          <ul className="space-y-0.5 px-2">
+          <ul className="space-y-px">
             {administracao.map((item) => (
               <li key={item.path}>
                 <BotaoNav item={item} ativo={ativo(item.path)} recolhida={recolhida}
@@ -100,7 +111,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
       <aside
         className={cn(
           "hidden lg:flex fixed inset-y-0 left-0 z-30 flex-col bg-sidebar transition-[width] duration-200",
-          recolhida ? "w-[68px]" : "w-60",
+          recolhida ? "w-[64px]" : "w-[200px]",
         )}
       >
         <div className={cn(
@@ -121,7 +132,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
               <img
                 src={wsaLogoDark}
                 alt="Wolff e Scripes Advogados"
-                className="w-full max-w-[180px] h-auto object-contain object-left"
+                className="w-full max-w-[150px] h-auto object-contain object-left"
               />
             )}
           </button>
@@ -157,7 +168,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
         </div>
       )}
 
-      <div className={cn("transition-[padding] duration-200", recolhida ? "lg:pl-[68px]" : "lg:pl-60")}>
+      <div className={cn("transition-[padding] duration-200", recolhida ? "lg:pl-[64px]" : "lg:pl-[200px]")}>
         {/* Barra superior: contexto e ações, sem navegação duplicada */}
         <header className="sticky top-0 z-20 h-16 bg-background/85 backdrop-blur border-b border-border">
           <div className="h-full px-4 sm:px-6 flex items-center gap-3">
@@ -169,9 +180,19 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
               <Menu className="w-5 h-5 text-foreground" />
             </button>
 
-            <p className="hidden sm:block text-sm text-muted-foreground first-letter:uppercase">{hoje}</p>
+            <form onSubmit={buscar} className="relative flex-1 max-w-sm">
+              <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Ir para um módulo"
+                className="w-full pl-9 pr-3 h-9 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </form>
 
             <div className="flex-1" />
+            <p className="hidden lg:block text-sm text-muted-foreground first-letter:uppercase">{hoje}</p>
             {actions}
             <ThemeToggle isDark={isDark} onToggle={alternarTema} />
             <UserProfileDropdown
@@ -181,7 +202,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
           </div>
         </header>
 
-        <main className="px-4 sm:px-6 py-6 w-full max-w-[1400px] mx-auto overflow-x-hidden">{children}</main>
+        <main className="px-4 sm:px-6 pt-4 pb-8 w-full max-w-[1400px] mx-auto overflow-x-hidden">{children}</main>
       </div>
     </div>
   );
@@ -197,16 +218,16 @@ function BotaoNav({
       title={recolhida ? item.label : undefined}
       aria-current={ativo ? "page" : undefined}
       className={cn(
-        "relative w-full flex items-center gap-3 h-9 rounded-lg text-sm transition-colors",
-        recolhida ? "justify-center px-0" : "px-3",
+        "relative w-full flex items-center gap-2.5 h-9 text-[13px] transition-colors",
+        recolhida ? "justify-center px-0" : "pl-3 pr-2",
         ativo
-          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-          : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/60",
+          ? "bg-sidebar-accent/70 text-sidebar-accent-foreground font-medium"
+          : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/35",
       )}
     >
-      {/* A marca sustentando a estrutura, não decorando */}
-      {ativo && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-primary" />}
-      <Icon className={cn("w-[18px] h-[18px] shrink-0", ativo && "text-primary")} />
+      {/* Laranja como marcação, não como bloco de cor */}
+      {ativo && <span className="absolute left-0 inset-y-0 w-[2px] bg-primary" />}
+      <Icon className={cn("w-[17px] h-[17px] shrink-0", ativo ? "text-primary" : "opacity-80")} />
       {!recolhida && <span className="truncate">{item.label}</span>}
     </button>
   );
