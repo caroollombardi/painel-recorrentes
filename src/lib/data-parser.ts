@@ -5,6 +5,7 @@ import { getMonthProgress, analyzeConsumption, type MonthProgress, type Consumpt
 
 export interface TaskRecord {
   taskId: string;
+  taskName?: string;
   project: string;
   actualTime: string;
   contrato: string;
@@ -15,11 +16,27 @@ export interface TaskRecord {
   value: number; // hours * hourlyRate
 }
 
+/** Uma tarefa do Asana, guardada para o detalhamento na tabela. */
+export interface LawyerTask {
+  taskId: string;
+  taskName: string;
+  completedAt: string;
+  hours: number;
+  value: number;
+}
+
 export interface LawyerWork {
   name: string;
   hours: number;
   hourlyRate: number;
   value: number;
+  /**
+   * Tarefas que compõem essas horas. Só vem preenchido na importação
+   * do Asana; na de planilha fica indefinido e a tabela não abre.
+   * Os totais acima NUNCA são derivados daqui — se a captura falhar,
+   * os números continuam certos e só o detalhe some.
+   */
+  tasks?: LawyerTask[];
 }
 
 export interface CreditUsage {
