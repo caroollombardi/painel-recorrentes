@@ -245,6 +245,22 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                   Avulso
                 </span>
               )}
+              {client.creditUsage?.limiteProprio && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border"
+                  title={`Limites próprios: atenção ${client.creditUsage.limiteAtencao}%, risco ${client.creditUsage.limiteRisco}%, estouro ${client.creditUsage.limiteEstouro}%`}
+                >
+                  Régua própria
+                </span>
+              )}
+              {client.creditUsage?.alertasAtivos === false && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border"
+                  title="Alertas desligados para este cliente"
+                >
+                  Alertas off
+                </span>
+              )}
               <span className="text-xs text-muted-foreground">
                 ({client.lawyers.length} advogado{client.lawyers.length !== 1 ? 's' : ''})
               </span>
