@@ -79,7 +79,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
           <div className={cn("mt-5 mb-2 px-4", recolhida && "px-2")}>
             {recolhida
               ? <div className="h-px bg-sidebar-border" />
-              : <p className="text-[11px] font-medium tracking-wide text-sidebar-foreground/45">Administração</p>}
+              : <p className="text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/60">Administração</p>}
           </div>
           <ul className="space-y-0.5 px-2">
             {administracao.map((item) => (
@@ -126,7 +126,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
         <div className="p-2 shrink-0">
           <button
             onClick={() => setRecolhida((v) => !v)}
-            className="w-full flex items-center gap-3 px-3 h-9 rounded-lg text-sidebar-foreground/60 hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors"
+            className="w-full flex items-center gap-3 px-3 h-9 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors"
             aria-label={recolhida ? "Expandir navegação" : "Recolher navegação"}
           >
             {recolhida ? <PanelLeft className="w-4 h-4 shrink-0" /> : <PanelLeftClose className="w-4 h-4 shrink-0" />}
@@ -175,7 +175,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
           </div>
         </header>
 
-        <main className="px-4 sm:px-6 py-6 max-w-[1400px]">{children}</main>
+        <main className="px-4 sm:px-6 py-6 w-full max-w-[1400px] mx-auto overflow-x-hidden">{children}</main>
       </div>
     </div>
   );
