@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Home, Users, Filter as FunnelIcon, Target, Settings as SettingsIcon,
@@ -50,6 +50,19 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
   const [recolhida, setRecolhida] = useState(defaultCollapsed);
   const [menuMobile, setMenuMobile] = useState(false);
   const [busca, setBusca] = useState("");
+  const campoBusca = useRef<HTMLInputElement>(null);
+
+  // Ctrl+K / Cmd+K foca a busca de qualquer lugar do sistema.
+  useEffect(() => {
+    const atalho = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        campoBusca.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", atalho);
+    return () => window.removeEventListener("keydown", atalho);
+  }, []);
 
   // Busca transversal: leva direto ao módulo, de qualquer tela.
   const buscar = (e: React.FormEvent) => {
@@ -180,15 +193,19 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
               <Menu className="w-5 h-5 text-foreground" />
             </button>
 
-            <form onSubmit={buscar} className="relative flex-1 max-w-sm">
+            <form onSubmit={buscar} className="relative flex-1 max-w-xl">
               <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
+                ref={campoBusca}
                 type="text"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="Ir para um módulo"
-                className="w-full pl-9 pr-3 h-9 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="Buscar um módulo"
+                className="w-full pl-9 pr-16 h-9 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
+              <kbd className="hidden sm:flex absolute right-2.5 top-1/2 -translate-y-1/2 items-center gap-0.5 h-5 px-1.5 rounded border border-border bg-muted text-[10px] font-medium text-muted-foreground pointer-events-none">
+                Ctrl K
+              </kbd>
             </form>
 
             <div className="flex-1" />
@@ -227,7 +244,7 @@ function BotaoNav({
     >
       {/* Laranja como marcação, não como bloco de cor */}
       {ativo && <span className="absolute left-0 inset-y-0 w-[2px] bg-primary" />}
-      <Icon className={cn("w-[17px] h-[17px] shrink-0", ativo ? "text-primary" : "opacity-80")} />
+      <Icon className={cn("w-[17px] h-[17px] shrink-0", ativo ? "text-primary/75" : "opacity-75")} />
       {!recolhida && <span className="truncate">{item.label}</span>}
     </button>
   );
