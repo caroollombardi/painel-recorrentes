@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AsanaDrawer } from "@/components/dashboard/AsanaDrawer";
 import { exportRecorrentesPDF } from "@/lib/recorrentes-pdf-export";
-import { useHoursData, TimeEntry } from "@/hooks/use-hours-data";
 import { getMonthProgress } from "@/lib/month-progress";
 
 const MONTH_NAMES = [
@@ -186,7 +185,6 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
     warning:  "text-warning-foreground",
   };
 
-  const { dashboardData: hoursData } = useHoursData(selectedMonth, selectedYear);
   const displayMonthProgress = displayMonthProgressEarly;
   const { percentElapsed, currentDay, totalDays, daysRemaining } = displayMonthProgress;
   const dataMonthDisplay = MONTH_NAMES_DISPLAY[new Date().getMonth()];
@@ -535,7 +533,6 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
                   showValues={showValues}
                   clientVariations={clientVariations}
                   onAsanaClick={(name) => setAsanaClient(name)}
-                  timeEntries={hoursData?.entries}
                 />
               </div>
             </section>

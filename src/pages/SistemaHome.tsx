@@ -1,14 +1,13 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, Users, Clock4, Filter as FunnelIcon, MessageCircle,
+  Search, Users, Filter as FunnelIcon, MessageCircle,
   CircleCheck, AlertTriangle, Upload, X, Send, ChevronRight,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { useHoursData } from "@/hooks/use-hours-data";
 import { useProspeccaoData } from "@/hooks/use-prospeccao-data";
 import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
 import { DashboardData } from "@/lib/data-parser";
@@ -49,10 +48,6 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
   ]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const now = new Date();
-  const { dashboardData: horasDashboardData } = useHoursData(now.getMonth(), now.getFullYear());
-  const horasEntries = horasDashboardData?.entries ?? [];
-  const horasFillRate = horasDashboardData?.fillRate ?? 0;
   const { data: prospeccaoData } = useProspeccaoData();
   const { snapshots } = useMonthlySnapshots();
   const [serie, setSerie] = useState<"valor" | "horas" | "clientes">("valor");
@@ -77,15 +72,6 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
       .map((c) => c.project);
     return { contratos, emAlerta, clientesAlerta };
   }, [dashboardData]);
-
-  const horas = useMemo(() => {
-    const datas = horasEntries.map((e) => e.completed_date).filter(Boolean) as string[];
-    const ultimaData = datas.sort().at(-1) ?? null;
-    const horasUltimoDia = ultimaData
-      ? horasEntries.filter((e) => e.completed_date === ultimaData).reduce((s, e) => s + e.hours_logged, 0)
-      : 0;
-    return { fillRate: Math.round(horasFillRate || 0), ultimaData, horasUltimoDia: Math.round(horasUltimoDia * 10) / 10 };
-  }, [horasEntries, horasFillRate]);
 
   const historico = useMemo(() => {
     const ordenados = [...snapshots].sort((a, b) => (a.year - b.year) || (a.month - b.month));
@@ -138,22 +124,6 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
       });
     }
 
-    if (horas.ultimaData) {
-      const porMembro = new Map<string, number>();
-      horasEntries.filter((e) => e.completed_date === horas.ultimaData).forEach((e) => {
-        porMembro.set(e.assignee, (porMembro.get(e.assignee) ?? 0) + e.hours_logged);
-      });
-      const top = [...porMembro.entries()].sort((a, b) => b[1] - a[1])[0];
-      if (top) {
-        items.push({
-          key: "horas",
-          icon: "neutral",
-          text: `${top[0]} lançou ${Math.round(top[1] * 10) / 10}h em ${new Date(horas.ultimaData + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`,
-          timestamp: new Date(horas.ultimaData).getTime(),
-        });
-      }
-    }
-
     if (prospeccaoData) {
       const recentes = prospeccaoData.items
         .filter((i) => i.statusGeral === "concluido" && i.desfecho)
@@ -171,7 +141,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     }
 
     return items.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
-  }, [lastUpdated, horas, horasEntries, prospeccaoData]);
+  }, [lastUpdated, prospeccaoData]);
 
   // Carteira mensal: os três números que respondem "como estamos agora".
   // Vêm da mesma fonte do painel de recorrentes, para não divergir dele.
@@ -201,17 +171,6 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
         destino: "/recorrentes",
       });
     }
-    if (horas.fillRate < 100) {
-      itens.push({
-        key: "horas",
-        texto: horas.fillRate === 0
-          ? "nenhum dia útil do mês com horas lançadas"
-          : `dos dias úteis do mês ainda sem lançamento`,
-        contagem: 100 - horas.fillRate,
-        grave: horas.fillRate < 50,
-        destino: "/horas",
-      });
-    }
     if (prospeccao.semMotivo > 0) {
       itens.push({
         key: "prospeccao",
@@ -222,7 +181,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
       });
     }
     return itens;
-  }, [recorrentes.emAlerta, horas.fillRate, prospeccao.semMotivo]);
+  }, [recorrentes.emAlerta, prospeccao.semMotivo]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,7 +202,6 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     if (!pergunta) return;
     const resposta = responderPergunta(pergunta, {
       recorrentes,
-      horas,
       prospeccao: { total: prospeccao.total, semMotivo: prospeccao.semMotivo, porResponsavel: prospeccaoData?.porResponsavel ?? {} },
     });
     setMessages((m) => [...m, { role: "user", text: pergunta }, { role: "assistant", text: resposta }]);
@@ -333,7 +291,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
                 }`}
               >
                 <span className={`text-lg font-semibold tabular-nums ${p.grave ? "text-destructive" : "text-foreground"}`}>
-                  {p.key === "horas" ? (p.contagem === 100 ? "0h" : `${p.contagem}%`) : p.contagem}
+                  {p.contagem}
                 </span>
                 <span className="text-sm text-foreground flex-1">{p.texto}</span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -460,7 +418,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
         </div>
 
         {/* Módulos */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
           <ModuleCard
             icon={Users}
             title="Clientes recorrentes"
@@ -468,15 +426,6 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
             stats={[
               { value: recorrentes.contratos, label: "contratos ativos" },
               { value: recorrentes.emAlerta, label: "em alerta", danger: recorrentes.emAlerta > 0 },
-            ]}
-          />
-          <ModuleCard
-            icon={Clock4}
-            title="Lançamento de horas"
-            onClick={() => navigate("/horas")}
-            stats={[
-              { value: `${horas.horasUltimoDia}h`, label: "último dia lançado" },
-              { value: `${horas.fillRate}%`, label: "dias úteis preenchidos" },
             ]}
           />
           <ModuleCard

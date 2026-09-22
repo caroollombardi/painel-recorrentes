@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { BarChart3, Database, ArrowLeft, UsersRound, LogOut, Calendar, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { FileUpload } from "@/components/dashboard/FileUpload";
 import { parseXLSXData } from "@/lib/xlsx-parser";
-import { importTimeEntriesFromXLSX } from "@/lib/unified-import";
 import { fetchDashboardDataFromAsana } from "@/lib/asana-recorrentes-import";
 import { DashboardData } from "@/lib/data-parser";
 import { saveContractValues, getContractValues, ContractValue } from "@/lib/contract-values";
@@ -29,7 +28,7 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSyncingAsana, setIsSyncingAsana] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [importResult, setImportResult] = useState<{ clients: boolean; hours: boolean; hoursCount: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ clients: boolean } | null>(null);
 
   const handleFileSelect = useCallback(async (file: File) => {
     setIsProcessing(true);
@@ -56,20 +55,12 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
       const dashboardData = parseXLSXData(buffer);
       onDataUpdate(dashboardData, file.name);
 
-      // 2. Also extract time entries for hours dashboard (current month)
-      const now = new Date();
-      const hoursResult = await importTimeEntriesFromXLSX(buffer, now.getMonth(), now.getFullYear());
-
       setLastUpdate(new Date());
-      setImportResult({
-        clients: true,
-        hours: hoursResult.success,
-        hoursCount: hoursResult.count,
-      });
+      setImportResult({ clients: true });
 
       toast({
         title: "Importação concluída",
-        description: `Clientes recorrentes atualizados. ${hoursResult.success ? `${hoursResult.count} registros de horas importados.` : 'Nenhum registro de horas encontrado.'}`,
+        description: "Clientes recorrentes atualizados.",
       });
 
       setTimeout(() => setIsProcessing(false), 500);
@@ -91,7 +82,7 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
       const data = await fetchDashboardDataFromAsana(clientNames);
       onDataUpdate(data, "asana-sync");
       setLastUpdate(new Date());
-      setImportResult({ clients: true, hours: false, hoursCount: 0 });
+      setImportResult({ clients: true });
       toast({
         title: "Dados atualizados do Asana",
         description: `${data.clients.length} cliente(s) recalculado(s) com base no mês atual.`,
@@ -175,13 +166,6 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
                   <CheckCircle2 className="w-4 h-4 text-success" />
                   <span className="text-foreground font-medium">Clientes Recorrentes</span>
                   <span className="text-muted-foreground">— atualizado</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className={`w-4 h-4 ${importResult.hours ? 'text-success' : 'text-muted-foreground'}`} />
-                  <span className="text-foreground font-medium">Lançamento de Horas</span>
-                  <span className="text-muted-foreground">
-                    — {importResult.hours ? `${importResult.hoursCount} registros` : 'sem registros'}
-                  </span>
                 </div>
               </div>
             )}
