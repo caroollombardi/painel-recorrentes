@@ -9,6 +9,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 import { UserProfileDropdown } from "@/components/dashboard/UserProfileDropdown";
 import { cn } from "@/lib/utils";
+import wsaLogoDark from "@/assets/wsa-logo-dark.png";
 
 interface AppShellProps {
   children: ReactNode;
@@ -103,17 +104,28 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
           recolhida ? "w-[68px]" : "w-60",
         )}
       >
-        <div className={cn("flex items-center h-16 shrink-0", recolhida ? "justify-center" : "px-5")}>
-          <button onClick={() => navigate("/")} className="flex items-center gap-2.5 min-w-0" aria-label="Ir para o início">
-            <span className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-              <span className="text-primary-foreground font-display font-bold text-sm">W</span>
-            </span>
-            {!recolhida && (
-              <span className="min-w-0">
-                <span className="block font-display font-semibold text-sidebar-accent-foreground text-sm leading-tight truncate">
-                  Wolff e Scripes
-                </span>
-                <span className="block text-[10px] tracking-wide text-sidebar-foreground/50 leading-tight">
+        <div className={cn(
+          "flex items-center shrink-0 border-b border-sidebar-border",
+          recolhida ? "justify-center h-16" : "px-5 h-[76px]",
+        )}>
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center min-w-0 w-full"
+            aria-label="Ir para o início"
+          >
+            {recolhida ? (
+              // A assinatura horizontal não cabe em 68px; fica só a marca.
+              <span className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                <span className="text-primary-foreground font-display font-bold text-base">W</span>
+              </span>
+            ) : (
+              <span className="min-w-0 w-full">
+                <img
+                  src={wsaLogoDark}
+                  alt="Wolff e Scripes Advogados"
+                  className="h-7 w-auto object-contain object-left"
+                />
+                <span className="block text-[10px] tracking-wide text-sidebar-foreground/55 leading-tight mt-1">
                   Operações jurídicas
                 </span>
               </span>
