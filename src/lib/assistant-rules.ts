@@ -1,6 +1,5 @@
 export interface AssistantContext {
   recorrentes: { contratos: number; emAlerta: number; clientesAlerta: string[] };
-  atos: { total: number; deficit: number; projetosDeficit: string[] };
   horas: { fillRate: number; horasUltimoDia: number; ultimaData: string | null };
   prospeccao: {
     total: number;
@@ -28,22 +27,13 @@ export function responderPergunta(pergunta: string, ctx: AssistantContext): stri
       "- quantos clientes estão em alerta?",
       "- quantas horas foram lançadas no último dia?",
       "- qual o percentual de preenchimento de horas?",
-      "- quantos projetos de atos estão em déficit?",
       "- quantos projetos estão no pipeline de prospecção?",
       "- quantos projetos de prospecção estão sem motivo?",
       "- quem tem mais pendência de motivo na prospecção?",
     ].join("\n");
   }
 
-  if (has("ato") && has("deficit", "prejuizo", "negativ")) {
-    if (ctx.atos.deficit === 0) return "Nenhum projeto de atos está em déficit no momento.";
-    const lista = ctx.atos.projetosDeficit.slice(0, 5).join(", ");
-    return `${ctx.atos.deficit} projeto(s) de atos estão em déficit${lista ? `: ${lista}` : ""}${ctx.atos.projetosDeficit.length > 5 ? "..." : ""}.`;
-  }
 
-  if (has("ato") && has("quant", "projeto", "import")) {
-    return `Há ${ctx.atos.total} projeto(s) de atos importados.`;
-  }
 
   if (has("client", "contrato") && has("alert", "atras", "critic", "risco")) {
     if (ctx.recorrentes.emAlerta === 0) return "Nenhum cliente recorrente está em alerta crítico no momento.";
@@ -80,5 +70,5 @@ export function responderPergunta(pergunta: string, ctx: AssistantContext): stri
     return `${nome} tem a maior pendência: ${v.semMotivo} de ${v.concluidos} projetos concluídos sem motivo (${v.pct}%).`;
   }
 
-  return "Ainda não sei responder isso. Pergunte sobre contratos, horas, atos ou prospecção — ou digite \"ajuda\" pra ver exemplos.";
+  return "Ainda não sei responder isso. Pergunte sobre contratos, horas ou prospecção — ou digite \"ajuda\" pra ver exemplos.";
 }
