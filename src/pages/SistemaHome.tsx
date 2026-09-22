@@ -4,7 +4,7 @@ import {
   Users, Clock4, Gauge, Filter as FunnelIcon, MessageCircle,
   CircleCheck, AlertTriangle, Upload, X, Send, ChevronRight,
 } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -40,11 +40,22 @@ function Kpi({
       </p>
       {apoio && <p className="text-[13px] text-muted-foreground mt-1.5">{apoio}</p>}
       {barra !== undefined && (
-        <div className="mt-2.5 h-1.5 rounded-full bg-muted overflow-hidden">
-          <div
-            className={cn("h-full rounded-full", barra >= 100 ? "bg-destructive" : "bg-primary")}
-            style={{ width: `${Math.min(barra, 100)}%` }}
-          />
+        <div className="mt-2.5">
+          <div className="relative h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className={cn(
+                "h-full rounded-full",
+                barra >= 100 ? "bg-destructive" : barra >= 80 ? "bg-warning" : "bg-primary",
+              )}
+              style={{ width: `${Math.min(barra, 100)}%` }}
+            />
+            {/* Marca de 80%: a partir daqui o consumo vira risco */}
+            <span className="absolute inset-y-0 left-[80%] w-px bg-foreground/25" aria-hidden />
+          </div>
+          <div className="relative h-3 mt-0.5 text-[9px] text-muted-foreground">
+            <span className="absolute left-[80%] -translate-x-1/2">80%</span>
+            <span className="absolute right-0">100%</span>
+          </div>
         </div>
       )}
     </div>
@@ -186,6 +197,13 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     };
   }, [snapshots, mesCorrenteAberto]);
 
+  // Média do período exibido, para dar profundidade ao gráfico.
+  const mediaPeriodo = useMemo(() => {
+    if (historico.length < 2) return null;
+    const soma = historico.reduce((t, h) => t + (h[serie] as number), 0);
+    return Math.round(soma / historico.length);
+  }, [historico, serie]);
+
   // Carteira mensal: os três números que respondem "como estamos agora".
   // Vêm da mesma fonte do painel de recorrentes, para não divergir dele.
   const carteira = useMemo(() => {
@@ -196,6 +214,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     const consumido = comContrato.reduce((soma, c) => soma + (c.creditUsage!.valorConsumido ?? 0), 0);
     return {
       mensalidades,
+      credito: creditoTotal,
       contratos: comContrato.length,
       horasMes,
       consumoPct: creditoTotal > 0 ? Math.round((consumido / creditoTotal) * 100) : 0,
@@ -213,14 +232,14 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
         horas: c.horasMensal,
       }))
       .sort((a, b) => b.pct - a.pct)
-      .slice(0, 5);
+      .slice(0, 6);
   }, [dashboardData]);
 
   // Pendências: só entra o que exige ação e leva a algum lugar.
   const pendencias = useMemo(() => {
     const itens: {
       key: string; texto: string; contagem: number;
-      prioridade: "critico" | "atencao"; destino: string;
+      prioridade: "critico" | "atencao" | "info"; destino: string;
     }[] = [];
     if (recorrentes.emAlerta > 0) {
       itens.push({
@@ -236,7 +255,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
         key: "prospeccao",
         texto: `oportunidade${prospeccao.semMotivo !== 1 ? "s" : ""} sem motivo registrado`,
         contagem: prospeccao.semMotivo,
-        prioridade: "atencao",
+        prioridade: "info",
         destino: "/prospeccao",
       });
     }
@@ -262,11 +281,11 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
   return (
     <AppShell>
       <>
-        <div className="mb-4">
+        <div className="mb-3">
           <h1 className="text-[22px] font-display font-semibold text-foreground leading-tight">
             {greetingWord}{greetingName ? `, ${greetingName}` : ""}
           </h1>
-          <p className="text-[13px] text-muted-foreground mt-0.5">
+          <p className="text-[12px] text-muted-foreground/70 mt-0.5">
             {lastUpdated
               ? `Dados atualizados ${timeAgo(lastUpdated).toLowerCase()}.`
               : "Nenhuma importação de clientes recorrentes ainda."}
@@ -275,14 +294,14 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
 
         {/* Carteira mensal: quanto entra, quanto foi trabalhado, quanto do crédito foi usado */}
         {carteira.contratos > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border mb-3">
             <Kpi
               icone={Users}
               rotulo="Mensalidades contratadas"
               valor={carteira.mensalidades.toLocaleString("pt-BR", {
                 style: "currency", currency: "BRL", maximumFractionDigits: 0,
               })}
-              apoio={`${carteira.contratos} contrato${carteira.contratos !== 1 ? "s" : ""} mensal${carteira.contratos !== 1 ? "is" : ""} ativo${carteira.contratos !== 1 ? "s" : ""}`}
+              apoio={`${carteira.contratos} contratos · crédito de ${carteira.credito.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0, notation: "compact" })}`}
             />
             <Kpi
               icone={Clock4}
@@ -296,13 +315,16 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
               valor={`${carteira.consumoPct}%`}
               alerta={carteira.consumoPct >= 100}
               barra={carteira.consumoPct}
+              apoio={mesAnterior
+                ? `${mesAnterior.mes} fechou em ${mesAnterior.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0, notation: "compact" })} consumidos`
+                : undefined}
             />
           </div>
         )}
 
         {/* Pendências: o que muda o que você faz hoje */}
         {pendencias.length > 0 && (
-          <div className="bg-card rounded-xl border border-border mb-4 overflow-hidden">
+          <div className="bg-card rounded-xl border border-border mb-3 overflow-hidden">
             <div className="px-4 py-2.5 border-b border-border">
               <p className="text-[13px] font-medium text-foreground">Precisa da sua atenção</p>
             </div>
@@ -318,7 +340,8 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
                 <span
                   className={cn(
                     "w-1.5 h-1.5 rounded-full shrink-0",
-                    p.prioridade === "critico" ? "bg-destructive" : "bg-warning",
+                    p.prioridade === "critico" ? "bg-destructive"
+                      : p.prioridade === "atencao" ? "bg-warning" : "bg-muted-foreground/40",
                   )}
                   aria-hidden
                 />
@@ -328,9 +351,10 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
                 <span className="text-sm text-foreground flex-1">{p.texto}</span>
                 <span className={cn(
                   "text-[11px] font-medium shrink-0",
-                  p.prioridade === "critico" ? "text-destructive" : "text-warning-foreground",
+                  p.prioridade === "critico" ? "text-destructive"
+                    : p.prioridade === "atencao" ? "text-warning-foreground" : "text-muted-foreground",
                 )}>
-                  {p.prioridade === "critico" ? "Crítico" : "Atenção"}
+                  {p.prioridade === "critico" ? "Crítico" : p.prioridade === "atencao" ? "Atenção" : "Informativo"}
                 </span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
               </button>
@@ -338,8 +362,56 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
           </div>
         )}
 
+        {/* Onde agir: os cinco mais próximos do limite do crédito */}
+        {proximosDoLimite.length > 0 && (
+          <div className="bg-card rounded-xl border border-border mb-3 overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">Clientes próximos do limite</p>
+                <p className="text-[12px] text-muted-foreground mt-0.5">Onde o crédito contratado está acabando primeiro.</p>
+              </div>
+              <button
+                onClick={() => navigate("/recorrentes")}
+                className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Ver todos
+              </button>
+            </div>
+            {proximosDoLimite.map((c, i) => (
+              <button
+                key={c.nome}
+                onClick={() => navigate("/recorrentes")}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/40 transition-colors",
+                  i < proximosDoLimite.length - 1 && "border-b border-border",
+                )}
+              >
+                <span className="text-sm text-foreground flex-1 truncate">{c.nome}</span>
+                <span className="text-[12px] text-muted-foreground tabular-nums shrink-0 w-16 text-right">
+                  {c.horas.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h
+                </span>
+                <span className="w-24 h-1.5 rounded-full bg-muted overflow-hidden shrink-0">
+                  <span
+                    className={cn(
+                      "block h-full rounded-full",
+                      c.pct >= 100 ? "bg-destructive" : c.pct >= 80 ? "bg-warning" : "bg-primary",
+                    )}
+                    style={{ width: `${Math.min(c.pct, 100)}%` }}
+                  />
+                </span>
+                <span className={cn(
+                  "text-sm font-medium tabular-nums shrink-0 w-12 text-right",
+                  c.pct >= 100 ? "text-destructive" : "text-foreground",
+                )}>
+                  {c.pct}%
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Visão geral: uma série por vez, período ajustável */}
-        <div className="bg-card rounded-xl border border-border mb-4">
+        <div className="bg-card rounded-xl border border-border mb-3">
           <div className="p-5 pb-0">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -438,6 +510,20 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
                         border: "1px solid hsl(var(--border))", background: "hsl(var(--card))",
                       }}
                     />
+                    {mediaPeriodo !== null && (
+                      <ReferenceLine
+                        y={mediaPeriodo}
+                        stroke="hsl(var(--muted-foreground))"
+                        strokeDasharray="4 4"
+                        strokeOpacity={0.5}
+                        label={{
+                          value: "média do período",
+                          position: "insideTopRight",
+                          fill: "hsl(var(--muted-foreground))",
+                          fontSize: 10,
+                        }}
+                      />
+                    )}
                     <Area
                       type="monotone"
                       dataKey={serie}
@@ -455,53 +541,8 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
           </div>
         </div>
 
-        {/* Onde agir: os cinco mais próximos do limite do crédito */}
-        {proximosDoLimite.length > 0 && (
-          <div className="bg-card rounded-xl border border-border mb-4 overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
-              <p className="text-[13px] font-medium text-foreground">Clientes próximos do limite</p>
-              <button
-                onClick={() => navigate("/recorrentes")}
-                className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Ver todos
-              </button>
-            </div>
-            {proximosDoLimite.map((c, i) => (
-              <button
-                key={c.nome}
-                onClick={() => navigate("/recorrentes")}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/40 transition-colors",
-                  i < proximosDoLimite.length - 1 && "border-b border-border",
-                )}
-              >
-                <span className="text-sm text-foreground flex-1 truncate">{c.nome}</span>
-                <span className="text-[12px] text-muted-foreground tabular-nums shrink-0 w-16 text-right">
-                  {c.horas.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h
-                </span>
-                <span className="w-24 h-1.5 rounded-full bg-muted overflow-hidden shrink-0">
-                  <span
-                    className={cn(
-                      "block h-full rounded-full",
-                      c.pct >= 100 ? "bg-destructive" : c.pct >= 80 ? "bg-warning" : "bg-primary",
-                    )}
-                    style={{ width: `${Math.min(c.pct, 100)}%` }}
-                  />
-                </span>
-                <span className={cn(
-                  "text-sm font-medium tabular-nums shrink-0 w-12 text-right",
-                  c.pct >= 100 ? "text-destructive" : "text-foreground",
-                )}>
-                  {c.pct}%
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* Módulos */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <ModuleCard
             icon={Users}
             title="Clientes recorrentes"
