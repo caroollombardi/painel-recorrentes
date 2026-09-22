@@ -5,7 +5,7 @@ import {
   CircleCheck, AlertTriangle, Upload, X, Send, ChevronRight,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { useProspeccaoData } from "@/hooks/use-prospeccao-data";
@@ -218,10 +218,8 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardHeader activeTab={"recorrentes" as never} hideModuleSelector />
-
-      <div className="container py-6">
+    <AppShell>
+      <>
         {/* Cabeçalho: saudação + o dado que responde "está atualizado?" */}
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -392,7 +390,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
             ))
           )}
         </div>
-      </div>
+      </>
 
       {chatOpen && (
         <div className="fixed bottom-24 right-6 w-80 sm:w-96 bg-card border border-border rounded-xl shadow-lg flex flex-col z-20" style={{ height: 420 }}>
@@ -438,7 +436,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
       >
         {chatOpen ? <X className="w-5 h-5 text-white" /> : <MessageCircle className="w-5 h-5 text-white" />}
       </button>
-    </div>
+    </AppShell>
   );
 }
 

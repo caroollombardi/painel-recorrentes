@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { AppShell } from "@/components/layout/AppShell";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import {
@@ -320,7 +321,8 @@ export default function Metas2026() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <AppShell>
+      <>
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container py-4">
@@ -955,6 +957,7 @@ export default function Metas2026() {
           Wolff e Scripes Advogados • Metas 2026 — Área Estratégica Restrita
         </div>
       </footer>
-    </div>
+      </>
+    </AppShell>
   );
 }

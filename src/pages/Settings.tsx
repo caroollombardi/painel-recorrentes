@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AppShell } from "@/components/layout/AppShell";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Bell, Mail, Phone, Save, Trash2, Plus, Settings as SettingsIcon, Target, Shield, Building2, Users } from "lucide-react";
 import ClientesManager from "@/components/settings/ClientesManager";
@@ -236,7 +237,8 @@ export default function Settings() {
   }
   
   return (
-    <div className="min-h-screen bg-background">
+    <AppShell>
+      <>
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container py-4">
@@ -590,6 +592,7 @@ export default function Settings() {
           </TabsContent>
         </Tabs>}
       </main>
-    </div>
+      </>
+    </AppShell>
   );
 }

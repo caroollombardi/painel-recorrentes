@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AppShell } from "@/components/layout/AppShell";
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -257,7 +258,8 @@ export function Users() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <AppShell>
+      <>
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container py-4">
@@ -626,7 +628,8 @@ export function Users() {
           Wolff e Scripes Advogados • Sistema de Gestão
         </div>
       </footer>
-    </div>
+      </>
+    </AppShell>
   );
 }
 

@@ -13,7 +13,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { AppShell } from "@/components/layout/AppShell";
 import { useProspeccaoData, type Etapa, type MotivoFonte } from "@/hooks/use-prospeccao-data";
 
 const DESFECHO_LABEL: Record<string, string> = {
@@ -107,10 +107,8 @@ export default function ProspeccaoDashboard() {
   const scrollToPendentes = () => pendentesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardHeader activeTab={"prospeccao" as never} />
-
-      <div className="container py-5">
+    <AppShell>
+      <>
         <div className="space-y-4">
           {/* Cabeçalho da página */}
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -376,7 +374,7 @@ export default function ProspeccaoDashboard() {
             </>
           )}
         </div>
-      </div>
+      </>
 
       <footer className="border-t border-border bg-card/50 py-4 mt-4">
         <div className="container text-center text-sm text-muted-foreground">
@@ -386,7 +384,7 @@ export default function ProspeccaoDashboard() {
           &bull; Funil de Prospecção
         </div>
       </footer>
-    </div>
+    </AppShell>
   );
 }
 

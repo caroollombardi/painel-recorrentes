@@ -5,7 +5,7 @@ import { HoursChart } from "@/components/dashboard/HoursChart";
 import { ClientValueTable, ClientValueTableHandle } from "@/components/dashboard/ClientValueTable";
 import { MonthSelector } from "@/components/dashboard/MonthSelector";
 import { ExecutiveSummary } from "@/components/dashboard/ExecutiveSummary";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { AppShell } from "@/components/layout/AppShell";
 import { usePresentationMode } from "@/hooks/use-presentation-mode";
 import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
 import { useFilteredKPIs } from "@/hooks/useFilteredKPIs";
@@ -210,15 +210,8 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardHeader
-        activeTab="recorrentes"
-        showValues={showValues}
-        onShowValuesChange={setShowValues}
-        onPresentationToggle={presentation.toggle}
-      />
-
-      <div className="container py-5">
+    <AppShell>
+      <>
         <div className="flex gap-5 items-start">
 
           {/* ── SIDEBAR (desktop only, sticky) ── */}
@@ -559,7 +552,7 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
 
           </div>
         </div>
-      </div>
+      </>
 
       {asanaClient && (
         <AsanaDrawer clientName={asanaClient} onClose={() => setAsanaClient(null)} />
@@ -578,7 +571,7 @@ export function Dashboard({ data, lastUpdated }: DashboardProps) {
           {" "}&bull;{" "}Dashboard de Clientes Recorrentes
         </div>
       </footer>
-    </div>
+    </AppShell>
   );
 }
 

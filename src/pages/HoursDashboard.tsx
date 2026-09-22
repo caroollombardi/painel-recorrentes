@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { Clock, Calendar, Target, FolderOpen, CheckCircle, BarChart3, AlertTriangle, Download, Filter, FileDown, TrendingUp, TrendingDown, Users } from "lucide-react";
 import { DashboardLoadingSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { MonthSelector } from "@/components/dashboard/MonthSelector";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { AppShell } from "@/components/layout/AppShell";
 import { HoursMemberChart } from "@/components/hours/HoursMemberChart";
 import { HoursDetailTable } from "@/components/hours/HoursDetailTable";
 import { DailyHoursChart } from "@/components/hours/DailyHoursChart";
@@ -259,20 +259,17 @@ export default function HoursDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <DashboardHeader activeTab="horas" />
-        <main className="container py-8">
+      <AppShell defaultCollapsed>
+        <main className="py-2">
           <DashboardLoadingSkeleton />
         </main>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardHeader activeTab="horas" />
-
-      <div className="container py-5">
+    <AppShell defaultCollapsed>
+      <>
         <div className="flex gap-5 items-start">
 
           {/* ── SIDEBAR (desktop only, sticky) ── */}
@@ -708,7 +705,7 @@ export default function HoursDashboard() {
             )}
           </div>
         </div>
-      </div>
+      </>
 
       <footer className="border-t border-border bg-card/50 py-6 mt-6">
         <div className="container text-center text-sm text-muted-foreground">
@@ -719,6 +716,6 @@ export default function HoursDashboard() {
           {" "}&bull;{" "}Dashboard de Lançamento de Horas
         </div>
       </footer>
-    </div>
+    </AppShell>
   );
 }
