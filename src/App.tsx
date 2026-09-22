@@ -13,7 +13,6 @@ import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import Metas2026 from "./pages/Metas2026";
 import HoursDashboard from "./pages/HoursDashboard";
-import AtosDashboard from "./pages/AtosDashboard";
 import ProspeccaoDashboard from "./pages/ProspeccaoDashboard";
 import SistemaHome from "./pages/SistemaHome";
 import NotFound from "./pages/NotFound";
@@ -106,14 +105,6 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <HoursDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/atos"
-        element={
-          <ProtectedRoute>
-            <AtosDashboard />
           </ProtectedRoute>
         }
       />
