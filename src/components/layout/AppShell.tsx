@@ -106,7 +106,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
       >
         <div className={cn(
           "flex items-center shrink-0 border-b border-sidebar-border",
-          recolhida ? "justify-center h-16" : "px-5 h-[76px]",
+          recolhida ? "justify-center h-16" : "px-5 h-20",
         )}>
           <button
             onClick={() => navigate("/")}
@@ -119,16 +119,11 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
                 <span className="text-primary-foreground font-display font-bold text-base">W</span>
               </span>
             ) : (
-              <span className="min-w-0 w-full">
-                <img
-                  src={wsaLogoDark}
-                  alt="Wolff e Scripes Advogados"
-                  className="h-7 w-auto object-contain object-left"
-                />
-                <span className="block text-[10px] tracking-wide text-sidebar-foreground/55 leading-tight mt-1">
-                  Operações jurídicas
-                </span>
-              </span>
+              <img
+                src={wsaLogoDark}
+                alt="Wolff e Scripes Advogados"
+                className="w-full max-w-[180px] h-auto object-contain object-left"
+              />
             )}
           </button>
         </div>
