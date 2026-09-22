@@ -7,6 +7,7 @@ import {
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { useProspeccaoData } from "@/hooks/use-prospeccao-data";
 import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
@@ -171,6 +172,22 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     return items.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
   }, [lastUpdated, horas, horasEntries, prospeccaoData]);
 
+  // Carteira mensal: os três números que respondem "como estamos agora".
+  // Vêm da mesma fonte do painel de recorrentes, para não divergir dele.
+  const carteira = useMemo(() => {
+    const comContrato = (dashboardData?.clients ?? []).filter((c) => c.creditUsage);
+    const mensalidades = comContrato.reduce((soma, c) => soma + (c.creditUsage!.valorPago ?? 0), 0);
+    const horasMes = comContrato.reduce((soma, c) => soma + (c.horasMensal ?? 0), 0);
+    const creditoTotal = comContrato.reduce((soma, c) => soma + (c.creditUsage!.valorCredito ?? 0), 0);
+    const consumido = comContrato.reduce((soma, c) => soma + (c.creditUsage!.valorConsumido ?? 0), 0);
+    return {
+      mensalidades,
+      contratos: comContrato.length,
+      horasMes,
+      consumoPct: creditoTotal > 0 ? Math.round((consumido / creditoTotal) * 100) : 0,
+    };
+  }, [dashboardData]);
+
   // Pendências: só entra o que exige ação e leva a algum lugar.
   const pendencias = useMemo(() => {
     const itens: { key: string; texto: string; contagem: number; grave: boolean; destino: string }[] = [];
@@ -259,7 +276,48 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
           </form>
         </div>
 
-        {/* Pendências primeiro: é o que muda o que você faz hoje */}
+        {/* Carteira mensal: a resposta direta de quanto entra e quanto já foi consumido */}
+        {carteira.contratos > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border mb-6">
+            <div className="bg-card p-5">
+              <p className="text-xs text-muted-foreground mb-1.5">Mensalidades contratadas</p>
+              <p className="text-3xl font-display font-semibold text-foreground tabular-nums leading-none">
+                {carteira.mensalidades.toLocaleString("pt-BR", {
+                  style: "currency", currency: "BRL", maximumFractionDigits: 0,
+                })}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                em {carteira.contratos} contrato{carteira.contratos !== 1 ? "s" : ""} mensal{carteira.contratos !== 1 ? "is" : ""}
+              </p>
+            </div>
+
+            <div className="bg-card p-5">
+              <p className="text-xs text-muted-foreground mb-1.5">Horas trabalhadas no mês</p>
+              <p className="text-3xl font-display font-semibold text-foreground tabular-nums leading-none">
+                {carteira.horasMes.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">nos clientes mensais</p>
+            </div>
+
+            <div className="bg-card p-5">
+              <p className="text-xs text-muted-foreground mb-1.5">Crédito de horas consumido</p>
+              <p className={cn(
+                "text-3xl font-display font-semibold tabular-nums leading-none",
+                carteira.consumoPct >= 100 ? "text-destructive" : "text-foreground",
+              )}>
+                {carteira.consumoPct}%
+              </p>
+              <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn("h-full rounded-full", carteira.consumoPct >= 100 ? "bg-destructive" : "bg-primary")}
+                  style={{ width: `${Math.min(carteira.consumoPct, 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pendências: é o que muda o que você faz hoje */}
         {pendencias.length > 0 && (
           <div className="bg-card rounded-xl border border-border mb-6 overflow-hidden">
             <div className="px-4 py-3 border-b border-border">
