@@ -1,7 +1,7 @@
 import { ReactNode, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  Home, Users, Clock4, Filter as FunnelIcon, Target, Settings as SettingsIcon,
+  Home, Users, Filter as FunnelIcon, Target, Settings as SettingsIcon,
   UsersRound, Upload, PanelLeftClose, PanelLeft, Menu, X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,7 +32,6 @@ interface ItemNav {
 const NAVEGACAO: ItemNav[] = [
   { label: "Início", icon: Home, path: "/" },
   { label: "Clientes recorrentes", icon: Users, path: "/recorrentes" },
-  { label: "Lançamento de horas", icon: Clock4, path: "/horas" },
   { label: "Funil de prospecção", icon: FunnelIcon, path: "/prospeccao" },
 ];
 
