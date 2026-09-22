@@ -116,7 +116,10 @@ export default function Settings() {
         .eq('id', settings.id);
       
       if (error) throw error;
-      
+
+      // Avisa o painel para reclassificar os clientes com os novos limites.
+      window.dispatchEvent(new Event("alertLimitsUpdated"));
+
       toast({
         title: "Sucesso ✓",
         description: "Configurações salvas com sucesso.",
