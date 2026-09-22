@@ -27,6 +27,12 @@ const creditUsageSchema = z.object({
   isWarning: z.boolean(),
   isCritical: z.boolean(),
   analysis: consumptionAnalysisSchema,
+  statusConsumo: z.enum(["ok", "atencao", "risco", "estouro"]).optional(),
+  limiteAtencao: z.number().optional(),
+  limiteRisco: z.number().optional(),
+  limiteEstouro: z.number().optional(),
+  limiteProprio: z.boolean().optional(),
+  alertasAtivos: z.boolean().optional(),
 }).nullable();
 
 // Schema for ClientData
