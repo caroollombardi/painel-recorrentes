@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Mail, Phone, Save, Trash2, Plus, Settings as SettingsIcon, Target, Shield, Building2 } from "lucide-react";
+import { ArrowLeft, Bell, Mail, Phone, Save, Trash2, Plus, Settings as SettingsIcon, Target, Shield, Building2, Users } from "lucide-react";
 import ClientesManager from "@/components/settings/ClientesManager";
+import EquipeManager from "@/components/settings/EquipeManager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -284,10 +285,14 @@ export default function Settings() {
         )}
 
         {isAdmin && <Tabs defaultValue="clientes" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="clientes">
               <Building2 className="w-4 h-4 mr-2" />
               Clientes
+            </TabsTrigger>
+            <TabsTrigger value="equipe">
+              <Users className="w-4 h-4 mr-2" />
+              Equipe
             </TabsTrigger>
             <TabsTrigger value="thresholds">
               <SettingsIcon className="w-4 h-4 mr-2" />
@@ -308,6 +313,11 @@ export default function Settings() {
             <ClientesManager />
           </TabsContent>
           
+          {/* Equipe Tab */}
+          <TabsContent value="equipe">
+            <EquipeManager />
+          </TabsContent>
+
           {/* Thresholds Tab */}
           <TabsContent value="thresholds">
             <Card>
