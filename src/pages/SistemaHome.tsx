@@ -96,14 +96,27 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
       }));
   }, [snapshots]);
 
+  // O último snapshot pode ser do mês corrente, que ainda não fechou.
+  // Comparar mês pela metade com mês fechado sempre mostra queda.
+  const mesCorrenteAberto = useMemo(() => {
+    const ultimo = [...snapshots].sort((a, b) => (a.year - b.year) || (a.month - b.month)).at(-1);
+    if (!ultimo) return false;
+    const hoje = new Date();
+    return ultimo.month === hoje.getMonth() + 1 && ultimo.year === hoje.getFullYear();
+  }, [snapshots]);
+
   const variacao = useMemo(() => {
-    if (historico.length < 2) return null;
+    const fechados = mesCorrenteAberto ? historico.slice(0, -1) : historico;
+    if (fechados.length < 2) return null;
     const campo = serie === "horas" ? "horas" : "valor";
-    const atual = historico.at(-1)![campo];
-    const anterior = historico.at(-2)![campo];
+    const atual = fechados.at(-1)![campo];
+    const anterior = fechados.at(-2)![campo];
     if (!anterior) return null;
-    return Math.round(((atual - anterior) / anterior) * 1000) / 10;
-  }, [historico, serie]);
+    return {
+      pct: Math.round(((atual - anterior) / anterior) * 1000) / 10,
+      mes: fechados.at(-1)!.mes,
+    };
+  }, [historico, serie, mesCorrenteAberto]);
 
   const prospeccao = useMemo(() => ({
     total: prospeccaoData?.resumo.total ?? 0,
@@ -173,7 +186,9 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     if (horas.fillRate < 100) {
       itens.push({
         key: "horas",
-        texto: `dos dias úteis do mês sem lançamento completo`,
+        texto: horas.fillRate === 0
+          ? "nenhum dia útil do mês com horas lançadas"
+          : `dos dias úteis do mês ainda sem lançamento`,
         contagem: 100 - horas.fillRate,
         grave: horas.fillRate < 50,
         destino: "/horas",
@@ -259,7 +274,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
                 }`}
               >
                 <span className={`text-lg font-semibold tabular-nums ${p.grave ? "text-destructive" : "text-foreground"}`}>
-                  {p.key === "horas" ? `${p.contagem}%` : p.contagem}
+                  {p.key === "horas" ? (p.contagem === 100 ? "0h" : `${p.contagem}%`) : p.contagem}
                 </span>
                 <span className="text-sm text-foreground flex-1">{p.texto}</span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -273,12 +288,13 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
           <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
             <div>
               <p className="text-sm font-medium text-foreground">Evolução mensal</p>
-              {variacao !== null && (
+              {variacao && (
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  <span className={variacao >= 0 ? "text-success-foreground" : "text-destructive"}>
-                    {variacao >= 0 ? "+" : ""}{variacao}%
+                  <span className={variacao.pct >= 0 ? "text-success-foreground" : "text-destructive"}>
+                    {variacao.pct >= 0 ? "+" : ""}{variacao.pct}%
                   </span>{" "}
-                  em relação ao mês anterior
+                  em {variacao.mes} contra o mês anterior
+                  {mesCorrenteAberto && " · mês atual ainda em andamento"}
                 </p>
               )}
             </div>
@@ -302,13 +318,13 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
               A curva aparece a partir de dois meses fechados.
             </p>
           ) : (
-            <div style={{ height: 220 }}>
+            <div style={{ height: 180 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={historico} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#FB7435" stopOpacity={0.25} />
-                      <stop offset="100%" stopColor="#FB7435" stopOpacity={0} />
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.18} />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="mes" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
@@ -316,6 +332,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
                     tickLine={false}
                     axisLine={false}
                     width={54}
+                    domain={[(min: number) => Math.floor(min * 0.85), (max: number) => Math.ceil(max * 1.05)]}
                     tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                     tickFormatter={(v: number) => serie === "valor" ? `${Math.round(v / 1000)}k` : `${v}h`}
                   />
@@ -326,7 +343,16 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
                     labelFormatter={(l: string) => `Fechamento de ${l}`}
                     contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
                   />
-                  <Area type="monotone" dataKey={serie} stroke="#FB7435" strokeWidth={2} fill="url(#grad)" />
+                  <Area
+                    type="monotone"
+                    dataKey={serie}
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2.5}
+                    fill="url(#grad)"
+                    dot={{ r: 3, fill: "hsl(var(--primary))", strokeWidth: 0 }}
+                    activeDot={{ r: 5 }}
+                    isAnimationActive={false}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
