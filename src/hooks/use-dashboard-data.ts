@@ -5,9 +5,15 @@ import { dashboardDataSchema } from "@/lib/schemas";
 import { toast } from "@/hooks/use-toast";
 import { getClientContract, calculateCreditUsage } from "@/lib/contract-values";
 import { analyzeConsumption } from "@/lib/month-progress";
+import {
+  carregarLimites, limitesDoCliente, classificarConsumo, TabelaLimites,
+} from "@/lib/alert-thresholds";
 
 
-function recalculateCreditUsage(data: DashboardData): DashboardData {
+function recalculateCreditUsage(
+  data: DashboardData,
+  tabela: TabelaLimites | null,
+): DashboardData {
   const clients = data.clients.map((client) => {
     const contract = getClientContract(client.project);
     if (!contract) return { ...client, creditUsage: null };
@@ -16,6 +22,11 @@ function recalculateCreditUsage(data: DashboardData): DashboardData {
     const usage = calculateCreditUsage(valorConsumido, contract.valorMensalCredito);
     const analysis = analyzeConsumption(usage.percentual, data.monthProgress);
 
+    // Os limites vêm da configuração (geral ou do próprio cliente).
+    // calculateCreditUsage ainda traz 60/80 fixos; aqui eles são substituídos.
+    const limites = limitesDoCliente(client.project, tabela);
+    const classificacao = classificarConsumo(usage.percentual, limites);
+
     return {
       ...client,
       creditUsage: {
@@ -23,9 +34,15 @@ function recalculateCreditUsage(data: DashboardData): DashboardData {
         valorCredito: contract.valorMensalCredito,
         valorConsumido,
         percentualUsado: usage.percentual,
-        isWarning: usage.isWarning,
-        isCritical: usage.isCritical,
+        isWarning: classificacao.isWarning,
+        isCritical: classificacao.isCritical,
         analysis,
+        statusConsumo: classificacao.status,
+        limiteAtencao: limites.atencao,
+        limiteRisco: limites.risco,
+        limiteEstouro: limites.estouro,
+        limiteProprio: limites.proprio,
+        alertasAtivos: limites.alertasAtivos,
       },
     };
   });
@@ -39,10 +56,13 @@ export function useDashboardData() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   // Flag to suppress Realtime toast when the current tab is the one importing
   const ownUpdateRef = useRef(false);
+  // Limites de alerta configurados. Ficam em ref para o loadData não
+  // precisar ser recriado quando eles chegam.
+  const limitesRef = useRef<TabelaLimites | null>(null);
 
   useEffect(() => {
     const handleContractUpdate = () => {
-      setDashboardData(prev => prev ? recalculateCreditUsage(prev) : null);
+      setDashboardData(prev => prev ? recalculateCreditUsage(prev, limitesRef.current) : null);
     };
     window.addEventListener("contractValuesUpdated", handleContractUpdate);
     return () => window.removeEventListener("contractValuesUpdated", handleContractUpdate);
@@ -68,7 +88,7 @@ export function useDashboardData() {
         if (data.updated_at) setLastUpdated(new Date(data.updated_at));
         const result = dashboardDataSchema.safeParse(data.data);
         if (result.success) {
-          const recalculated = recalculateCreditUsage(result.data as DashboardData);
+          const recalculated = recalculateCreditUsage(result.data as DashboardData, limitesRef.current);
           setDashboardData(recalculated);
           if (fromRealtime) {
             toast({ title: "Painel atualizado", description: "Novos dados foram importados." });
@@ -93,6 +113,28 @@ export function useDashboardData() {
     } finally {
       if (!fromRealtime) setIsLoading(false);
     }
+  }, []);
+
+  // Carrega os limites e reclassifica. Roda antes do primeiro loadData
+  // resolver; se chegar depois, o reclassify abaixo corrige a tela.
+  useEffect(() => {
+    let ativo = true;
+    carregarLimites().then(tabela => {
+      if (!ativo) return;
+      limitesRef.current = tabela;
+      setDashboardData(prev => prev ? recalculateCreditUsage(prev, tabela) : null);
+    });
+    const aoMudarLimites = () => {
+      carregarLimites().then(tabela => {
+        limitesRef.current = tabela;
+        setDashboardData(prev => prev ? recalculateCreditUsage(prev, tabela) : null);
+      });
+    };
+    window.addEventListener("alertLimitsUpdated", aoMudarLimites);
+    return () => {
+      ativo = false;
+      window.removeEventListener("alertLimitsUpdated", aoMudarLimites);
+    };
   }, []);
 
   // Initial load
