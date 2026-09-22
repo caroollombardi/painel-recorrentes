@@ -55,7 +55,8 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
   const horasFillRate = horasDashboardData?.fillRate ?? 0;
   const { data: prospeccaoData } = useProspeccaoData();
   const { snapshots } = useMonthlySnapshots();
-  const [serie, setSerie] = useState<"horas" | "valor">("valor");
+  const [serie, setSerie] = useState<"valor" | "horas" | "clientes">("valor");
+  const [periodo, setPeriodo] = useState<3 | 6 | 0>(6); // 0 = todo o histórico
 
   const fullName = user?.user_metadata?.name || (user?.email || "").split("@")[0].split(".")[0];
   const greetingName = fullName ? fullName.trim().split(/\s+/)[0].replace(/^\w/, (c: string) => c.toUpperCase()) : "";
@@ -87,15 +88,15 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
   }, [horasEntries, horasFillRate]);
 
   const historico = useMemo(() => {
-    return [...snapshots]
-      .sort((a, b) => (a.year - b.year) || (a.month - b.month))
-      .slice(-6)
-      .map((s) => ({
-        mes: `${MESES[s.month - 1]}/${String(s.year).slice(2)}`,
-        horas: Math.round(s.total_horas),
-        valor: Math.round(s.total_valor),
-      }));
-  }, [snapshots]);
+    const ordenados = [...snapshots].sort((a, b) => (a.year - b.year) || (a.month - b.month));
+    const recorte = periodo === 0 ? ordenados : ordenados.slice(-periodo);
+    return recorte.map((s) => ({
+      mes: `${MESES[s.month - 1]}/${String(s.year).slice(2)}`,
+      horas: Math.round(s.total_horas),
+      valor: Math.round(s.total_valor),
+      clientes: (s.client_data ?? []).length,
+    }));
+  }, [snapshots, periodo]);
 
   // O último snapshot pode ser do mês corrente, que ainda não fechou.
   // Comparar mês pela metade com mês fechado sempre mostra queda.
@@ -109,7 +110,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
   const variacao = useMemo(() => {
     const fechados = mesCorrenteAberto ? historico.slice(0, -1) : historico;
     if (fechados.length < 2) return null;
-    const campo = serie === "horas" ? "horas" : "valor";
+    const campo = serie;
     const atual = fechados.at(-1)![campo];
     const anterior = fechados.at(-2)![campo];
     if (!anterior) return null;
@@ -341,80 +342,121 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
           </div>
         )}
 
-        {/* Evolução: o histórico que já existe nos fechamentos mensais */}
-        <div className="bg-card rounded-xl border border-border p-5 mb-6">
-          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-            <div>
-              <p className="text-sm font-medium text-foreground">Evolução mensal</p>
-              {variacao && (
+        {/* Visão geral: uma série por vez, período ajustável */}
+        <div className="bg-card rounded-xl border border-border mb-6">
+          <div className="p-5 pb-0">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-display font-semibold text-foreground">Visão geral</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  <span className={variacao.pct >= 0 ? "text-success-foreground" : "text-destructive"}>
-                    {variacao.pct >= 0 ? "+" : ""}{variacao.pct}%
-                  </span>{" "}
-                  em {variacao.mes} contra o mês anterior
-                  {mesCorrenteAberto && " · mês atual ainda em andamento"}
+                  {variacao ? (
+                    <>
+                      <span className={variacao.pct >= 0 ? "text-success-foreground" : "text-destructive"}>
+                        {variacao.pct >= 0 ? "+" : ""}{variacao.pct}%
+                      </span>{" "}
+                      em {variacao.mes} contra o mês anterior
+                      {mesCorrenteAberto && " · mês atual em andamento"}
+                    </>
+                  ) : (
+                    "Evolução da operação ao longo do tempo."
+                  )}
                 </p>
-              )}
+              </div>
+
+              <select
+                value={periodo}
+                onChange={(e) => setPeriodo(Number(e.target.value) as 3 | 6 | 0)}
+                className="h-9 rounded-lg border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                aria-label="Período exibido"
+              >
+                <option value={3}>Últimos 3 meses</option>
+                <option value={6}>Últimos 6 meses</option>
+                <option value={0}>Todo o histórico</option>
+              </select>
             </div>
-            <div className="flex rounded-lg border border-border overflow-hidden">
-              {(["valor", "horas"] as const).map((k) => (
+
+            {/* Abas sublinhadas, uma série por vez */}
+            <div className="flex gap-6 mt-4 border-b border-border -mx-5 px-5">
+              {([
+                { id: "valor", rotulo: "Valor consumido" },
+                { id: "horas", rotulo: "Horas lançadas" },
+                { id: "clientes", rotulo: "Clientes atendidos" },
+              ] as const).map((aba) => (
                 <button
-                  key={k}
-                  onClick={() => setSerie(k)}
-                  className={`px-3 h-8 text-xs transition-colors ${
-                    serie === k ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:bg-muted/50"
-                  }`}
+                  key={aba.id}
+                  onClick={() => setSerie(aba.id)}
+                  className={cn(
+                    "relative pb-2.5 text-sm transition-colors",
+                    serie === aba.id
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                 >
-                  {k === "valor" ? "Valor consumido" : "Horas"}
+                  {aba.rotulo}
+                  {serie === aba.id && (
+                    <span className="absolute left-0 right-0 -bottom-px h-0.5 rounded-full bg-primary" />
+                  )}
                 </button>
               ))}
             </div>
           </div>
 
-          {historico.length < 2 ? (
-            <p className="text-sm text-muted-foreground py-10 text-center">
-              A curva aparece a partir de dois meses fechados.
-            </p>
-          ) : (
-            <div style={{ height: 180 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={historico} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.18} />
-                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="mes" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    width={54}
-                    domain={[(min: number) => Math.floor(min * 0.85), (max: number) => Math.ceil(max * 1.05)]}
-                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                    tickFormatter={(v: number) => serie === "valor" ? `${Math.round(v / 1000)}k` : `${v}h`}
-                  />
-                  <Tooltip
-                    formatter={(v: number) => serie === "valor"
-                      ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
-                      : `${v}h`}
-                    labelFormatter={(l: string) => `Fechamento de ${l}`}
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey={serie}
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2.5}
-                    fill="url(#grad)"
-                    dot={{ r: 3, fill: "hsl(var(--primary))", strokeWidth: 0 }}
-                    activeDot={{ r: 5 }}
-                    isAnimationActive={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          )}
+          <div className="p-5 pt-4">
+            {historico.length < 2 ? (
+              <p className="text-sm text-muted-foreground py-12 text-center">
+                A curva aparece a partir de dois meses fechados.
+              </p>
+            ) : (
+              <div style={{ height: 240 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={historico} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.18} />
+                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="mes"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      width={56}
+                      domain={[(min: number) => Math.floor(min * 0.85), (max: number) => Math.ceil(max * 1.05)]}
+                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                      tickFormatter={(v: number) =>
+                        serie === "valor" ? `${Math.round(v / 1000)}k` : serie === "horas" ? `${v}h` : `${v}`}
+                    />
+                    <Tooltip
+                      formatter={(v: number) =>
+                        serie === "valor"
+                          ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
+                          : serie === "horas" ? `${v}h` : `${v} clientes`}
+                      labelFormatter={(l: string) => `Fechamento de ${l}`}
+                      contentStyle={{
+                        fontSize: 12, borderRadius: 8,
+                        border: "1px solid hsl(var(--border))", background: "hsl(var(--card))",
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey={serie}
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2.5}
+                      fill="url(#grad)"
+                      dot={{ r: 3, fill: "hsl(var(--primary))", strokeWidth: 0 }}
+                      activeDot={{ r: 5 }}
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Módulos */}
