@@ -2,12 +2,14 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Users, Clock4, Filter as FunnelIcon, MessageCircle,
-  CircleCheck, AlertTriangle, Upload, X, Send,
+  CircleCheck, AlertTriangle, Upload, X, Send, ChevronRight,
 } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { useProspeccaoData } from "@/hooks/use-prospeccao-data";
+import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
 import { DashboardData } from "@/lib/data-parser";
 import { responderPergunta } from "@/lib/assistant-rules";
 
@@ -15,6 +17,8 @@ interface SistemaHomeProps {
   dashboardData: DashboardData | null;
   lastUpdated: Date | null;
 }
+
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
 function timeAgo(date: Date): string {
   const diffMs = Date.now() - date.getTime();
@@ -49,6 +53,8 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
   const horasEntries = horasDashboardData?.entries ?? [];
   const horasFillRate = horasDashboardData?.fillRate ?? 0;
   const { data: prospeccaoData } = useProspeccaoData();
+  const { snapshots } = useMonthlySnapshots();
+  const [serie, setSerie] = useState<"horas" | "valor">("valor");
 
   const fullName = user?.user_metadata?.name || (user?.email || "").split("@")[0].split(".")[0];
   const greetingName = fullName ? fullName.trim().split(/\s+/)[0].replace(/^\w/, (c: string) => c.toUpperCase()) : "";
@@ -78,6 +84,26 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
       : 0;
     return { fillRate: Math.round(horasFillRate || 0), ultimaData, horasUltimoDia: Math.round(horasUltimoDia * 10) / 10 };
   }, [horasEntries, horasFillRate]);
+
+  const historico = useMemo(() => {
+    return [...snapshots]
+      .sort((a, b) => (a.year - b.year) || (a.month - b.month))
+      .slice(-6)
+      .map((s) => ({
+        mes: `${MESES[s.month - 1]}/${String(s.year).slice(2)}`,
+        horas: Math.round(s.total_horas),
+        valor: Math.round(s.total_valor),
+      }));
+  }, [snapshots]);
+
+  const variacao = useMemo(() => {
+    if (historico.length < 2) return null;
+    const campo = serie === "horas" ? "horas" : "valor";
+    const atual = historico.at(-1)![campo];
+    const anterior = historico.at(-2)![campo];
+    if (!anterior) return null;
+    return Math.round(((atual - anterior) / anterior) * 1000) / 10;
+  }, [historico, serie]);
 
   const prospeccao = useMemo(() => ({
     total: prospeccaoData?.resumo.total ?? 0,
@@ -132,6 +158,39 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     return items.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
   }, [lastUpdated, horas, horasEntries, prospeccaoData]);
 
+  // Pendências: só entra o que exige ação e leva a algum lugar.
+  const pendencias = useMemo(() => {
+    const itens: { key: string; texto: string; contagem: number; grave: boolean; destino: string }[] = [];
+    if (recorrentes.emAlerta > 0) {
+      itens.push({
+        key: "alerta",
+        texto: `cliente${recorrentes.emAlerta !== 1 ? "s" : ""} com contrato em alerta`,
+        contagem: recorrentes.emAlerta,
+        grave: true,
+        destino: "/recorrentes",
+      });
+    }
+    if (horas.fillRate < 100) {
+      itens.push({
+        key: "horas",
+        texto: `dos dias úteis do mês sem lançamento completo`,
+        contagem: 100 - horas.fillRate,
+        grave: horas.fillRate < 50,
+        destino: "/horas",
+      });
+    }
+    if (prospeccao.semMotivo > 0) {
+      itens.push({
+        key: "prospeccao",
+        texto: `oportunidade${prospeccao.semMotivo !== 1 ? "s" : ""} sem motivo registrado`,
+        contagem: prospeccao.semMotivo,
+        grave: false,
+        destino: "/prospeccao",
+      });
+    }
+    return itens;
+  }, [recorrentes.emAlerta, horas.fillRate, prospeccao.semMotivo]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const q = query.trim().toLowerCase();
@@ -163,25 +222,121 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
       <DashboardHeader activeTab={"recorrentes" as never} hideModuleSelector />
 
       <div className="container py-6">
-        <div className="mb-5">
-          <h1 className="text-xl font-display font-semibold text-foreground">
-            {greetingWord}{greetingName ? `, ${greetingName}` : ""}
-          </h1>
+        {/* Cabeçalho: saudação + o dado que responde "está atualizado?" */}
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-display font-semibold text-foreground">
+              {greetingWord}{greetingName ? `, ${greetingName}` : ""}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {lastUpdated
+                ? `Dados de clientes recorrentes atualizados ${timeAgo(lastUpdated).toLowerCase()}.`
+                : "Nenhuma importação de clientes recorrentes ainda."}
+            </p>
+          </div>
+          <form onSubmit={handleSearch} className="relative w-full sm:w-72">
+            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Ir para um módulo"
+              className="w-full pl-9 pr-3 h-9 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </form>
         </div>
 
-        <form onSubmit={handleSearch} className="relative mb-6">
-          <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar um módulo (ex: horas, prospecção)"
-            className="w-full pl-9 pr-3 h-10 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </form>
+        {/* Pendências primeiro: é o que muda o que você faz hoje */}
+        {pendencias.length > 0 && (
+          <div className="bg-card rounded-xl border border-border mb-6 overflow-hidden">
+            <div className="px-4 py-3 border-b border-border">
+              <p className="text-sm font-medium text-foreground">Precisa da sua atenção</p>
+            </div>
+            {pendencias.map((p, i) => (
+              <button
+                key={p.key}
+                onClick={() => navigate(p.destino)}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors ${
+                  i < pendencias.length - 1 ? "border-b border-border" : ""
+                }`}
+              >
+                <span className={`text-lg font-semibold tabular-nums ${p.grave ? "text-destructive" : "text-foreground"}`}>
+                  {p.key === "horas" ? `${p.contagem}%` : p.contagem}
+                </span>
+                <span className="text-sm text-foreground flex-1">{p.texto}</span>
+                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
 
-        <p className="text-xs text-muted-foreground mb-2">Módulos</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+        {/* Evolução: o histórico que já existe nos fechamentos mensais */}
+        <div className="bg-card rounded-xl border border-border p-5 mb-6">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">Evolução mensal</p>
+              {variacao !== null && (
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  <span className={variacao >= 0 ? "text-success-foreground" : "text-destructive"}>
+                    {variacao >= 0 ? "+" : ""}{variacao}%
+                  </span>{" "}
+                  em relação ao mês anterior
+                </p>
+              )}
+            </div>
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              {(["valor", "horas"] as const).map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setSerie(k)}
+                  className={`px-3 h-8 text-xs transition-colors ${
+                    serie === k ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  {k === "valor" ? "Valor consumido" : "Horas"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {historico.length < 2 ? (
+            <p className="text-sm text-muted-foreground py-10 text-center">
+              A curva aparece a partir de dois meses fechados.
+            </p>
+          ) : (
+            <div style={{ height: 220 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={historico} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#FB7435" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="#FB7435" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="mes" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    width={54}
+                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                    tickFormatter={(v: number) => serie === "valor" ? `${Math.round(v / 1000)}k` : `${v}h`}
+                  />
+                  <Tooltip
+                    formatter={(v: number) => serie === "valor"
+                      ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
+                      : `${v}h`}
+                    labelFormatter={(l: string) => `Fechamento de ${l}`}
+                    contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
+                  />
+                  <Area type="monotone" dataKey={serie} stroke="#FB7435" strokeWidth={2} fill="url(#grad)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        {/* Módulos */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
           <ModuleCard
             icon={Users}
             title="Clientes recorrentes"
@@ -211,8 +366,11 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
           />
         </div>
 
-        <p className="text-xs text-muted-foreground mb-2">Atividade recente</p>
-        <div className="bg-card rounded-xl border border-border">
+        {/* Atividade recente */}
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
+            <p className="text-sm font-medium text-foreground">Atividade recente</p>
+          </div>
           {activities.length === 0 ? (
             <p className="text-sm text-muted-foreground p-4">Nada recente por aqui ainda.</p>
           ) : (
