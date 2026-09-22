@@ -1,15 +1,13 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, Users, Clock4, Calculator, Filter as FunnelIcon, MessageCircle,
+  Search, Users, Clock4, Filter as FunnelIcon, MessageCircle,
   CircleCheck, AlertTriangle, Upload, X, Send,
 } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAtosData } from "@/hooks/use-atos-data";
 import { useHoursData } from "@/hooks/use-hours-data";
 import { useProspeccaoData } from "@/hooks/use-prospeccao-data";
-import { calcularProjeto } from "@/lib/atos-parser";
 import { DashboardData } from "@/lib/data-parser";
 import { responderPergunta } from "@/lib/assistant-rules";
 
@@ -42,11 +40,10 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([
-    { role: "assistant", text: "Oi! Pergunte sobre contratos, horas, atos ou prospecção. Digite \"ajuda\" pra ver exemplos." },
+    { role: "assistant", text: "Oi! Pergunte sobre contratos, horas ou prospecção. Digite \"ajuda\" pra ver exemplos." },
   ]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { projetos: atosProjetos } = useAtosData();
   const now = new Date();
   const { dashboardData: horasDashboardData } = useHoursData(now.getMonth(), now.getFullYear());
   const horasEntries = horasDashboardData?.entries ?? [];
@@ -72,12 +69,6 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
       .map((c) => c.project);
     return { contratos, emAlerta, clientesAlerta };
   }, [dashboardData]);
-
-  const atos = useMemo(() => {
-    const total = atosProjetos.length;
-    const emDeficit = atosProjetos.filter((p) => calcularProjeto(p.projeto, p.lancamentos).resultado < 0);
-    return { total, deficit: emDeficit.length, projetosDeficit: emDeficit.map((p) => p.projeto.nome_projeto) };
-  }, [atosProjetos]);
 
   const horas = useMemo(() => {
     const datas = horasEntries.map((e) => e.completed_date).filter(Boolean) as string[];
@@ -122,18 +113,6 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
       }
     }
 
-    const lastAtosUpdate = atosProjetos
-      .map((p) => new Date(p.projeto.updated_at).getTime())
-      .sort((a, b) => b - a)[0];
-    if (lastAtosUpdate) {
-      items.push({
-        key: "atos",
-        icon: "neutral",
-        text: "Calculadora de atos teve projetos atualizados",
-        timestamp: lastAtosUpdate,
-      });
-    }
-
     if (prospeccaoData) {
       const recentes = prospeccaoData.items
         .filter((i) => i.statusGeral === "concluido" && i.desfecho)
@@ -151,14 +130,13 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     }
 
     return items.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
-  }, [lastUpdated, horas, horasEntries, atosProjetos, prospeccaoData]);
+  }, [lastUpdated, horas, horasEntries, prospeccaoData]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const q = query.trim().toLowerCase();
     if (!q) return;
     if (q.includes("hora")) navigate("/horas");
-    else if (q.includes("ato")) navigate("/atos");
     else if (q.includes("prospec") || q.includes("funil")) navigate("/prospeccao");
     else navigate("/recorrentes");
   };
@@ -173,7 +151,6 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     if (!pergunta) return;
     const resposta = responderPergunta(pergunta, {
       recorrentes,
-      atos,
       horas,
       prospeccao: { total: prospeccao.total, semMotivo: prospeccao.semMotivo, porResponsavel: prospeccaoData?.porResponsavel ?? {} },
     });
@@ -198,7 +175,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar um módulo (ex: horas, atos, prospecção)"
+            placeholder="Buscar um módulo (ex: horas, prospecção)"
             className="w-full pl-9 pr-3 h-10 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </form>
@@ -221,15 +198,6 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
             stats={[
               { value: `${horas.horasUltimoDia}h`, label: "último dia lançado" },
               { value: `${horas.fillRate}%`, label: "dias úteis preenchidos" },
-            ]}
-          />
-          <ModuleCard
-            icon={Calculator}
-            title="Calculadora de atos"
-            onClick={() => navigate("/atos")}
-            stats={[
-              { value: atos.total, label: "projetos importados" },
-              { value: atos.deficit, label: "em déficit", danger: atos.deficit > 0 },
             ]}
           />
           <ModuleCard
