@@ -155,6 +155,7 @@ export default function MetasAlertasManager() {
       }, { onConflict: "cliente_id" });
       if (error) throw error;
 
+      window.dispatchEvent(new Event("alertLimitsUpdated"));
       toast({ title: "Regras salvas", description: `${alvo.nome} atualizado.` });
       setAberto(false);
       await carregar();
@@ -174,6 +175,7 @@ export default function MetasAlertasManager() {
     try {
       const { error } = await db.from("cliente_alertas").delete().eq("cliente_id", c.id);
       if (error) throw error;
+      window.dispatchEvent(new Event("alertLimitsUpdated"));
       toast({
         title: "Voltou ao padrão",
         description: `${c.nome} passa a seguir os limites gerais de novo.`,
