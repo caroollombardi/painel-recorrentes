@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Bell, Mail, Phone, Save, Trash2, Plus, Settings as SettingsIcon, Target, Shield, Building2, Users } from "lucide-react";
 import ClientesManager from "@/components/settings/ClientesManager";
 import EquipeManager from "@/components/settings/EquipeManager";
+import MetasAlertasManager from "@/components/settings/MetasAlertasManager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -285,7 +286,7 @@ export default function Settings() {
         )}
 
         {isAdmin && <Tabs defaultValue="clientes" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="clientes">
               <Building2 className="w-4 h-4 mr-2" />
               Clientes
@@ -297,6 +298,10 @@ export default function Settings() {
             <TabsTrigger value="thresholds">
               <SettingsIcon className="w-4 h-4 mr-2" />
               Limites
+            </TabsTrigger>
+            <TabsTrigger value="metas">
+              <Target className="w-4 h-4 mr-2" />
+              Metas
             </TabsTrigger>
             <TabsTrigger value="recipients">
               <Mail className="w-4 h-4 mr-2" />
@@ -398,6 +403,11 @@ export default function Settings() {
             </Card>
           </TabsContent>
           
+          {/* Metas Tab */}
+          <TabsContent value="metas">
+            <MetasAlertasManager />
+          </TabsContent>
+
           {/* Recipients Tab */}
           <TabsContent value="recipients">
             <Card>
