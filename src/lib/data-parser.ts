@@ -29,7 +29,13 @@ export interface CreditUsage {
   percentualUsado: number;
   isWarning: boolean;
   isCritical: boolean;
-  analysis?: ConsumptionAnalysis; // Análise preditiva
+  analysis?: ConsumptionAnalysis; // Análise preditiva  /** Preenchidos na exibição, a partir dos limites configurados. */
+  statusConsumo?: "ok" | "atencao" | "risco" | "estouro";
+  limiteAtencao?: number;
+  limiteRisco?: number;
+  limiteEstouro?: number;
+  limiteProprio?: boolean;
+  alertasAtivos?: boolean;
 }
 
 export type HealthStatus = 'green' | 'yellow' | 'red';
