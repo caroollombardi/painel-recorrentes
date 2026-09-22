@@ -160,18 +160,6 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
     setExpandedLawyers(next);
   };
 
-  const getLawyerEntries = (clientProject: string, lawyerName: string): TimeEntry[] => {
-    if (!timeEntries) return [];
-    const cp = clientProject.toLowerCase();
-    return timeEntries.filter(e => {
-      if ((e.assignee || "").toLowerCase() !== lawyerName.toLowerCase()) return false;
-      if (!(e.contract_type || "").toUpperCase().includes("MENSAL")) return false;
-      const ep = (e.project || "").toLowerCase();
-      const ec = (e.client || "").toLowerCase();
-      return ep === cp || ep.startsWith(cp) || cp.startsWith(ep) || ec === cp || ec.includes(cp) || cp.includes(ec);
-    }).sort((a, b) => (b.completed_date || "").localeCompare(a.completed_date || ""));
-  };
-
   if (sortedData.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -358,7 +346,10 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
           const pct = client.horasMensal > 0 ? (lawyer.hours / client.horasMensal) * 100 : 0;
           const lawyerKey = `${client.project}::${lawyer.name}`;
           const isLawyerExpanded = expandedLawyers.has(lawyerKey);
-          const entries = getLawyerEntries(client.project, lawyer.name);
+          // O detalhe vem das tarefas do Asana que formaram este total,
+          // e não mais de time_entries (EasyJur), que é outra importação
+          // e devolvia números que não batiam com a linha de cima.
+          const entries = lawyer.tasks ?? [];
           return (
             <React.Fragment key={lawyerKey}>
               <TableRow
@@ -413,17 +404,12 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                     <div className="flex items-start gap-2 py-0.5">
                       <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-muted-foreground/60" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground/80 leading-snug">{entry.task_name || "Sem descrição"}</p>
+                        <p className="text-sm text-foreground/80 leading-snug">{entry.taskName || "Sem descrição"}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          {entry.completed_date && (
+                          {entry.completedAt && (
                             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                               <Calendar className="w-3 h-3" />
-                              {format(parseISO(entry.completed_date), "dd/MM/yyyy", { locale: ptBR })}
-                            </span>
-                          )}
-                          {entry.activity_type && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                              {entry.activity_type}
+                              {format(parseISO(entry.completedAt), "dd/MM/yyyy", { locale: ptBR })}
                             </span>
                           )}
                         </div>
@@ -431,7 +417,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                     </div>
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground text-sm pr-4">
-                    {entry.hours_logged.toFixed(2)}h
+                    {entry.hours.toFixed(2)}h
                   </TableCell>
                   <TableCell></TableCell>
                   <TableCell></TableCell>
