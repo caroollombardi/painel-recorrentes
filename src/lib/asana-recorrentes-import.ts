@@ -1,7 +1,7 @@
 import { getLawyerHourlyRate } from "./lawyer-prices";
 import { getClientContract, calculateCreditUsage } from "./contract-values";
 import { getMonthProgress, analyzeConsumption } from "./month-progress";
-import { DashboardData, ClientData, TaskRecord, LawyerWork, CreditUsage } from "./data-parser";
+import { DashboardData, ClientData, TaskRecord, LawyerWork, LawyerTask, CreditUsage } from "./data-parser";
 
 interface RawRecord {
   taskId: string;
@@ -36,6 +36,7 @@ export async function fetchDashboardDataFromAsana(clientNames: string[]): Promis
     const hourlyRate = getLawyerHourlyRate(r.assignee);
     return {
       taskId: r.taskId,
+      taskName: r.taskName,
       project: r.project,
       actualTime: formatHoursAsTime(hours),
       contrato: "MENSAL",
@@ -53,15 +54,27 @@ export async function fetchDashboardDataFromAsana(clientNames: string[]): Promis
 // Espelha a agregação de xlsx-parser.ts (mantida separada de propósito, pra não
 // arriscar alterar o fluxo de importação de planilha que já está em produção).
 function buildDashboardDataFromRecords(records: TaskRecord[]): DashboardData {
-  const clientMap = new Map<string, Map<string, { hours: number; hourlyRate: number; value: number }>>();
+  const clientMap = new Map<
+    string,
+    Map<string, { hours: number; hourlyRate: number; value: number; tasks: LawyerTask[] }>
+  >();
 
   records.forEach((record) => {
     if (!clientMap.has(record.project)) clientMap.set(record.project, new Map());
     const lawyerMap = clientMap.get(record.project)!;
-    const current = lawyerMap.get(record.assignee) || { hours: 0, hourlyRate: record.hourlyRate, value: 0 };
+    const current = lawyerMap.get(record.assignee)
+      || { hours: 0, hourlyRate: record.hourlyRate, value: 0, tasks: [] as LawyerTask[] };
     current.hours += record.hours;
     current.value += record.value;
     current.hourlyRate = record.hourlyRate;
+    // O detalhe anda ao lado do total, nunca no lugar dele.
+    current.tasks.push({
+      taskId: record.taskId,
+      taskName: record.taskName || "Sem descrição",
+      completedAt: record.completedAt || "",
+      hours: Math.round(record.hours * 100) / 100,
+      value: Math.round(record.value * 100) / 100,
+    });
     lawyerMap.set(record.assignee, current);
   });
 
@@ -91,6 +104,7 @@ function buildDashboardDataFromRecords(records: TaskRecord[]): DashboardData {
           hours: Math.round(data.hours * 100) / 100,
           hourlyRate: data.hourlyRate,
           value: Math.round(data.value * 100) / 100,
+          tasks: [...data.tasks].sort((a, b) => (b.completedAt || "").localeCompare(a.completedAt || "")),
         });
       }
       clientHours += data.hours;
