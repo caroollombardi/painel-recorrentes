@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, Users, Filter as FunnelIcon, MessageCircle,
+  Users, Clock4, Gauge, Filter as FunnelIcon, MessageCircle,
   CircleCheck, AlertTriangle, Upload, X, Send, ChevronRight,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
@@ -19,6 +19,37 @@ interface SistemaHomeProps {
 }
 
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+function Kpi({
+  icone: Icone, rotulo, valor, apoio, alerta, barra,
+}: {
+  icone: typeof Users; rotulo: string; valor: string;
+  apoio?: string; alerta?: boolean; barra?: number;
+}) {
+  return (
+    <div className="bg-card p-4">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Icone className="w-3.5 h-3.5 text-muted-foreground" />
+        <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{rotulo}</p>
+      </div>
+      <p className={cn(
+        "text-[30px] font-display font-semibold tabular-nums leading-none tracking-tight",
+        alerta ? "text-destructive" : "text-foreground",
+      )}>
+        {valor}
+      </p>
+      {apoio && <p className="text-[13px] text-muted-foreground mt-1.5">{apoio}</p>}
+      {barra !== undefined && (
+        <div className="mt-2.5 h-1.5 rounded-full bg-muted overflow-hidden">
+          <div
+            className={cn("h-full rounded-full", barra >= 100 ? "bg-destructive" : "bg-primary")}
+            style={{ width: `${Math.min(barra, 100)}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 function timeAgo(date: Date): string {
   const diffMs = Date.now() - date.getTime();
@@ -40,7 +71,6 @@ interface Activity {
 export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [query, setQuery] = useState("");
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string }[]>([
@@ -143,6 +173,19 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     return items.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
   }, [lastUpdated, prospeccaoData]);
 
+  // Mês anterior fechado, para dar régua aos números do mês corrente.
+  const mesAnterior = useMemo(() => {
+    const ordenados = [...snapshots].sort((a, b) => (a.year - b.year) || (a.month - b.month));
+    const fechados = mesCorrenteAberto ? ordenados.slice(0, -1) : ordenados;
+    const ultimo = fechados.at(-1);
+    if (!ultimo) return null;
+    return {
+      mes: `${MESES[ultimo.month - 1]}`,
+      horas: Math.round(ultimo.total_horas),
+      valor: Math.round(ultimo.total_valor),
+    };
+  }, [snapshots, mesCorrenteAberto]);
+
   // Carteira mensal: os três números que respondem "como estamos agora".
   // Vêm da mesma fonte do painel de recorrentes, para não divergir dele.
   const carteira = useMemo(() => {
@@ -159,15 +202,32 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     };
   }, [dashboardData]);
 
+  // Quem está mais perto de estourar. É a resposta ao "19 em alerta":
+  // o número sozinho não diz em quem mexer.
+  const proximosDoLimite = useMemo(() => {
+    return (dashboardData?.clients ?? [])
+      .filter((c) => c.creditUsage)
+      .map((c) => ({
+        nome: c.project,
+        pct: Math.round(c.creditUsage!.percentualUsado),
+        horas: c.horasMensal,
+      }))
+      .sort((a, b) => b.pct - a.pct)
+      .slice(0, 5);
+  }, [dashboardData]);
+
   // Pendências: só entra o que exige ação e leva a algum lugar.
   const pendencias = useMemo(() => {
-    const itens: { key: string; texto: string; contagem: number; grave: boolean; destino: string }[] = [];
+    const itens: {
+      key: string; texto: string; contagem: number;
+      prioridade: "critico" | "atencao"; destino: string;
+    }[] = [];
     if (recorrentes.emAlerta > 0) {
       itens.push({
         key: "alerta",
         texto: `cliente${recorrentes.emAlerta !== 1 ? "s" : ""} com contrato em alerta`,
         contagem: recorrentes.emAlerta,
-        grave: true,
+        prioridade: "critico",
         destino: "/recorrentes",
       });
     }
@@ -176,21 +236,12 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
         key: "prospeccao",
         texto: `oportunidade${prospeccao.semMotivo !== 1 ? "s" : ""} sem motivo registrado`,
         contagem: prospeccao.semMotivo,
-        grave: false,
+        prioridade: "atencao",
         destino: "/prospeccao",
       });
     }
     return itens;
   }, [recorrentes.emAlerta, prospeccao.semMotivo]);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = query.trim().toLowerCase();
-    if (!q) return;
-    if (q.includes("hora")) navigate("/horas");
-    else if (q.includes("prospec") || q.includes("funil")) navigate("/prospeccao");
-    else navigate("/recorrentes");
-  };
 
   useEffect(() => {
     if (chatOpen) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -211,89 +262,76 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
   return (
     <AppShell>
       <>
-        {/* Cabeçalho: saudação + o dado que responde "está atualizado?" */}
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-display font-semibold text-foreground">
-              {greetingWord}{greetingName ? `, ${greetingName}` : ""}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {lastUpdated
-                ? `Dados de clientes recorrentes atualizados ${timeAgo(lastUpdated).toLowerCase()}.`
-                : "Nenhuma importação de clientes recorrentes ainda."}
-            </p>
-          </div>
-          <form onSubmit={handleSearch} className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ir para um módulo"
-              className="w-full pl-9 pr-3 h-9 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-          </form>
+        <div className="mb-4">
+          <h1 className="text-[22px] font-display font-semibold text-foreground leading-tight">
+            {greetingWord}{greetingName ? `, ${greetingName}` : ""}
+          </h1>
+          <p className="text-[13px] text-muted-foreground mt-0.5">
+            {lastUpdated
+              ? `Dados atualizados ${timeAgo(lastUpdated).toLowerCase()}.`
+              : "Nenhuma importação de clientes recorrentes ainda."}
+          </p>
         </div>
 
-        {/* Carteira mensal: a resposta direta de quanto entra e quanto já foi consumido */}
+        {/* Carteira mensal: quanto entra, quanto foi trabalhado, quanto do crédito foi usado */}
         {carteira.contratos > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border mb-6">
-            <div className="bg-card p-5">
-              <p className="text-xs text-muted-foreground mb-1.5">Mensalidades contratadas</p>
-              <p className="text-3xl font-display font-semibold text-foreground tabular-nums leading-none">
-                {carteira.mensalidades.toLocaleString("pt-BR", {
-                  style: "currency", currency: "BRL", maximumFractionDigits: 0,
-                })}
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                em {carteira.contratos} contrato{carteira.contratos !== 1 ? "s" : ""} mensal{carteira.contratos !== 1 ? "is" : ""}
-              </p>
-            </div>
-
-            <div className="bg-card p-5">
-              <p className="text-xs text-muted-foreground mb-1.5">Horas trabalhadas no mês</p>
-              <p className="text-3xl font-display font-semibold text-foreground tabular-nums leading-none">
-                {carteira.horasMes.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">nos clientes mensais</p>
-            </div>
-
-            <div className="bg-card p-5">
-              <p className="text-xs text-muted-foreground mb-1.5">Crédito de horas consumido</p>
-              <p className={cn(
-                "text-3xl font-display font-semibold tabular-nums leading-none",
-                carteira.consumoPct >= 100 ? "text-destructive" : "text-foreground",
-              )}>
-                {carteira.consumoPct}%
-              </p>
-              <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">
-                <div
-                  className={cn("h-full rounded-full", carteira.consumoPct >= 100 ? "bg-destructive" : "bg-primary")}
-                  style={{ width: `${Math.min(carteira.consumoPct, 100)}%` }}
-                />
-              </div>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border mb-4">
+            <Kpi
+              icone={Users}
+              rotulo="Mensalidades contratadas"
+              valor={carteira.mensalidades.toLocaleString("pt-BR", {
+                style: "currency", currency: "BRL", maximumFractionDigits: 0,
+              })}
+              apoio={`${carteira.contratos} contrato${carteira.contratos !== 1 ? "s" : ""} mensal${carteira.contratos !== 1 ? "is" : ""} ativo${carteira.contratos !== 1 ? "s" : ""}`}
+            />
+            <Kpi
+              icone={Clock4}
+              rotulo="Horas trabalhadas no mês"
+              valor={`${carteira.horasMes.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}h`}
+              apoio={mesAnterior ? `${mesAnterior.mes} fechou em ${mesAnterior.horas}h` : "nos clientes mensais"}
+            />
+            <Kpi
+              icone={Gauge}
+              rotulo="Crédito consumido"
+              valor={`${carteira.consumoPct}%`}
+              alerta={carteira.consumoPct >= 100}
+              barra={carteira.consumoPct}
+            />
           </div>
         )}
 
-        {/* Pendências: é o que muda o que você faz hoje */}
+        {/* Pendências: o que muda o que você faz hoje */}
         {pendencias.length > 0 && (
-          <div className="bg-card rounded-xl border border-border mb-6 overflow-hidden">
-            <div className="px-4 py-3 border-b border-border">
-              <p className="text-sm font-medium text-foreground">Precisa da sua atenção</p>
+          <div className="bg-card rounded-xl border border-border mb-4 overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-border">
+              <p className="text-[13px] font-medium text-foreground">Precisa da sua atenção</p>
             </div>
             {pendencias.map((p, i) => (
               <button
                 key={p.key}
                 onClick={() => navigate(p.destino)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors ${
-                  i < pendencias.length - 1 ? "border-b border-border" : ""
-                }`}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/40 transition-colors",
+                  i < pendencias.length - 1 && "border-b border-border",
+                )}
               >
-                <span className={`text-lg font-semibold tabular-nums ${p.grave ? "text-destructive" : "text-foreground"}`}>
+                <span
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full shrink-0",
+                    p.prioridade === "critico" ? "bg-destructive" : "bg-warning",
+                  )}
+                  aria-hidden
+                />
+                <span className="text-lg font-display font-semibold tabular-nums text-foreground w-10">
                   {p.contagem}
                 </span>
                 <span className="text-sm text-foreground flex-1">{p.texto}</span>
+                <span className={cn(
+                  "text-[11px] font-medium shrink-0",
+                  p.prioridade === "critico" ? "text-destructive" : "text-warning-foreground",
+                )}>
+                  {p.prioridade === "critico" ? "Crítico" : "Atenção"}
+                </span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
               </button>
             ))}
@@ -301,7 +339,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
         )}
 
         {/* Visão geral: uma série por vez, período ajustável */}
-        <div className="bg-card rounded-xl border border-border mb-6">
+        <div className="bg-card rounded-xl border border-border mb-4">
           <div className="p-5 pb-0">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -365,7 +403,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
                 A curva aparece a partir de dois meses fechados.
               </p>
             ) : (
-              <div style={{ height: 240 }}>
+              <div style={{ height: 204 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={historico} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <defs>
@@ -416,6 +454,51 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
             )}
           </div>
         </div>
+
+        {/* Onde agir: os cinco mais próximos do limite do crédito */}
+        {proximosDoLimite.length > 0 && (
+          <div className="bg-card rounded-xl border border-border mb-4 overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
+              <p className="text-[13px] font-medium text-foreground">Clientes próximos do limite</p>
+              <button
+                onClick={() => navigate("/recorrentes")}
+                className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Ver todos
+              </button>
+            </div>
+            {proximosDoLimite.map((c, i) => (
+              <button
+                key={c.nome}
+                onClick={() => navigate("/recorrentes")}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/40 transition-colors",
+                  i < proximosDoLimite.length - 1 && "border-b border-border",
+                )}
+              >
+                <span className="text-sm text-foreground flex-1 truncate">{c.nome}</span>
+                <span className="text-[12px] text-muted-foreground tabular-nums shrink-0 w-16 text-right">
+                  {c.horas.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h
+                </span>
+                <span className="w-24 h-1.5 rounded-full bg-muted overflow-hidden shrink-0">
+                  <span
+                    className={cn(
+                      "block h-full rounded-full",
+                      c.pct >= 100 ? "bg-destructive" : c.pct >= 80 ? "bg-warning" : "bg-primary",
+                    )}
+                    style={{ width: `${Math.min(c.pct, 100)}%` }}
+                  />
+                </span>
+                <span className={cn(
+                  "text-sm font-medium tabular-nums shrink-0 w-12 text-right",
+                  c.pct >= 100 ? "text-destructive" : "text-foreground",
+                )}>
+                  {c.pct}%
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Módulos */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
