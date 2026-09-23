@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { useProspeccaoData } from "@/hooks/use-prospeccao-data";
 import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
+import { supabase } from "@/integrations/supabase/client";
 import { DashboardData } from "@/lib/data-parser";
 import { responderPergunta } from "@/lib/assistant-rules";
 
@@ -19,6 +20,18 @@ interface SistemaHomeProps {
 }
 
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+function comparaContratos(atual: number, anterior: number, mes: string): string {
+  const d = atual - anterior;
+  if (d === 0) return `igual a ${mes}`;
+  return `${d > 0 ? "+" : ""}${d} contrato${Math.abs(d) !== 1 ? "s" : ""} vs. ${mes}`;
+}
+
+function comparaPontos(atual: number, anterior: number, mes: string): string {
+  const d = atual - anterior;
+  if (d === 0) return `igual a ${mes}`;
+  return `${d > 0 ? "+" : ""}${d} p.p. vs. ${mes} (${anterior}%)`;
+}
 
 function Kpi({
   icone: Icone, rotulo, valor, apoio, alerta, barra,
@@ -204,6 +217,36 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
     return Math.round(soma / historico.length);
   }, [historico, serie]);
 
+  // Como a carteira estava no último dia do mês anterior. Só é possível
+  // porque cliente_contratos guarda vigência: dá para perguntar ao banco
+  // "o que valia naquela data" em vez de assumir que nada mudou.
+  const [carteiraAnterior, setCarteiraAnterior] = useState<{ contratos: number; credito: number } | null>(null);
+
+  useEffect(() => {
+    const fimMesAnterior = new Date();
+    fimMesAnterior.setDate(0);
+    const data = fimMesAnterior.toISOString().slice(0, 10);
+
+    (supabase as any)
+      .from("cliente_contratos")
+      .select("valor_mensal, multiplicador_credito, vigencia_inicio, vigencia_fim, clientes!inner(ativo)")
+      .lte("vigencia_inicio", data)
+      .or(`vigencia_fim.is.null,vigencia_fim.gte.${data}`)
+      .then(({ data: linhas, error }: { data: any[] | null; error: unknown }) => {
+        if (error || !linhas) return;
+        const validos = linhas.filter((l) => l.clientes?.ativo);
+        setCarteiraAnterior({
+          contratos: validos.length,
+          credito: validos.reduce((t, l) => t + Number(l.valor_mensal) * Number(l.multiplicador_credito), 0),
+        });
+      });
+  }, []);
+
+  const pctAnterior = useMemo(() => {
+    if (!mesAnterior || !carteiraAnterior || carteiraAnterior.credito <= 0) return null;
+    return Math.round((mesAnterior.valor / carteiraAnterior.credito) * 100);
+  }, [mesAnterior, carteiraAnterior]);
+
   // Carteira mensal: os três números que respondem "como estamos agora".
   // Vêm da mesma fonte do painel de recorrentes, para não divergir dele.
   const carteira = useMemo(() => {
@@ -301,7 +344,11 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
               valor={carteira.mensalidades.toLocaleString("pt-BR", {
                 style: "currency", currency: "BRL", maximumFractionDigits: 0,
               })}
-              apoio={`${carteira.contratos} contratos · crédito de ${carteira.credito.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0, notation: "compact" })}`}
+              apoio={
+                carteiraAnterior && mesAnterior
+                  ? `${carteira.contratos} contratos · ${comparaContratos(carteira.contratos, carteiraAnterior.contratos, mesAnterior.mes)}`
+                  : `${carteira.contratos} contratos · crédito de ${carteira.credito.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0, notation: "compact" })}`
+              }
             />
             <Kpi
               icone={Clock4}
@@ -315,9 +362,11 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
               valor={`${carteira.consumoPct}%`}
               alerta={carteira.consumoPct >= 100}
               barra={carteira.consumoPct}
-              apoio={mesAnterior
-                ? `${mesAnterior.mes} fechou em ${mesAnterior.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0, notation: "compact" })} consumidos`
-                : undefined}
+              apoio={
+                pctAnterior !== null && mesAnterior
+                  ? comparaPontos(carteira.consumoPct, pctAnterior, mesAnterior.mes)
+                  : undefined
+              }
             />
           </div>
         )}
@@ -333,15 +382,19 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
                 key={p.key}
                 onClick={() => navigate(p.destino)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/40 transition-colors",
+                  "relative w-full flex items-center gap-3 pl-5 pr-4 py-2.5 text-left transition-colors",
                   i < pendencias.length - 1 && "border-b border-border",
+                  p.prioridade === "critico" ? "bg-destructive/[0.04] hover:bg-destructive/[0.08]"
+                    : p.prioridade === "atencao" ? "bg-warning/[0.06] hover:bg-warning/[0.11]"
+                      : "hover:bg-muted/40",
                 )}
               >
+                {/* Severidade como barra lateral: lê-se antes do texto */}
                 <span
                   className={cn(
-                    "w-1.5 h-1.5 rounded-full shrink-0",
+                    "absolute left-0 inset-y-0 w-[3px]",
                     p.prioridade === "critico" ? "bg-destructive"
-                      : p.prioridade === "atencao" ? "bg-warning" : "bg-muted-foreground/40",
+                      : p.prioridade === "atencao" ? "bg-warning" : "bg-border",
                   )}
                   aria-hidden
                 />
@@ -475,7 +528,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
                 A curva aparece a partir de dois meses fechados.
               </p>
             ) : (
-              <div style={{ height: 204 }}>
+              <div style={{ height: 176 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={historico} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <defs>
