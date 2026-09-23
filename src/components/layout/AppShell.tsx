@@ -103,7 +103,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
           <div className={cn("mt-5 mb-1.5 px-3", recolhida && "px-2")}>
             {recolhida
               ? <div className="h-px bg-sidebar-border" />
-              : <p className="text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/60">Administração</p>}
+              : <p className="text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/85">Administração</p>}
           </div>
           <ul className="space-y-px">
             {administracao.map((item) => (
@@ -193,7 +193,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
               <Menu className="w-5 h-5 text-foreground" />
             </button>
 
-            <form onSubmit={buscar} className="relative flex-1 max-w-xl">
+            <form onSubmit={buscar} className="relative flex-1 max-w-2xl">
               <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 ref={campoBusca}
