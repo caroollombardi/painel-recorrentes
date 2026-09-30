@@ -15,6 +15,9 @@ import {
 } from "recharts";
 import { AppShell } from "@/components/layout/AppShell";
 import { useProspeccaoData, type Etapa, type MotivoFonte } from "@/hooks/use-prospeccao-data";
+import { PlacarReunioes } from "@/components/prospeccao/PlacarReunioes";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const DESFECHO_LABEL: Record<string, string> = {
   ganho: "Ganho",
@@ -55,7 +58,22 @@ function pctBadgeClass(pct: number) {
 }
 
 export default function ProspeccaoDashboard() {
-  const { data, isLoading, error, reload } = useProspeccaoData();
+  const { data, updatedAt, isLoading, isSyncing, error, sincronizar } = useProspeccaoData();
+  const { isAdmin } = useAuth();
+  const { toast } = useToast();
+
+  const handleSync = async () => {
+    try {
+      await sincronizar();
+      toast({ title: "Funil atualizado do Asana", description: "Os dados novos já estão visíveis para todos." });
+    } catch (err) {
+      toast({
+        title: "Erro ao atualizar do Asana",
+        description: err instanceof Error ? err.message : "Falha ao buscar dados.",
+        variant: "destructive",
+      });
+    }
+  };
   const [ownerFilter, setOwnerFilter] = useState<string>("todos");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const pendentesRef = useRef<HTMLDivElement>(null);
@@ -117,15 +135,19 @@ export default function ProspeccaoDashboard() {
               <p className="text-sm text-muted-foreground mt-0.5">Visão executiva do pipeline comercial</p>
               {data && (
                 <p className="text-xs text-muted-foreground/70 mt-1">
-                  Atualizado hoje às {new Date(data.generatedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                  {updatedAt
+                    ? <>Atualizado em {updatedAt.toLocaleDateString("pt-BR")} às {updatedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</>
+                    : "Atualização pendente"}
                   {" · "}Fonte: Asana{" · "}{data.resumo.total} oportunidades
                 </p>
               )}
             </div>
-            <Button onClick={reload} className="gap-2 bg-[#FB7435] hover:bg-[#e2632b] text-white">
-              <RefreshCw className="w-4 h-4" />
-              Atualizar
-            </Button>
+            {isAdmin && (
+              <Button onClick={handleSync} disabled={isSyncing} className="gap-2 bg-[#FB7435] hover:bg-[#e2632b] text-white">
+                <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
+                {isSyncing ? "Buscando no Asana..." : "Atualizar do Asana"}
+              </Button>
+            )}
           </div>
 
           {isLoading ? (
@@ -199,6 +221,9 @@ export default function ProspeccaoDashboard() {
                   onClick={scrollToPendentes}
                 />
               </div>
+
+              {/* Placar de reuniões agendadas (Pedro x Lorenzo) */}
+              {data.placar && <PlacarReunioes placar={data.placar} />}
 
               {/* Funil real por etapa */}
               {funilChartData.length > 0 && (
