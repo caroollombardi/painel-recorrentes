@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { BarChart3, Database, ArrowLeft, UsersRound, LogOut, Calendar, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
+import { BarChart3, Database, ArrowLeft, UsersRound, LogOut, Calendar, CheckCircle2, Loader2, RefreshCw, FolderKanban } from "lucide-react";
 import { FileUpload } from "@/components/dashboard/FileUpload";
 import { parseXLSXData } from "@/lib/xlsx-parser";
 import { fetchDashboardDataFromAsana } from "@/lib/asana-recorrentes-import";
+import { sincronizarProspeccaoDoAsana } from "@/hooks/use-prospeccao-data";
 import { DashboardData } from "@/lib/data-parser";
 import { saveContractValues, getContractValues, ContractValue } from "@/lib/contract-values";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +28,8 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSyncingAsana, setIsSyncingAsana] = useState(false);
+  const [isSyncingProspeccao, setIsSyncingProspeccao] = useState(false);
+  const [lastProspeccaoUpdate, setLastProspeccaoUpdate] = useState<Date | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [importResult, setImportResult] = useState<{ clients: boolean } | null>(null);
 
@@ -98,6 +101,27 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
       setIsSyncingAsana(false);
     }
   }, [onDataUpdate, toast]);
+
+  const handleProspeccaoSync = useCallback(async () => {
+    setIsSyncingProspeccao(true);
+    try {
+      const data = await sincronizarProspeccaoDoAsana();
+      setLastProspeccaoUpdate(new Date());
+      toast({
+        title: "Funil de Prospecção atualizado",
+        description: `${data.resumo.total} oportunidade(s) lidas do Asana.`,
+      });
+    } catch (error) {
+      console.error("Error syncing prospecção from Asana:", error);
+      toast({
+        title: "Erro ao buscar do Asana",
+        description: error instanceof Error ? error.message : "Falha ao buscar dados.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncingProspeccao(false);
+    }
+  }, [toast]);
 
   const handleLogout = async () => {
     await signOut();
@@ -208,6 +232,42 @@ export function Home({ onDataUpdate, hasData }: HomeProps) {
             </Button>
             <p className="text-xs text-muted-foreground text-center mt-3">
               Atualiza só Clientes Recorrentes. Lançamento de Horas continua vindo da planilha.
+            </p>
+          </div>
+
+          {/* Prospecção Sync Card */}
+          <div className="bg-card rounded-xl border border-border p-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <FolderKanban className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Atualizar Funil de Prospecção
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Busca no Asana o portfólio WSA - PROSPECÇÃO, incluindo o placar de reuniões agendadas
+                </p>
+              </div>
+            </div>
+
+            <Button onClick={handleProspeccaoSync} disabled={isSyncingProspeccao} className="w-full gap-2">
+              {isSyncingProspeccao ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Buscando no Asana...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  Atualizar agora
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center mt-3">
+              {lastProspeccaoUpdate
+                ? `Última atualização: ${lastProspeccaoUpdate.toLocaleString("pt-BR")}`
+                : "Pode levar até um minuto: o painel lê as tarefas de cada projeto."}
             </p>
           </div>
 
