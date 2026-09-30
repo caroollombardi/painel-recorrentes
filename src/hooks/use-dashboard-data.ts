@@ -73,7 +73,7 @@ export function useDashboardData() {
       const { data, error } = await supabase
         .from("dashboard_data")
         .select("data, updated_at")
-        .neq("file_name", "__contract_values_config__")
+        .not("file_name", "in", '("__contract_values_config__","__prospeccao_snapshot__")')
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -152,8 +152,11 @@ export function useDashboardData() {
   useEffect(() => {
     const channel = supabase
       .channel("dashboard_data_changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "dashboard_data" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "dashboard_data" }, (payload) => {
         if (ownUpdateRef.current) return;
+        // A cópia do Funil de Prospecção mora na mesma tabela, mas não é dado de recorrentes
+        const fileName = (payload.new as { file_name?: string } | null)?.file_name;
+        if (fileName === "__prospeccao_snapshot__") return;
         loadData(true);
       })
       .subscribe();
@@ -172,7 +175,7 @@ export function useDashboardData() {
       const { data: existing } = await supabase
         .from("dashboard_data")
         .select("id")
-        .neq("file_name", "__contract_values_config__")
+        .not("file_name", "in", '("__contract_values_config__","__prospeccao_snapshot__")')
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
