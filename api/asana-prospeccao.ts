@@ -6,6 +6,60 @@ const ASANA_BASE = "https://app.asana.com/api/1.0";
 const PORTFOLIO_GID = "1211494420370314"; // WSA - PROSPECÇÃO
 const CONCURRENCY = 8;
 
+// --- Placar de reuniões agendadas (competição Pedro x Lorenzo) ---
+// Entram no placar:
+//  1) os projetos que estavam abertos e em dia em 30/09/2026 (lista fixa abaixo, pra ninguém
+//     sair do placar quando o projeto for concluído depois), e
+//  2) todo projeto criado a partir de 30/09/2026 00:00 (horário de Brasília).
+const PLACAR_INICIO = "2026-09-30T03:00:00.000Z";
+const PLACAR_PROJETOS_BASE = new Set<string>([
+  "1218898615312188", "1218697031954064", "1218696928710672", "1218605871516630", "1218539574965373",
+  "1218539574965368", "1218539574965363", "1218539574965356", "1218455800972926", "1218461113066246",
+  "1218455800972921", "1218017856098407", "1217885268332113", "1217885268332102", "1217863660815650",
+  "1217793462599832", "1217793462599827", "1217655322749776", "1217655322749771", "1217604085703467",
+  "1217604085703453", "1217547160438589", "1217489523598990", "1217325084802409", "1217237327689414",
+  "1216900104689606", "1215869617244886", "1215108240896074", "1215108838593393", "1215108240896052",
+  "1214705684011698", "1214705684011625", "1213366257293209",
+  "1218951621059207", "1218951233010581", "1218898615312174", "1218898615312152", "1218898569157252",
+  "1218870664960043", "1218869560075926", "1218869560075917", "1218869560075906", "1218837081876056",
+]);
+// Concluída em até 5 min após a criação do projeto = marcada no cadastro, não no agendamento real
+const CADASTRO_JANELA_MS = 5 * 60 * 1000;
+const PULAR_CONCLUIDOS_APOS_MS = 30 * 86400000;
+
+function normalizar(nome: string): string {
+  return nome.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+}
+
+function isTarefaAgendamento(nome: string): boolean {
+  return /^agendar reuniao/.test(normalizar(nome));
+}
+
+// A tarefa "Reunião Comercial" guarda, no prazo, a data em que a reunião vai acontecer
+function isTarefaReuniao(nome: string): boolean {
+  return /^reuniao comercial/.test(normalizar(nome));
+}
+
+function estaNoPlacar(p: { gid: string; created_at: string }): boolean {
+  return PLACAR_PROJETOS_BASE.has(p.gid) || new Date(p.created_at).getTime() >= new Date(PLACAR_INICIO).getTime();
+}
+
+// Quem colocou a data na "Reunião Comercial": última alteração de prazo no histórico da tarefa
+async function buscarQuemColocouData(pat: string, taskGid: string): Promise<string | null> {
+  try {
+    const stories = await asanaGetAll<{ resource_subtype: string; created_at: string; created_by: { name: string } | null }>(
+      `/tasks/${taskGid}/stories?opt_fields=resource_subtype,created_at,created_by.name&limit=100`,
+      pat
+    );
+    const alteracoes = stories
+      .filter((st) => st.resource_subtype === "due_date_changed" && st.created_by?.name)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return alteracoes[0]?.created_by?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function asanaGet(path: string, pat: string): Promise<unknown> {
   const res = await fetch(`${ASANA_BASE}${path}`, {
     headers: { Authorization: `Bearer ${pat}` },
@@ -45,6 +99,7 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T)
 interface PortfolioItem {
   gid: string;
   name: string;
+  completed_at: string | null;
   archived: boolean;
   created_at: string;
   modified_at: string;
@@ -56,6 +111,11 @@ interface AsanaTask {
   gid: string;
   name: string;
   completed: boolean;
+  completed_at: string | null;
+  completed_by: { name: string } | null;
+  assignee: { name: string } | null;
+  due_on: string | null;
+  due_at: string | null;
   notes: string;
   memberships: { section: { name: string } }[];
   custom_fields: { name: string; display_value: string | null }[];
@@ -67,6 +127,20 @@ type MotivoFonte = "tarefa_funil" | "status_projeto" | "nao_encontrado";
 type Etapa =
   | "Lead recebido" | "Reunião" | "Proposta enviada" | "Negociação"
   | "Ganho" | "Perdido" | "Sem estrutura de funil";
+
+interface ReuniaoAgendamento {
+  taskGid: string;
+  taskName: string;
+  concluida: boolean;
+  concluidaEm: string | null;
+  concluidaPor: string | null;
+  responsavel: string | null;
+  prazo: string | null;
+  concluidaNoCadastro: boolean;
+  reuniaoTaskGid: string | null;
+  reuniaoData: string | null;
+  reuniaoDataPor: string | null;
+}
 
 interface ProspeccaoItem {
   gid: string;
@@ -81,6 +155,8 @@ interface ProspeccaoItem {
   origemLead: string | null;
   createdAt: string;
   modifiedAt: string;
+  noPlacar: boolean;
+  agendamento: ReuniaoAgendamento | null;
 }
 
 // --- Classificação legada (fallback), lida no texto livre do status do projeto ---
@@ -128,10 +204,51 @@ function findField(fields: { name: string; display_value: string | null }[], lab
   return f?.display_value?.trim() || null;
 }
 
-async function analisarProjeto(pat: string, project: PortfolioItem): Promise<{
+// O que o painel devolve da cópia salva para não reler projetos antigos
+interface AnaliseSalva {
+  modifiedAt: string;
+  desfecho: Desfecho;
+  motivo: string;
+  motivoFonte: MotivoFonte;
+  etapaAtual: Etapa;
+  areaJuridica: string | null;
+  origemLead: string | null;
+  agendamento?: ReuniaoAgendamento | null;
+}
+
+type Analise = {
   desfecho: Desfecho; motivo: string; motivoFonte: MotivoFonte; etapaAtual: Etapa;
   areaJuridica: string | null; origemLead: string | null;
-}> {
+};
+
+function extrairAgendamento(tasks: AsanaTask[], projectCreatedAt: string): ReuniaoAgendamento | null {
+  const candidatas = tasks.filter((t) => isTarefaAgendamento(t.name));
+  if (candidatas.length === 0) return null;
+  // Se houver mais de uma, vale a primeira concluída (a mais antiga); se nenhuma foi concluída, a primeira da lista
+  const concluidas = candidatas
+    .filter((t) => t.completed && t.completed_at)
+    .sort((a, b) => new Date(a.completed_at!).getTime() - new Date(b.completed_at!).getTime());
+  const t = concluidas[0] ?? candidatas[0];
+  const reuniao = tasks.find((r) => isTarefaReuniao(r.name)) ?? null;
+  const concluidaNoCadastro =
+    !!t.completed_at &&
+    new Date(t.completed_at).getTime() - new Date(projectCreatedAt).getTime() <= CADASTRO_JANELA_MS;
+  return {
+    taskGid: t.gid,
+    taskName: t.name.trim(),
+    concluida: t.completed,
+    concluidaEm: t.completed ? t.completed_at : null,
+    concluidaPor: t.completed ? (t.completed_by?.name ?? t.assignee?.name ?? null) : null,
+    responsavel: t.assignee?.name ?? null,
+    prazo: t.due_on,
+    concluidaNoCadastro,
+    reuniaoTaskGid: reuniao?.gid ?? null,
+    reuniaoData: reuniao ? (reuniao.due_at ?? reuniao.due_on ?? null) : null,
+    reuniaoDataPor: null,
+  };
+}
+
+async function analisarProjeto(pat: string, project: PortfolioItem): Promise<Analise & { agendamento: ReuniaoAgendamento | null }> {
   const color = project.current_status?.color;
   const statusGeral = classifyStatusGeral(color);
   const resumoLegado = project.current_status?.text ? extractResumo(project.current_status.text) : "";
@@ -139,11 +256,17 @@ async function analisarProjeto(pat: string, project: PortfolioItem): Promise<{
   let tasks: AsanaTask[] = [];
   try {
     tasks = await asanaGetAll<AsanaTask>(
-      `/projects/${project.gid}/tasks?opt_fields=name,completed,notes,memberships.section.name,custom_fields.name,custom_fields.display_value&limit=100`,
+      `/projects/${project.gid}/tasks?opt_fields=name,completed,completed_at,completed_by.name,assignee.name,due_on,due_at,notes,memberships.section.name,custom_fields.name,custom_fields.display_value&limit=100`,
       pat
     );
   } catch {
     tasks = [];
+  }
+
+  const agendamento = extrairAgendamento(tasks, project.created_at);
+  // Só busca o histórico (1 chamada a mais) quando o ponto está em jogo
+  if (agendamento?.concluida && agendamento.reuniaoTaskGid && agendamento.reuniaoData && estaNoPlacar(project)) {
+    agendamento.reuniaoDataPor = await buscarQuemColocouData(pat, agendamento.reuniaoTaskGid);
   }
 
   const comercial = tasks.filter((t) => t.memberships.some((m) => m.section?.name === "FASE COMERCIAL"));
@@ -157,6 +280,7 @@ async function analisarProjeto(pat: string, project: PortfolioItem): Promise<{
       etapaAtual: "Sem estrutura de funil",
       areaJuridica: null,
       origemLead: null,
+      agendamento,
     };
   }
 
@@ -181,6 +305,7 @@ async function analisarProjeto(pat: string, project: PortfolioItem): Promise<{
       etapaAtual: "Ganho",
       areaJuridica,
       origemLead,
+      agendamento,
     };
   }
 
@@ -193,6 +318,7 @@ async function analisarProjeto(pat: string, project: PortfolioItem): Promise<{
       etapaAtual: isGanho ? "Ganho" : "Perdido",
       areaJuridica,
       origemLead,
+      agendamento,
     };
   }
 
@@ -211,12 +337,13 @@ async function analisarProjeto(pat: string, project: PortfolioItem): Promise<{
     etapaAtual,
     areaJuridica,
     origemLead,
+    agendamento,
   };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "GET" && req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
     const pat = process.env.ASANA_PAT;
@@ -224,7 +351,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const rawItems = await asanaGetAll<PortfolioItem>(
       `/portfolios/${PORTFOLIO_GID}/items` +
-        `?opt_fields=name,archived,created_at,modified_at,owner.name,current_status.color,current_status.text` +
+        `?opt_fields=name,archived,created_at,modified_at,completed_at,owner.name,current_status.color,current_status.text` +
         `&limit=100`,
       pat
     );
@@ -233,7 +360,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       (p) => !p.archived && !p.name.trim().toLowerCase().includes("[nome do cliente]")
     );
 
-    const analises = await mapWithConcurrency(filtered, CONCURRENCY, (p) => analisarProjeto(pat, p));
+    // Projetos concluídos há mais de 30 dias e sem mudança desde a última leitura não são relidos:
+    // reaproveita a análise que veio da cópia salva (enviada pelo painel no POST).
+    const anteriores: Record<string, AnaliseSalva> =
+      req.method === "POST" && req.body && typeof req.body === "object" ? (req.body.anteriores ?? {}) : {};
+    let reaproveitados = 0;
+    const analises = await mapWithConcurrency(filtered, CONCURRENCY, async (p) => {
+      const salvo = anteriores[p.gid];
+      const concluidoEm = p.completed_at ?? (classifyStatusGeral(p.current_status?.color) === "concluido" ? p.modified_at : null);
+      const concluidoHaMaisDe30 = !!concluidoEm && Date.now() - new Date(concluidoEm).getTime() > PULAR_CONCLUIDOS_APOS_MS;
+      if (salvo && concluidoHaMaisDe30 && salvo.modifiedAt === p.modified_at) {
+        reaproveitados += 1;
+        return {
+          desfecho: salvo.desfecho,
+          motivo: salvo.motivo,
+          motivoFonte: salvo.motivoFonte,
+          etapaAtual: salvo.etapaAtual,
+          areaJuridica: salvo.areaJuridica,
+          origemLead: salvo.origemLead,
+          agendamento: salvo.agendamento ?? null,
+        };
+      }
+      return analisarProjeto(pat, p);
+    });
 
     const items: ProspeccaoItem[] = filtered.map((p, idx) => {
       const a = analises[idx];
@@ -250,8 +399,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         origemLead: a.origemLead,
         createdAt: p.created_at,
         modifiedAt: p.modified_at,
+        noPlacar: estaNoPlacar(p),
+        agendamento: a.agendamento,
       };
     });
+
+    // --- Placar de reuniões agendadas ---
+    const placarItems = items.filter((i) => i.noPlacar);
+    // Ponto = "Agendar reunião comercial" concluída E "Reunião Comercial" com data preenchida
+    const reunioesAgendadas = placarItems
+      .filter((i) => i.agendamento?.concluida && i.agendamento.concluidaEm && i.agendamento.reuniaoData)
+      .map((i) => ({
+        projetoGid: i.gid,
+        projeto: i.name,
+        dono: i.owner,
+        taskGid: i.agendamento!.taskGid,
+        agendadaEm: i.agendamento!.concluidaEm as string,
+        agendadaPor: i.agendamento!.concluidaPor ?? "Não identificado",
+        responsavel: i.agendamento!.responsavel,
+        concluidaNoCadastro: i.agendamento!.concluidaNoCadastro,
+        reuniaoData: i.agendamento!.reuniaoData as string,
+        reuniaoDataPor: i.agendamento!.reuniaoDataPor ?? "Não identificado",
+      }))
+      .sort((a, b) => new Date(b.agendadaEm).getTime() - new Date(a.agendadaEm).getTime());
+    // Agendamento concluído, mas sem data na "Reunião Comercial": ainda não pontua
+    const agendadasSemData = placarItems
+      .filter((i) => i.agendamento?.concluida && !i.agendamento.reuniaoData && i.statusGeral !== "concluido")
+      .map((i) => ({
+        projetoGid: i.gid,
+        projeto: i.name,
+        agendadaPor: i.agendamento!.concluidaPor ?? "Não identificado",
+        taskGid: i.agendamento!.reuniaoTaskGid ?? i.agendamento!.taskGid,
+        temTarefaReuniao: !!i.agendamento!.reuniaoTaskGid,
+      }));
+    const reunioesPendentes = placarItems
+      .filter((i) => i.agendamento && !i.agendamento.concluida && i.statusGeral !== "concluido")
+      .map((i) => ({
+        projetoGid: i.gid,
+        projeto: i.name,
+        dono: i.owner,
+        taskGid: i.agendamento!.taskGid,
+        responsavel: i.agendamento!.responsavel,
+        prazo: i.agendamento!.prazo,
+      }))
+      .sort((a, b) => (a.prazo ?? "9999").localeCompare(b.prazo ?? "9999"));
+    const semTarefaAgendamento = placarItems
+      .filter((i) => !i.agendamento)
+      .map((i) => ({ projetoGid: i.gid, projeto: i.name, dono: i.owner }));
+    const placar = {
+      inicio: PLACAR_INICIO,
+      projetosNoPlacar: placarItems.length,
+      reunioesAgendadas,
+      reunioesPendentes,
+      agendadasSemData,
+      semTarefaAgendamento,
+    };
 
     const total = items.length;
     const emDiaItems = items.filter((i) => i.statusGeral === "em_dia");
@@ -304,6 +506,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.json({
       generatedAt: new Date().toISOString(),
+      leitura: { projetos: filtered.length, reaproveitados, lidosNoAsana: filtered.length - reaproveitados },
       resumo: {
         total,
         emDia,
@@ -327,6 +530,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       areaJuridicaCounts,
       porResponsavel,
       pendentes,
+      placar,
       items,
     });
   } catch (err: unknown) {
