@@ -7,22 +7,7 @@ const PORTFOLIO_GID = "1211494420370314"; // WSA - PROSPECÇÃO
 const CONCURRENCY = 8;
 
 // --- Placar de reuniões agendadas (competição Pedro x Lorenzo) ---
-// Entram no placar:
-//  1) os projetos que estavam abertos e em dia em 30/09/2026 (lista fixa abaixo, pra ninguém
-//     sair do placar quando o projeto for concluído depois), e
-//  2) todo projeto criado a partir de 30/09/2026 00:00 (horário de Brasília).
-const PLACAR_INICIO = "2026-09-30T03:00:00.000Z";
-const PLACAR_PROJETOS_BASE = new Set<string>([
-  "1218898615312188", "1218697031954064", "1218696928710672", "1218605871516630", "1218539574965373",
-  "1218539574965368", "1218539574965363", "1218539574965356", "1218455800972926", "1218461113066246",
-  "1218455800972921", "1218017856098407", "1217885268332113", "1217885268332102", "1217863660815650",
-  "1217793462599832", "1217793462599827", "1217655322749776", "1217655322749771", "1217604085703467",
-  "1217604085703453", "1217547160438589", "1217489523598990", "1217325084802409", "1217237327689414",
-  "1216900104689606", "1215869617244886", "1215108240896074", "1215108838593393", "1215108240896052",
-  "1214705684011698", "1214705684011625", "1213366257293209",
-  "1218951621059207", "1218951233010581", "1218898615312174", "1218898615312152", "1218898569157252",
-  "1218870664960043", "1218869560075926", "1218869560075917", "1218869560075906", "1218837081876056",
-]);
+// Entram no placar todos os projetos do portfólio, menos os concluídos há mais de 30 dias.
 // Concluída em até 5 min após a criação do projeto = marcada no cadastro, não no agendamento real
 const CADASTRO_JANELA_MS = 5 * 60 * 1000;
 const PULAR_CONCLUIDOS_APOS_MS = 30 * 86400000;
@@ -40,12 +25,21 @@ function isTarefaReuniao(nome: string): boolean {
   return /^reuniao comercial/.test(normalizar(nome));
 }
 
-function estaNoPlacar(p: { gid: string; created_at: string }): boolean {
-  return PLACAR_PROJETOS_BASE.has(p.gid) || new Date(p.created_at).getTime() >= new Date(PLACAR_INICIO).getTime();
+function concluidoEm(p: PortfolioItem): string | null {
+  return p.completed_at ?? (classifyStatusGeral(p.current_status?.color) === "concluido" ? p.modified_at : null);
+}
+
+function concluidoHaMaisDe30Dias(p: PortfolioItem): boolean {
+  const em = concluidoEm(p);
+  return !!em && Date.now() - new Date(em).getTime() > PULAR_CONCLUIDOS_APOS_MS;
+}
+
+function estaNoPlacar(p: PortfolioItem): boolean {
+  return !concluidoHaMaisDe30Dias(p);
 }
 
 // Quem colocou a data na "Reunião Comercial": última alteração de prazo no histórico da tarefa
-async function buscarQuemColocouData(pat: string, taskGid: string): Promise<string | null> {
+async function buscarQuemColocouData(pat: string, taskGid: string): Promise<{ nome: string; em: string } | null> {
   try {
     const stories = await asanaGetAll<{ resource_subtype: string; created_at: string; created_by: { name: string } | null }>(
       `/tasks/${taskGid}/stories?opt_fields=resource_subtype,created_at,created_by.name&limit=100`,
@@ -54,7 +48,8 @@ async function buscarQuemColocouData(pat: string, taskGid: string): Promise<stri
     const alteracoes = stories
       .filter((st) => st.resource_subtype === "due_date_changed" && st.created_by?.name)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return alteracoes[0]?.created_by?.name ?? null;
+    const ultima = alteracoes[0];
+    return ultima ? { nome: ultima.created_by!.name, em: ultima.created_at } : null;
   } catch {
     return null;
   }
@@ -116,6 +111,7 @@ interface AsanaTask {
   assignee: { name: string } | null;
   due_on: string | null;
   due_at: string | null;
+  created_at: string;
   notes: string;
   memberships: { section: { name: string } }[];
   custom_fields: { name: string; display_value: string | null }[];
@@ -129,6 +125,9 @@ type Etapa =
   | "Ganho" | "Perdido" | "Sem estrutura de funil";
 
 interface ReuniaoAgendamento {
+  // "agendar": tarefa "Agendar reunião comercial" (template novo)
+  // "reuniao": projeto só com "Reunião Comercial" (template antigo) — vale a data colocada nela
+  origem: "agendar" | "reuniao";
   taskGid: string;
   taskName: string;
   concluida: boolean;
@@ -223,7 +222,27 @@ type Analise = {
 
 function extrairAgendamento(tasks: AsanaTask[], projectCreatedAt: string): ReuniaoAgendamento | null {
   const candidatas = tasks.filter((t) => isTarefaAgendamento(t.name));
-  if (candidatas.length === 0) return null;
+  if (candidatas.length === 0) {
+    // Template antigo: só existe "Reunião Comercial". Agendada = tem data; o autor e o momento
+    // vêm do histórico da tarefa (preenchidos em analisarProjeto).
+    const r = tasks.find((t) => isTarefaReuniao(t.name));
+    if (!r) return null;
+    const data = r.due_at ?? r.due_on ?? null;
+    return {
+      origem: "reuniao",
+      taskGid: r.gid,
+      taskName: r.name.trim(),
+      concluida: !!data || r.completed,
+      concluidaEm: data ? null : r.completed ? r.completed_at : null,
+      concluidaPor: data ? null : r.completed ? (r.completed_by?.name ?? r.assignee?.name ?? null) : null,
+      responsavel: r.assignee?.name ?? null,
+      prazo: null,
+      concluidaNoCadastro: false,
+      reuniaoTaskGid: r.gid,
+      reuniaoData: data,
+      reuniaoDataPor: null,
+    };
+  }
   // Se houver mais de uma, vale a primeira concluída (a mais antiga); se nenhuma foi concluída, a primeira da lista
   const concluidas = candidatas
     .filter((t) => t.completed && t.completed_at)
@@ -234,6 +253,7 @@ function extrairAgendamento(tasks: AsanaTask[], projectCreatedAt: string): Reuni
     !!t.completed_at &&
     new Date(t.completed_at).getTime() - new Date(projectCreatedAt).getTime() <= CADASTRO_JANELA_MS;
   return {
+    origem: "agendar",
     taskGid: t.gid,
     taskName: t.name.trim(),
     concluida: t.completed,
@@ -256,7 +276,7 @@ async function analisarProjeto(pat: string, project: PortfolioItem): Promise<Ana
   let tasks: AsanaTask[] = [];
   try {
     tasks = await asanaGetAll<AsanaTask>(
-      `/projects/${project.gid}/tasks?opt_fields=name,completed,completed_at,completed_by.name,assignee.name,due_on,due_at,notes,memberships.section.name,custom_fields.name,custom_fields.display_value&limit=100`,
+      `/projects/${project.gid}/tasks?opt_fields=name,completed,completed_at,completed_by.name,assignee.name,due_on,due_at,created_at,notes,memberships.section.name,custom_fields.name,custom_fields.display_value&limit=100`,
       pat
     );
   } catch {
@@ -266,7 +286,17 @@ async function analisarProjeto(pat: string, project: PortfolioItem): Promise<Ana
   const agendamento = extrairAgendamento(tasks, project.created_at);
   // Só busca o histórico (1 chamada a mais) quando o ponto está em jogo
   if (agendamento?.concluida && agendamento.reuniaoTaskGid && agendamento.reuniaoData && estaNoPlacar(project)) {
-    agendamento.reuniaoDataPor = await buscarQuemColocouData(pat, agendamento.reuniaoTaskGid);
+    const quem = await buscarQuemColocouData(pat, agendamento.reuniaoTaskGid);
+    agendamento.reuniaoDataPor = quem?.nome ?? null;
+    if (agendamento.origem === "reuniao") {
+      // Sem "Agendar": o agendamento é o momento em que a data foi colocada, por quem colocou
+      const r = tasks.find((t) => t.gid === agendamento.reuniaoTaskGid)!;
+      const em = quem?.em ?? r.completed_at ?? r.created_at;
+      agendamento.concluidaEm = em;
+      agendamento.concluidaPor = quem?.nome ?? r.completed_by?.name ?? r.assignee?.name ?? null;
+      agendamento.concluidaNoCadastro =
+        new Date(em).getTime() - new Date(project.created_at).getTime() <= CADASTRO_JANELA_MS;
+    }
   }
 
   const comercial = tasks.filter((t) => t.memberships.some((m) => m.section?.name === "FASE COMERCIAL"));
@@ -367,9 +397,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let reaproveitados = 0;
     const analises = await mapWithConcurrency(filtered, CONCURRENCY, async (p) => {
       const salvo = anteriores[p.gid];
-      const concluidoEm = p.completed_at ?? (classifyStatusGeral(p.current_status?.color) === "concluido" ? p.modified_at : null);
-      const concluidoHaMaisDe30 = !!concluidoEm && Date.now() - new Date(concluidoEm).getTime() > PULAR_CONCLUIDOS_APOS_MS;
-      if (salvo && concluidoHaMaisDe30 && salvo.modifiedAt === p.modified_at) {
+      if (salvo && concluidoHaMaisDe30Dias(p) && salvo.modifiedAt === p.modified_at) {
         reaproveitados += 1;
         return {
           desfecho: salvo.desfecho,
@@ -420,6 +448,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         concluidaNoCadastro: i.agendamento!.concluidaNoCadastro,
         reuniaoData: i.agendamento!.reuniaoData as string,
         reuniaoDataPor: i.agendamento!.reuniaoDataPor ?? "Não identificado",
+        origem: i.agendamento!.origem ?? "agendar",
       }))
       .sort((a, b) => new Date(b.agendadaEm).getTime() - new Date(a.agendadaEm).getTime());
     // Agendamento concluído, mas sem data na "Reunião Comercial": ainda não pontua
@@ -444,10 +473,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }))
       .sort((a, b) => (a.prazo ?? "9999").localeCompare(b.prazo ?? "9999"));
     const semTarefaAgendamento = placarItems
-      .filter((i) => !i.agendamento)
+      .filter((i) => !i.agendamento && i.statusGeral !== "concluido")
       .map((i) => ({ projetoGid: i.gid, projeto: i.name, dono: i.owner }));
+    // Reuniões com data de hoje em diante (entre as que pontuaram)
+    const hojeBR = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+    const reunioesFuturas = reunioesAgendadas
+      .filter((r) => (r.reuniaoData.length <= 10 ? r.reuniaoData >= hojeBR : new Date(r.reuniaoData).getTime() >= Date.now()))
+      .sort((a, b) => a.reuniaoData.localeCompare(b.reuniaoData));
     const placar = {
-      inicio: PLACAR_INICIO,
+      inicio: new Date(Date.now() - PULAR_CONCLUIDOS_APOS_MS).toISOString(),
+      reunioesFuturas,
       projetosNoPlacar: placarItems.length,
       reunioesAgendadas,
       reunioesPendentes,
