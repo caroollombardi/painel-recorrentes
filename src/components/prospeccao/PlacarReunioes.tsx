@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { CalendarCheck, CalendarClock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -15,12 +16,12 @@ import type { PlacarReunioes as PlacarData } from "@/hooks/use-prospeccao-data";
 // concluir a tarefa entra no ranking com os próprios pontos.
 const SEMPRE_NO_PLACAR = ["Pedro Wolff", "Lorenzo Bachiega Scripes"];
 
-type Periodo = "semana" | "mes" | "tudo";
+type Periodo = "30dias" | "mes" | "semana";
 
 const PERIODO_LABEL: Record<Periodo, string> = {
-  semana: "Esta semana",
+  "30dias": "Últimos 30 dias",
   mes: "Este mês",
-  tudo: "Todo o período",
+  semana: "Esta semana",
 };
 
 function inicioDoPeriodo(periodo: Periodo): number {
@@ -31,7 +32,7 @@ function inicioDoPeriodo(periodo: Periodo): number {
     return d.getTime();
   }
   if (periodo === "mes") return new Date(agora.getFullYear(), agora.getMonth(), 1).getTime();
-  return 0;
+  return agora.getTime() - 30 * 86400000;
 }
 
 const primeiroNome = (nome: string) => nome.split(" ")[0];
@@ -55,8 +56,23 @@ const hojeISO = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+function contarPorPessoa(lista: { agendadaPor: string }[]): string {
+  const pontos: Record<string, number> = {};
+  for (const nome of SEMPRE_NO_PLACAR) pontos[nome] = 0;
+  for (const r of lista) pontos[r.agendadaPor] = (pontos[r.agendadaPor] ?? 0) + 1;
+  return Object.entries(pontos)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([nome, total]) => `${primeiroNome(nome)} ${total}`)
+    .join(" · ");
+}
+
 export function PlacarReunioes({ placar }: { placar: PlacarData }) {
-  const [periodo, setPeriodo] = useState<Periodo>("mes");
+  const [periodo, setPeriodo] = useState<Periodo>("30dias");
+  const futuras = placar.reunioesFuturas ?? [];
+  const ultimos30 = useMemo(() => {
+    const desde = Date.now() - 30 * 86400000;
+    return placar.reunioesAgendadas.filter((r) => new Date(r.agendadaEm).getTime() >= desde);
+  }, [placar]);
 
   const noPeriodo = useMemo(() => {
     const desde = inicioDoPeriodo(periodo);
@@ -85,7 +101,8 @@ export function PlacarReunioes({ placar }: { placar: PlacarData }) {
           <h3 className="text-sm font-display font-semibold text-foreground mb-1">Placar de reuniões agendadas</h3>
           <p className="text-xs text-muted-foreground">
             Um ponto por reunião: "Agendar reunião comercial" concluída e data preenchida na "Reunião Comercial".
-            Sem data, não pontua. Entram os projetos em dia em 30/09 e todos os criados depois.
+            Nos projetos que só têm "Reunião Comercial", vale quem colocou a data. Sem data, não pontua.
+            Entram todos os projetos, menos os concluídos há mais de 30 dias.
           </p>
         </div>
         <Select value={periodo} onValueChange={(v) => setPeriodo(v as Periodo)}>
@@ -96,6 +113,22 @@ export function PlacarReunioes({ placar }: { placar: PlacarData }) {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      {/* Indicadores */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <Indicador
+          icon={CalendarClock}
+          label="Reuniões agendadas para o futuro"
+          valor={futuras.length}
+          detalhe={contarPorPessoa(futuras)}
+        />
+        <Indicador
+          icon={CalendarCheck}
+          label="Agendadas nos últimos 30 dias"
+          valor={ultimos30.length}
+          detalhe={contarPorPessoa(ultimos30)}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -127,7 +160,7 @@ export function PlacarReunioes({ placar }: { placar: PlacarData }) {
           {noPeriodo.length === 0 ? (
             <div className="h-full flex items-center justify-center rounded-lg border border-dashed border-border p-6">
               <p className="text-xs text-muted-foreground text-center">
-                Nenhuma reunião agendada {periodo === "semana" ? "nesta semana" : periodo === "mes" ? "neste mês" : "até agora"}.
+                Nenhuma reunião agendada {periodo === "semana" ? "nesta semana" : periodo === "mes" ? "neste mês" : "nos últimos 30 dias"}.
                 Quando a tarefa for concluída no Asana, ela aparece aqui na próxima atualização.
               </p>
             </div>
@@ -155,6 +188,11 @@ export function PlacarReunioes({ placar }: { placar: PlacarData }) {
                         <a href={`https://app.asana.com/0/${r.projetoGid}/${r.taskGid}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
                           {r.projeto}
                         </a>
+                        {r.origem === "reuniao" && (
+                          <Badge variant="outline" className="ml-2 text-xs font-normal text-muted-foreground" title="Projeto sem a tarefa &quot;Agendar reunião comercial&quot;: o ponto vem da data colocada na &quot;Reunião Comercial&quot;">
+                            Só Reunião Comercial
+                          </Badge>
+                        )}
                         {r.concluidaNoCadastro && (
                           <Badge variant="outline" className="ml-2 text-xs font-normal text-muted-foreground" title="Concluída junto com a criação do projeto: a data é a do cadastro, não a do agendamento">
                             Marcada no cadastro
@@ -169,6 +207,37 @@ export function PlacarReunioes({ placar }: { placar: PlacarData }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Próximas reuniões */}
+      <div className="mt-4 pt-4 border-t border-border">
+        <p className="text-sm font-medium text-foreground">Próximas reuniões ({futuras.length})</p>
+        {futuras.length === 0 ? (
+          <p className="text-xs text-muted-foreground mt-1">Nenhuma reunião com data de hoje em diante.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Reunião</TableHead>
+                <TableHead>Projeto</TableHead>
+                <TableHead className="text-right">Agendada por</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {futuras.map((r) => (
+                <TableRow key={r.taskGid}>
+                  <TableCell className="whitespace-nowrap font-medium text-foreground">{formatarReuniao(r.reuniaoData)}</TableCell>
+                  <TableCell>
+                    <a href={`https://app.asana.com/0/${r.projetoGid}/${r.taskGid}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                      {r.projeto}
+                    </a>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">{primeiroNome(r.agendadaPor)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
       {/* Aguardando agendamento */}
@@ -240,7 +309,7 @@ export function PlacarReunioes({ placar }: { placar: PlacarData }) {
         {placar.semTarefaAgendamento.length > 0 && (
           <details className="mt-3 text-xs text-muted-foreground">
             <summary className="cursor-pointer hover:text-foreground">
-              {placar.semTarefaAgendamento.length} projeto(s) do placar sem a tarefa "Agendar reunião comercial"
+              {placar.semTarefaAgendamento.length} projeto(s) do placar sem "Agendar reunião comercial" e sem "Reunião Comercial"
             </summary>
             <ul className="mt-2 grid sm:grid-cols-2 gap-x-4 gap-y-1">
               {placar.semTarefaAgendamento.map((s) => (
@@ -255,5 +324,22 @@ export function PlacarReunioes({ placar }: { placar: PlacarData }) {
         )}
       </div>
     </section>
+  );
+}
+
+function Indicador({
+  icon: Icon, label, valor, detalhe,
+}: { icon: React.ElementType; label: string; valor: number; detalhe: string }) {
+  return (
+    <div className="rounded-xl border border-border p-3.5">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="p-1.5 rounded-md bg-muted/50">
+          <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+        </div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </div>
+      <p className="text-xl font-bold text-foreground">{valor}</p>
+      <p className="text-xs text-muted-foreground mt-0.5">{detalhe}</p>
+    </div>
   );
 }
