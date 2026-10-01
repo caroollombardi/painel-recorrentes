@@ -9,6 +9,7 @@ export type Etapa =
   | "Ganho" | "Perdido" | "Sem estrutura de funil";
 
 export interface ReuniaoAgendamento {
+  origem?: "agendar" | "reuniao";
   taskGid: string;
   taskName: string;
   concluida: boolean;
@@ -33,6 +34,7 @@ export interface ReuniaoAgendada {
   concluidaNoCadastro: boolean;
   reuniaoData: string;
   reuniaoDataPor: string;
+  origem?: "agendar" | "reuniao";
 }
 
 export interface AgendadaSemData {
@@ -57,6 +59,7 @@ export interface PlacarReunioes {
   projetosNoPlacar: number;
   reunioesAgendadas: ReuniaoAgendada[];
   reunioesPendentes: ReuniaoPendente[];
+  reunioesFuturas?: ReuniaoAgendada[];
   agendadasSemData?: AgendadaSemData[];
   semTarefaAgendamento: { projetoGid: string; projeto: string; dono: string | null }[];
 }
