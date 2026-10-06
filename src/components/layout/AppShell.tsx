@@ -2,7 +2,7 @@ import { ReactNode, useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Home, Users, Filter as FunnelIcon, Target, Settings as SettingsIcon,
-  UsersRound, Upload, PanelLeftClose, PanelLeft, Menu, X, Search,
+  UsersRound, Upload, PanelLeftClose, PanelLeft, Menu, X, Search, Gauge,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/hooks/use-theme";
@@ -33,6 +33,7 @@ const NAVEGACAO: ItemNav[] = [
   { label: "Início", icon: Home, path: "/" },
   { label: "Clientes recorrentes", icon: Users, path: "/recorrentes" },
   { label: "Funil de prospecção", icon: FunnelIcon, path: "/prospeccao" },
+  { label: "Indicadores por área", icon: Gauge, path: "/indicadores" },
 ];
 
 const ADMINISTRACAO: ItemNav[] = [
