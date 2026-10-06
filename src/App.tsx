@@ -13,6 +13,7 @@ import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import Metas2026 from "./pages/Metas2026";
 import ProspeccaoDashboard from "./pages/ProspeccaoDashboard";
+import IndicadoresArea from "./pages/IndicadoresArea";
 import SistemaHome from "./pages/SistemaHome";
 import NotFound from "./pages/NotFound";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
@@ -104,6 +105,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <ProspeccaoDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/indicadores"
+        element={
+          <ProtectedRoute>
+            <IndicadoresArea />
           </ProtectedRoute>
         }
       />
