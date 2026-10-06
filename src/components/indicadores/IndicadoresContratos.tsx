@@ -38,6 +38,8 @@ interface Entrega {
   sla_dias: number;
   dias_uteis_ate_entrega: number | null;
   no_prazo: boolean | null;
+  no_prazo_agendado: boolean | null;
+  prazo: string | null;
   dias_uteis_em_aberto: number | null;
   url: string | null;
 }
@@ -136,7 +138,7 @@ export function IndicadoresContratos({ versao = 0 }: { versao?: number }) {
       const [m, d] = await Promise.all([
         db.from("vw_indicadores_contratos_mensal").select("*").gte("mes", inicio).order("mes"),
         db.from("vw_contratos_demandas")
-          .select("task_gid,nome,projeto_nome,recebido_em,entregue_em,concluida,sla_dias,dias_uteis_ate_entrega,no_prazo,dias_uteis_em_aberto,url")
+          .select("task_gid,nome,projeto_nome,recebido_em,entregue_em,concluida,sla_dias,dias_uteis_ate_entrega,no_prazo,no_prazo_agendado,prazo,dias_uteis_em_aberto,url")
           .or(`entregue_em.gte.${inicio},concluida.eq.false`),
       ]);
       if (!vivo) return;
@@ -216,7 +218,8 @@ export function IndicadoresContratos({ versao = 0 }: { versao?: number }) {
               titulo={`Entregues fora do prazo em ${fmtMes(mes)}`}
               vazio="Nenhuma entrega fora do prazo neste mês."
               itens={foraDoPrazo}
-              detalhe={(d) => `${d.projeto_nome ?? ""} · ${d.dias_uteis_ate_entrega} de ${d.sla_dias} dias úteis`}
+              detalhe={(d) => `${d.projeto_nome ?? ""} · entregue ${fmtData(d.entregue_em)} · ${d.dias_uteis_ate_entrega} de ${d.sla_dias} dias úteis`
+                + (d.no_prazo_agendado ? ` · dentro do prazo agendado no Asana (${fmtData(d.prazo)})` : "")}
             />
             <ListaEntregas
               titulo="Abertas além do prazo hoje"

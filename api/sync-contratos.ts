@@ -2,8 +2,9 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 // =====================================================================
 // Indicadores da área de Contratos · sincronização Asana → Supabase
-// Padrão do time: cada demanda é um projeto com "… - Análise/Elaboração",
-// "… - Revisão e Entrega Externa" (ou variações com "Entrega Externa") e "FUP - …".
+// Padrão do time: cada demanda é um projeto com tarefas de elaboração (tag "WSA - Contratos"),
+// a tarefa de entrega (tag "WSA - Entrega Externa") e o FUP (tag "WSA - FUP").
+// Quando a tag falta, o nome da tarefa serve de reserva ("… Entrega Externa", "FUP - …").
 // Grava em public.contratos_tarefas; os indicadores saem das views no Supabase.
 //
 // Quem pode chamar: o Cron da Vercel (CRON_SECRET) ou um usuário logado no painel.
@@ -20,10 +21,13 @@ const PARALELO = 6;
 const RE_ENTREGA = /entrega\s+externa/i;
 const RE_FUP = /^\s*fup\b/i;
 const RE_CANCELADO = /^\s*\[cancelad[oa]\]/i;
+const TAG_ENTREGA = "wsa - entrega externa";
+const TAG_FUP = "wsa - fup";
+const TAG_ENTREGA_GID = "1210824813481544";
 
 const OPT_FIELDS = [
   "name", "created_at", "completed", "completed_at", "due_on", "permalink_url",
-  "assignee.name", "actual_time_minutes",
+  "assignee.name", "actual_time_minutes", "tags.name",
   "custom_fields.name", "custom_fields.number_value", "custom_fields.display_value",
 ].join(",");
 
@@ -38,6 +42,7 @@ interface AsanaTask {
   assignee?: { name: string } | null;
   actual_time_minutes?: number | null;
   custom_fields?: { name: string; number_value?: number | null; display_value?: string | null }[];
+  tags?: { name: string }[];
   memberships?: { project?: { gid: string; name: string } }[];
 }
 
@@ -51,9 +56,10 @@ function dataLocal(iso?: string | null): string | null {
 const campo = (t: AsanaTask, nome: string) => (t.custom_fields || []).find((c) => norm(c.name) === norm(nome));
 const horas = (min?: number | null) => (min == null ? null : Math.round((min / 60) * 100) / 100);
 
-function tipoTarefa(nome: string): "entrega" | "fup" | "outra" {
-  if (RE_FUP.test(nome || "")) return "fup";
-  if (RE_ENTREGA.test(nome || "")) return "entrega";
+function tipoTarefa(t: AsanaTask): "entrega" | "fup" | "outra" {
+  const tags = (t.tags || []).map((g) => norm(g.name));
+  if (tags.includes(TAG_FUP) || RE_FUP.test(t.name || "")) return "fup";
+  if (tags.includes(TAG_ENTREGA) || RE_ENTREGA.test(t.name || "")) return "entrega";
   return "outra";
 }
 
@@ -64,7 +70,7 @@ function mapearTask(t: AsanaTask, p: { gid: string; name: string }) {
     projeto_gid: p.gid,
     projeto_nome: p.name ?? null,
     nome: t.name,
-    tipo: tipoTarefa(t.name),
+    tipo: tipoTarefa(t),
     cancelada: RE_CANCELADO.test(t.name || ""),
     responsavel: t.assignee?.name ?? null,
     criada_ts: t.created_at,
@@ -96,21 +102,25 @@ async function asana(path: string, params: Record<string, string>, pat: string):
 }
 
 // A busca do Asana devolve até 100 por chamada e não pagina: avança pela data de criação.
+// Duas buscas: pela tag "WSA - Entrega Externa" e pelo nome, para não perder quem esqueceu a tag.
 async function buscarEntregas(ws: string, pat: string, desde: string): Promise<AsanaTask[]> {
   const achadas = new Map<string, AsanaTask>();
-  let depois = `${desde}T00:00:00.000Z`;
-  for (let i = 0; i < 50; i++) {
-    const j = await asana(`/workspaces/${ws}/tasks/search`, {
-      text: "entrega externa",
-      "created_at.after": depois,
-      sort_by: "created_at",
-      sort_ascending: "true",
-      opt_fields: "name,created_at,memberships.project.name",
-      limit: "100",
-    }, pat);
-    for (const t of j.data as AsanaTask[]) if (RE_ENTREGA.test(t.name || "")) achadas.set(t.gid, t);
-    if (j.data.length < 100) break;
-    depois = j.data[j.data.length - 1].created_at;
+  const filtros: Record<string, string>[] = [{ "tags.any": TAG_ENTREGA_GID }, { text: "entrega externa" }];
+  for (const filtro of filtros) {
+    let depois = `${desde}T00:00:00.000Z`;
+    for (let i = 0; i < 50; i++) {
+      const j = await asana(`/workspaces/${ws}/tasks/search`, {
+        ...filtro,
+        "created_at.after": depois,
+        sort_by: "created_at",
+        sort_ascending: "true",
+        opt_fields: "name,created_at,tags.name,memberships.project.name",
+        limit: "100",
+      }, pat);
+      for (const t of j.data as AsanaTask[]) if (tipoTarefa(t) === "entrega") achadas.set(t.gid, t);
+      if (j.data.length < 100) break;
+      depois = j.data[j.data.length - 1].created_at;
+    }
   }
   return [...achadas.values()];
 }
