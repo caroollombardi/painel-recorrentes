@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { PopAnexo } from "@/components/indicadores/PopAnexo";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -173,12 +174,15 @@ export function IndicadoresContratos({ versao = 0 }: { versao?: number }) {
             Prazo de {SLA_PADRAO} dias úteis da abertura à conclusão da tarefa de entrega; due diligence da Makasí, 7
           </p>
         </div>
-        <Select value={mes} onValueChange={setMes}>
-          <SelectTrigger className="w-[120px]" aria-label="Mês"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {opcoesMes.map((o) => <SelectItem key={o} value={o}>{fmtMes(o)}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <PopAnexo area="contratos" titulo="Registro da entrega externa no Asana" />
+          <Select value={mes} onValueChange={setMes}>
+            <SelectTrigger className="w-[120px]" aria-label="Mês"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {opcoesMes.map((o) => <SelectItem key={o} value={o}>{fmtMes(o)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {estado === "carregando" && <p className="text-sm text-muted-foreground">Carregando indicadores…</p>}
