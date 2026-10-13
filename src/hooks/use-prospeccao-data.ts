@@ -79,6 +79,8 @@ export interface ProspeccaoItem {
   modifiedAt: string;
   noPlacar?: boolean;
   agendamento?: ReuniaoAgendamento | null;
+  /** Datas de conclusão de "Apresentar/Enviar Proposta" e da decisão (ganho ou perda) */
+  marcos?: { propostaEm: string | null; decisaoEm: string | null };
 }
 
 export interface ProspeccaoData {
@@ -131,6 +133,7 @@ async function buscarDoAsana(anterior?: ProspeccaoData | null): Promise<Prospecc
       areaJuridica: i.areaJuridica,
       origemLead: i.origemLead,
       agendamento: i.agendamento ?? null,
+      marcos: i.marcos,
     };
   }
   const res = await fetch("/api/asana-prospeccao", {

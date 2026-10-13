@@ -16,6 +16,7 @@ import {
 import { AppShell } from "@/components/layout/AppShell";
 import { useProspeccaoData, type Etapa, type MotivoFonte } from "@/hooks/use-prospeccao-data";
 import { PlacarReunioes } from "@/components/prospeccao/PlacarReunioes";
+import { IndicadoresComerciais } from "@/components/prospeccao/IndicadoresComerciais";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -221,6 +222,9 @@ export default function ProspeccaoDashboard() {
                   onClick={scrollToPendentes}
                 />
               </div>
+
+              {/* Tempos entre etapas e índice de fechamento */}
+              <IndicadoresComerciais items={data.items} />
 
               {/* Placar de reuniões agendadas (Pedro x Lorenzo) */}
               {data.placar && <PlacarReunioes placar={data.placar} />}

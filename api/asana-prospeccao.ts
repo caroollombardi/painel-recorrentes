@@ -25,6 +25,25 @@ function isTarefaReuniao(nome: string): boolean {
   return /^reuniao comercial/.test(normalizar(nome));
 }
 
+// --- Marcos do funil (indicadores de tempo) ---
+// Aceita o template antigo ("Enviar Proposta", "Fechado - Ganho") e o novo ("Apresentar Proposta", "Perdido ou Ganho")
+const TAREFAS_PROPOSTA = /^(apresentar|enviar) proposta/;
+const TAREFAS_DECISAO = /^(perdido ou ganho|fechado - ganho|fechado - perdido)/;
+const TAREFA_MOTIVO_PERDA = /^registrar motivo de perda/;
+
+function primeiraConclusao(tasks: AsanaTask[], padrao: RegExp): string | null {
+  const datas = tasks
+    .filter((t) => t.completed && t.completed_at && padrao.test(normalizar(t.name)))
+    .map((t) => t.completed_at as string)
+    .sort();
+  return datas[0] ?? null;
+}
+
+interface Marcos {
+  propostaEm: string | null;
+  decisaoEm: string | null;
+}
+
 function concluidoEm(p: PortfolioItem): string | null {
   return p.completed_at ?? (classifyStatusGeral(p.current_status?.color) === "concluido" ? p.modified_at : null);
 }
@@ -156,6 +175,7 @@ interface ProspeccaoItem {
   modifiedAt: string;
   noPlacar: boolean;
   agendamento: ReuniaoAgendamento | null;
+  marcos: Marcos;
 }
 
 // --- Classificação legada (fallback), lida no texto livre do status do projeto ---
@@ -189,11 +209,12 @@ function classifyStatusGeral(color: string | undefined): StatusGeral {
 
 function bucketEtapa(taskName: string): Etapa | null {
   const n = taskName.trim().toLowerCase();
+  if (n.startsWith("perdido ou ganho")) return "Negociação";
   if (n.includes("ganho")) return "Ganho";
   if (n.includes("perdido")) return "Perdido";
   if (n.includes("lead recebido")) return "Lead recebido";
   if (n.includes("reunião comercial") || n.includes("reuniao comercial")) return "Reunião";
-  if (n.includes("qualificação") || n.includes("qualificacao") || n.includes("salvar proposta") || n.includes("enviar proposta")) return "Proposta enviada";
+  if (n.includes("qualificação") || n.includes("qualificacao") || n.includes("salvar proposta") || n.includes("enviar proposta") || n.includes("apresentar proposta")) return "Proposta enviada";
   if (n.includes("fup") || n.includes("negociação") || n.includes("negociacao")) return "Negociação";
   return null;
 }
@@ -213,11 +234,12 @@ interface AnaliseSalva {
   areaJuridica: string | null;
   origemLead: string | null;
   agendamento?: ReuniaoAgendamento | null;
+  marcos?: Marcos;
 }
 
 type Analise = {
   desfecho: Desfecho; motivo: string; motivoFonte: MotivoFonte; etapaAtual: Etapa;
-  areaJuridica: string | null; origemLead: string | null;
+  areaJuridica: string | null; origemLead: string | null; marcos: Marcos;
 };
 
 function extrairAgendamento(tasks: AsanaTask[], projectCreatedAt: string): ReuniaoAgendamento | null {
@@ -301,10 +323,24 @@ async function analisarProjeto(pat: string, project: PortfolioItem): Promise<Ana
 
   const comercial = tasks.filter((t) => t.memberships.some((m) => m.section?.name === "FASE COMERCIAL"));
 
+  const propostaEm = primeiraConclusao(tasks, TAREFAS_PROPOSTA);
+  const decisaoTarefaEm = primeiraConclusao(tasks, TAREFAS_DECISAO);
+  const perdaRegistradaEm = primeiraConclusao(tasks, TAREFA_MOTIVO_PERDA);
+  // Sem tarefa de decisão (modelo antigo): usa a conclusão do projeto, se houve desfecho
+  const marcosCom = (desfecho: Desfecho): Marcos => ({
+    propostaEm,
+    decisaoEm:
+      desfecho === "ganho" || desfecho === "perdido"
+        ? decisaoTarefaEm ?? perdaRegistradaEm ?? concluidoEm(project)
+        : null,
+  });
+
   if (comercial.length === 0) {
     // Projeto sem o template de funil (comum em prospecções antigas) — usa o fallback antigo
+    const desfechoLegado = statusGeral === "concluido" ? classifyDesfechoLegado(resumoLegado) : null;
     return {
-      desfecho: statusGeral === "concluido" ? classifyDesfechoLegado(resumoLegado) : null,
+      marcos: marcosCom(desfechoLegado),
+      desfecho: desfechoLegado,
       motivo: resumoLegado,
       motivoFonte: statusGeral === "concluido" ? "status_projeto" : "nao_encontrado",
       etapaAtual: "Sem estrutura de funil",
@@ -323,12 +359,17 @@ async function analisarProjeto(pat: string, project: PortfolioItem): Promise<Ana
   );
   const avancouPosVenda = posVenda.some((t) => t.completed);
 
-  const terminal = comercial.find((t) => t.completed && /ganho|perdido/i.test(t.name));
+  // "Perdido ou Ganho" (template novo) não diz o resultado: só vale como terminal o nome que diz
+  const terminal = comercial.find(
+    (t) => t.completed && /ganho|perdido/i.test(t.name) && !/^perdido ou ganho/.test(normalizar(t.name))
+  );
+  const tarefaPerda = tasks.find((t) => t.completed && TAREFA_MOTIVO_PERDA.test(normalizar(t.name)));
 
   if (avancouPosVenda) {
     // Sinal mais forte: se qualquer tarefa de fase contratual/onboarding foi concluída,
     // o negócio foi ganho, mesmo que a tarefa "Ganho" em si não tenha sido marcada.
     return {
+      marcos: marcosCom("ganho"),
       desfecho: "ganho",
       motivo: terminal?.notes?.trim() || "",
       motivoFonte: "tarefa_funil",
@@ -339,9 +380,24 @@ async function analisarProjeto(pat: string, project: PortfolioItem): Promise<Ana
     };
   }
 
+  if (tarefaPerda) {
+    // Template novo: perda = "Registrar motivo de perda" concluída
+    return {
+      marcos: marcosCom("perdido"),
+      desfecho: "perdido",
+      motivo: tarefaPerda.notes?.trim() || "",
+      motivoFonte: "tarefa_funil",
+      etapaAtual: "Perdido",
+      areaJuridica,
+      origemLead,
+      agendamento,
+    };
+  }
+
   if (terminal) {
     const isGanho = /ganho/i.test(terminal.name);
     return {
+      marcos: marcosCom(isGanho ? "ganho" : "perdido"),
       desfecho: isGanho ? "ganho" : "perdido",
       motivo: terminal.notes?.trim() || "",
       motivoFonte: "tarefa_funil",
@@ -360,8 +416,10 @@ async function analisarProjeto(pat: string, project: PortfolioItem): Promise<Ana
     if (bucket && bucket !== "Ganho" && bucket !== "Perdido") etapaAtual = bucket;
   }
 
+  const desfechoFinal = statusGeral === "concluido" ? classifyDesfechoLegado(resumoLegado) : null;
   return {
-    desfecho: statusGeral === "concluido" ? classifyDesfechoLegado(resumoLegado) : null,
+    marcos: marcosCom(desfechoFinal),
+    desfecho: desfechoFinal,
     motivo: statusGeral === "concluido" ? resumoLegado : "",
     motivoFonte: statusGeral === "concluido" ? "status_projeto" : "nao_encontrado",
     etapaAtual,
@@ -397,7 +455,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let reaproveitados = 0;
     const analises = await mapWithConcurrency(filtered, CONCURRENCY, async (p) => {
       const salvo = anteriores[p.gid];
-      if (salvo && concluidoHaMaisDe30Dias(p) && salvo.modifiedAt === p.modified_at) {
+      if (salvo && salvo.marcos && concluidoHaMaisDe30Dias(p) && salvo.modifiedAt === p.modified_at) {
         reaproveitados += 1;
         return {
           desfecho: salvo.desfecho,
@@ -407,6 +465,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           areaJuridica: salvo.areaJuridica,
           origemLead: salvo.origemLead,
           agendamento: salvo.agendamento ?? null,
+          marcos: salvo.marcos,
         };
       }
       return analisarProjeto(pat, p);
@@ -429,6 +488,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         modifiedAt: p.modified_at,
         noPlacar: estaNoPlacar(p),
         agendamento: a.agendamento,
+        marcos: a.marcos,
       };
     });
 
