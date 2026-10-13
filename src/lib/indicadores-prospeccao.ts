@@ -3,6 +3,7 @@ import type { ProspeccaoItem } from "@/hooks/use-prospeccao-data";
 // Projetos anteriores a esta data tiveram tarefas marcadas em lote (ex.: 14/09),
 // então as datas não medem o tempo real. Eles contam no índice, mas não nos tempos.
 export const TEMPOS_DESDE = "2026-09-30T00:00:00-03:00";
+const TEMPOS_DESDE_MS = new Date(TEMPOS_DESDE).getTime();
 
 const DIA_MS = 86_400_000;
 
@@ -24,15 +25,27 @@ export interface TempoEtapa {
   base: number;
 }
 
-export interface LeadAberto {
+export type EtapaEmDia = "Aguardando reunião" | "Aguardando proposta" | "Aguardando decisão" | "Sem etapas no Asana";
+
+export interface LeadEmDia {
   gid: string;
   nome: string;
   owner: string | null;
-  etapa: "Aguardando proposta" | "Aguardando decisão";
-  diasNaEtapa: number;
+  etapa: EtapaEmDia;
+  semStatus: boolean;
+  dias: number; // dias na etapa atual
+}
+
+export interface LeadEmEspera {
+  gid: string;
+  nome: string;
+  owner: string | null;
+  dias: number; // dias desde a última atualização de status do projeto no Asana
 }
 
 export interface IndicadoresComerciais {
+  status: { emDia: number; emEspera: number; concluidos: number; semStatus: number };
+  concluidosSemResultado: number;
   ganhos: number;
   perdidos: number;
   indiceFechamento: number | null;
@@ -40,15 +53,18 @@ export interface IndicadoresComerciais {
   ateGanho: TempoEtapa;
   atePerda: TempoEtapa;
   leadsPorMes: { mes: string; leads: number }[];
-  abertos: LeadAberto[];
+  emDia: LeadEmDia[];
+  emEspera: LeadEmEspera[];
 }
 
 export function calcularIndicadores(items: ProspeccaoItem[], agora = Date.now()): IndicadoresComerciais {
+  const desde = (iso: string) => Math.max(0, Math.floor((agora - new Date(iso).getTime()) / DIA_MS));
+
   const decididos = items.filter((i) => i.desfecho === "ganho" || i.desfecho === "perdido");
   const ganhos = decididos.filter((i) => i.desfecho === "ganho").length;
   const perdidos = decididos.length - ganhos;
 
-  const recentes = items.filter((i) => i.createdAt >= TEMPOS_DESDE && i.marcos);
+  const recentes = items.filter((i) => new Date(i.createdAt).getTime() >= TEMPOS_DESDE_MS && i.marcos);
   const ateProposta = recentes
     .filter((i) => i.marcos!.propostaEm)
     .map((i) => dias(i.createdAt, i.marcos!.propostaEm!))
@@ -63,23 +79,61 @@ export function calcularIndicadores(items: ProspeccaoItem[], agora = Date.now())
 
   const porMes: Record<string, number> = {};
   for (const i of items) porMes[mesSP(i.createdAt)] = (porMes[mesSP(i.createdAt)] ?? 0) + 1;
-  const leadsPorMes = Object.keys(porMes).sort().slice(-6).map((mes) => ({ mes, leads: porMes[mes] }));
+  // Últimos 6 meses, incluindo os meses sem nenhum lead
+  const leadsPorMes: { mes: string; leads: number }[] = [];
+  const [anoAtual, mesAtual] = mesSP(new Date(agora).toISOString()).split("-").map(Number);
+  for (let k = 5; k >= 0; k--) {
+    const d = new Date(Date.UTC(anoAtual, mesAtual - 1 - k, 1));
+    const mes = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    leadsPorMes.push({ mes, leads: porMes[mes] ?? 0 });
+  }
 
-  const abertos: LeadAberto[] = items
-    .filter((i) => i.statusGeral !== "concluido" && !i.desfecho && i.marcos)
+  // O status do projeto no Asana manda: só lead "Em dia" (ou sem status) tem etapa em andamento.
+  // "Em espera" fica numa lista própria; "Concluído" está encerrado, seja ganho ou perdido.
+  const emDia: LeadEmDia[] = items
+    .filter((i) => (i.statusGeral === "em_dia" || i.statusGeral === "sem_status") && !i.desfecho)
     .map((i) => {
-      const proposta = i.marcos!.propostaEm;
+      const proposta = i.marcos?.propostaEm ?? null;
+      // Reunião já aconteceu: tarefa "Reunião Comercial" concluída ou data da reunião no passado
+      const dataReuniao = i.agendamento?.reuniaoData;
+      const teveReuniao =
+        i.etapaAtual === "Reunião" ||
+        i.etapaAtual === "Negociação" ||
+        (!!dataReuniao && new Date(dataReuniao.length <= 10 ? `${dataReuniao}T23:59:59-03:00` : dataReuniao).getTime() <= agora);
+      const etapa: EtapaEmDia = proposta
+        ? "Aguardando decisão"
+        : i.etapaAtual === "Sem estrutura de funil"
+          ? "Sem etapas no Asana"
+          : teveReuniao
+            ? "Aguardando proposta"
+            : "Aguardando reunião";
       return {
         gid: i.gid,
         nome: i.name,
         owner: i.owner,
-        etapa: proposta ? ("Aguardando decisão" as const) : ("Aguardando proposta" as const),
-        diasNaEtapa: Math.floor((agora - new Date(proposta ?? i.createdAt).getTime()) / DIA_MS),
+        etapa,
+        semStatus: i.statusGeral === "sem_status",
+        dias: desde(proposta ?? i.createdAt),
       };
     })
-    .sort((a, b) => b.diasNaEtapa - a.diasNaEtapa);
+    .sort((a, b) => b.dias - a.dias);
+
+  const emEspera: LeadEmEspera[] = items
+    .filter((i) => i.statusGeral === "em_espera")
+    .map((i) => ({ gid: i.gid, nome: i.name, owner: i.owner, dias: desde(i.statusDesde ?? i.modifiedAt) }))
+    .sort((a, b) => b.dias - a.dias);
 
   return {
+    status: {
+      emDia: items.filter((i) => i.statusGeral === "em_dia").length,
+      emEspera: emEspera.length,
+      concluidos: items.filter((i) => i.statusGeral === "concluido").length,
+      semStatus: items.filter((i) => i.statusGeral === "sem_status").length,
+    },
+    // Concluídos sem ganho nem perda identificáveis: ficam fora do índice de fechamento
+    concluidosSemResultado: items.filter(
+      (i) => i.statusGeral === "concluido" && i.desfecho !== "ganho" && i.desfecho !== "perdido"
+    ).length,
     ganhos,
     perdidos,
     indiceFechamento: decididos.length ? Math.round((ganhos / decididos.length) * 100) : null,
@@ -87,6 +141,7 @@ export function calcularIndicadores(items: ProspeccaoItem[], agora = Date.now())
     ateGanho: { mediana: mediana(ganhosT), base: ganhosT.length },
     atePerda: { mediana: mediana(perdasT), base: perdasT.length },
     leadsPorMes,
-    abertos,
+    emDia,
+    emEspera,
   };
 }

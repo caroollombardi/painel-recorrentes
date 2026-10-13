@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Target, FileText, Handshake, XCircle } from "lucide-react";
+import { Target, FileText, Handshake, XCircle, TrendingUp, PauseCircle, CheckCircle2 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -33,6 +33,7 @@ function diasBadgeClass(d: number) {
 
 export function IndicadoresComerciais({ items }: { items: ProspeccaoItem[] }) {
   const [owner, setOwner] = useState("todos");
+  const [lista, setLista] = useState<"em_dia" | "em_espera">("em_dia");
 
   const owners = useMemo(
     () => [...new Set(items.map((i) => i.owner).filter((o): o is string => !!o))].sort(),
@@ -70,12 +71,40 @@ export function IndicadoresComerciais({ items }: { items: ProspeccaoItem[] }) {
         </p>
       )}
 
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Indicador
+          icon={TrendingUp}
+          label="Em dia"
+          value={String(ind.status.emDia)}
+          hint={ind.status.semStatus > 0 ? `+${ind.status.semStatus} sem status no Asana` : "Em andamento no funil"}
+          onClick={() => setLista("em_dia")}
+          ativo={lista === "em_dia"}
+        />
+        <Indicador
+          icon={PauseCircle}
+          label="Em espera"
+          value={String(ind.status.emEspera)}
+          hint="Pausados, sem contagem de etapa"
+          onClick={() => setLista("em_espera")}
+          ativo={lista === "em_espera"}
+        />
+        <Indicador
+          icon={CheckCircle2}
+          label="Concluídos"
+          value={String(ind.status.concluidos)}
+          hint="Encerrados, ganhos ou perdidos"
+        />
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Indicador
           icon={Target}
           label="Índice de fechamento"
           value={ind.indiceFechamento === null ? "—" : `${ind.indiceFechamento}%`}
-          hint={`${ind.ganhos} ganhos em ${ind.ganhos + ind.perdidos} decididos`}
+          hint={
+            `${ind.ganhos} ganhos em ${ind.ganhos + ind.perdidos} decididos` +
+            (ind.concluidosSemResultado > 0 ? `. ${ind.concluidosSemResultado} concluídos sem ganho ou perda registrado ficam fora` : "")
+          }
         />
         <Indicador icon={FileText} label="Do lead à proposta" value={formatarDias(ind.ateProposta)} hint={baseTexto(ind.ateProposta)} />
         <Indicador icon={Handshake} label="Da proposta ao fechamento" value={formatarDias(ind.ateGanho)} hint={baseTexto(ind.ateGanho)} />
@@ -101,37 +130,65 @@ export function IndicadoresComerciais({ items }: { items: ProspeccaoItem[] }) {
         </div>
 
         <div className="lg:col-span-3">
-          <h4 className="text-xs font-medium text-foreground mb-2">
-            Leads em aberto, há mais tempo parados primeiro
-          </h4>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h4 className="text-xs font-medium text-foreground">
+              {lista === "em_dia" ? "Leads em dia, há mais tempo na etapa primeiro" : "Leads em espera, há mais tempo pausados primeiro"}
+            </h4>
+            <div className="flex rounded-md border border-border p-0.5 text-xs">
+              {(["em_dia", "em_espera"] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setLista(k)}
+                  className={`px-2 py-0.5 rounded ${lista === k ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {k === "em_dia" ? `Em dia (${ind.emDia.length})` : `Em espera (${ind.emEspera.length})`}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="max-h-[200px] overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Projeto</TableHead>
-                  <TableHead>Etapa</TableHead>
-                  <TableHead className="text-right">Dias</TableHead>
+                  <TableHead>{lista === "em_dia" ? "Etapa" : "Situação"}</TableHead>
+                  <TableHead className="text-right">{lista === "em_dia" ? "Dias na etapa" : "Dias desde o status"}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ind.abertos.length === 0 ? (
+                {(lista === "em_dia" ? ind.emDia : ind.emEspera).length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-xs text-muted-foreground">Nenhum lead em aberto.</TableCell>
+                    <TableCell colSpan={3} className="text-xs text-muted-foreground">
+                      {lista === "em_dia" ? "Nenhum lead em dia." : "Nenhum lead em espera."}
+                    </TableCell>
                   </TableRow>
-                ) : (
-                  ind.abertos.map((l) => (
+                ) : lista === "em_dia" ? (
+                  ind.emDia.map((l) => (
                     <TableRow key={l.gid}>
                       <TableCell>
-                        <a href={`https://app.asana.com/0/${l.gid}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                          {l.nome}
-                        </a>
-                        {owner === "todos" && l.owner && (
-                          <span className="block text-xs text-muted-foreground">{l.owner}</span>
-                        )}
+                        <LinkProjeto gid={l.gid} nome={l.nome} />
+                        {owner === "todos" && l.owner && <span className="block text-xs text-muted-foreground">{l.owner}</span>}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{l.etapa}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {l.etapa}
+                        {l.semStatus && <Badge variant="outline" className="ml-1.5 text-[10px]">Sem status</Badge>}
+                      </TableCell>
                       <TableCell className="text-right">
-                        <Badge variant="outline" className={diasBadgeClass(l.diasNaEtapa)}>{l.diasNaEtapa}</Badge>
+                        <Badge variant="outline" className={diasBadgeClass(l.dias)}>{l.dias}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  ind.emEspera.map((l) => (
+                    <TableRow key={l.gid}>
+                      <TableCell>
+                        <LinkProjeto gid={l.gid} nome={l.nome} />
+                        {owner === "todos" && l.owner && <span className="block text-xs text-muted-foreground">{l.owner}</span>}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">Em espera</TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="outline" className="text-muted-foreground">{l.dias}</Badge>
                       </TableCell>
                     </TableRow>
                   ))
@@ -145,9 +202,24 @@ export function IndicadoresComerciais({ items }: { items: ProspeccaoItem[] }) {
   );
 }
 
-function Indicador({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string; hint: string }) {
+function LinkProjeto({ gid, nome }: { gid: string; nome: string }) {
   return (
-    <div className="rounded-lg border border-border p-3">
+    <a href={`https://app.asana.com/0/${gid}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+      {nome}
+    </a>
+  );
+}
+
+function Indicador({
+  icon: Icon, label, value, hint, onClick, ativo,
+}: { icon: any; label: string; value: string; hint: string; onClick?: () => void; ativo?: boolean }) {
+  const Tag = onClick ? "button" : "div";
+  return (
+    <Tag
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={`rounded-lg border p-3 text-left ${ativo ? "border-foreground/30 bg-muted/30" : "border-border"} ${onClick ? "hover:border-foreground/30 transition-colors" : ""}`}
+    >
       <div className="flex items-center gap-2 mb-2">
         <div className="p-1.5 rounded-md bg-muted/50">
           <Icon className="w-3.5 h-3.5 text-muted-foreground" />
@@ -156,6 +228,6 @@ function Indicador({ icon: Icon, label, value, hint }: { icon: any; label: strin
       </div>
       <p className="text-xl font-bold text-foreground">{value}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
-    </div>
+    </Tag>
   );
 }

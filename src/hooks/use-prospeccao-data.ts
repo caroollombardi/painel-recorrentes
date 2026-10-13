@@ -81,6 +81,8 @@ export interface ProspeccaoItem {
   agendamento?: ReuniaoAgendamento | null;
   /** Datas de conclusão de "Apresentar/Enviar Proposta" e da decisão (ganho ou perda) */
   marcos?: { propostaEm: string | null; decisaoEm: string | null };
+  /** Data da última atualização de status do projeto no Asana */
+  statusDesde?: string | null;
 }
 
 export interface ProspeccaoData {

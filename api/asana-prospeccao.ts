@@ -118,7 +118,7 @@ interface PortfolioItem {
   created_at: string;
   modified_at: string;
   owner: { name: string } | null;
-  current_status: { color: string; text: string } | null;
+  current_status: { color: string; text: string; created_at?: string } | null;
 }
 
 interface AsanaTask {
@@ -176,6 +176,7 @@ interface ProspeccaoItem {
   noPlacar: boolean;
   agendamento: ReuniaoAgendamento | null;
   marcos: Marcos;
+  statusDesde: string | null;
 }
 
 // --- Classificação legada (fallback), lida no texto livre do status do projeto ---
@@ -439,7 +440,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const rawItems = await asanaGetAll<PortfolioItem>(
       `/portfolios/${PORTFOLIO_GID}/items` +
-        `?opt_fields=name,archived,created_at,modified_at,completed_at,owner.name,current_status.color,current_status.text` +
+        `?opt_fields=name,archived,created_at,modified_at,completed_at,owner.name,current_status.color,current_status.text,current_status.created_at` +
         `&limit=100`,
       pat
     );
@@ -489,6 +490,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         noPlacar: estaNoPlacar(p),
         agendamento: a.agendamento,
         marcos: a.marcos,
+        // Data da última atualização de status do projeto (ex.: quando foi colocado "Em espera")
+        statusDesde: p.current_status?.created_at ?? null,
       };
     });
 
