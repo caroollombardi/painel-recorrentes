@@ -27,8 +27,16 @@ function isTarefaReuniao(nome: string): boolean {
 
 // --- Marcos do funil (indicadores de tempo) ---
 // Aceita o template antigo ("Enviar Proposta", "Fechado - Ganho") e o novo ("Apresentar Proposta", "Perdido ou Ganho")
-const TAREFAS_PROPOSTA = /^(apresentar|enviar) proposta/;
-const TAREFAS_DECISAO = /^(perdido ou ganho|fechado - ganho|fechado - perdido)/;
+// Variações já vistas: "Apresentar Proposta", "Enviar Proposta", "Envio da Proposta", "Envio/ Apresentação da Proposta"
+// (não conta "Agendar apresentação de proposta" nem "Alinhamento sobre escopo da proposta")
+const TAREFAS_PROPOSTA = /^(apresentar|apresentacao|enviar|envio)\b.*\bproposta\b/;
+// Variações já vistas: "Perdido ou Ganho", "Decisão: Ganho ou Perdido", "Fechado ou Ganho", "Fechado - Ganho", "Ganho", "Perdido"
+const TAREFAS_DECISAO = /(perdido ou ganho|ganho ou perdido|fechado ou ganho|^fechado - (ganho|perdido)|^(ganho|perdido)$)/;
+// Tarefa que só marca o momento da decisão, sem dizer o resultado
+const ehDecisaoSemResultado = (nome: string) => {
+  const n = normalizar(nome);
+  return n.includes("ganho") && (n.includes("perdido") || n.includes(" ou "));
+};
 const TAREFA_MOTIVO_PERDA = /^registrar motivo de perda/;
 
 function primeiraConclusao(tasks: AsanaTask[], padrao: RegExp): string | null {
@@ -210,12 +218,12 @@ function classifyStatusGeral(color: string | undefined): StatusGeral {
 
 function bucketEtapa(taskName: string): Etapa | null {
   const n = taskName.trim().toLowerCase();
-  if (n.startsWith("perdido ou ganho")) return "Negociação";
+  if (ehDecisaoSemResultado(taskName)) return "Negociação";
   if (n.includes("ganho")) return "Ganho";
   if (n.includes("perdido")) return "Perdido";
   if (n.includes("lead recebido")) return "Lead recebido";
   if (n.includes("reunião comercial") || n.includes("reuniao comercial")) return "Reunião";
-  if (n.includes("qualificação") || n.includes("qualificacao") || n.includes("salvar proposta") || n.includes("enviar proposta") || n.includes("apresentar proposta")) return "Proposta enviada";
+  if (n.includes("qualificação") || n.includes("qualificacao") || n.includes("salvar proposta") || TAREFAS_PROPOSTA.test(normalizar(taskName))) return "Proposta enviada";
   if (n.includes("fup") || n.includes("negociação") || n.includes("negociacao")) return "Negociação";
   return null;
 }
@@ -362,7 +370,7 @@ async function analisarProjeto(pat: string, project: PortfolioItem): Promise<Ana
 
   // "Perdido ou Ganho" (template novo) não diz o resultado: só vale como terminal o nome que diz
   const terminal = comercial.find(
-    (t) => t.completed && /ganho|perdido/i.test(t.name) && !/^perdido ou ganho/.test(normalizar(t.name))
+    (t) => t.completed && /ganho|perdido/i.test(t.name) && !ehDecisaoSemResultado(t.name)
   );
   const tarefaPerda = tasks.find((t) => t.completed && TAREFA_MOTIVO_PERDA.test(normalizar(t.name)));
 
