@@ -9,7 +9,6 @@ import {
   carregarLimites, limitesDoCliente, classificarConsumo, TabelaLimites,
 } from "@/lib/alert-thresholds";
 
-
 function recalculateCreditUsage(
   data: DashboardData,
   tabela: TabelaLimites | null,
@@ -50,7 +49,11 @@ function recalculateCreditUsage(
   return { ...data, clients: clients as ClientData[] };
 }
 
-export function useDashboardData() {
+/**
+ * @param habilitado só busca os dados de recorrentes quando true
+ *   (usuário logado, perfil conhecido e com acesso a recorrentes).
+ */
+export function useDashboardData(habilitado = true) {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -59,6 +62,8 @@ export function useDashboardData() {
   // Limites de alerta configurados. Ficam em ref para o loadData não
   // precisar ser recriado quando eles chegam.
   const limitesRef = useRef<TabelaLimites | null>(null);
+  const habilitadoRef = useRef(habilitado);
+  habilitadoRef.current = habilitado;
 
   useEffect(() => {
     const handleContractUpdate = () => {
@@ -69,6 +74,10 @@ export function useDashboardData() {
   }, []);
 
   const loadData = useCallback(async (fromRealtime = false) => {
+    if (!habilitadoRef.current) {
+      if (!fromRealtime) setIsLoading(false);
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from("dashboard_data")
@@ -115,9 +124,22 @@ export function useDashboardData() {
     }
   }, []);
 
-  // Carrega os limites e reclassifica. Roda antes do primeiro loadData
-  // resolver; se chegar depois, o reclassify abaixo corrige a tela.
+  // Carga inicial e quando o acesso muda (login, logout, troca de perfil).
   useEffect(() => {
+    if (habilitado) {
+      setIsLoading(true);
+      loadData(false);
+    } else {
+      setDashboardData(null);
+      setLastUpdated(null);
+      setIsLoading(false);
+    }
+  }, [habilitado, loadData]);
+
+  // Carrega os limites e reclassifica. Se chegarem depois dos dados,
+  // o reclassify abaixo corrige a tela.
+  useEffect(() => {
+    if (!habilitado) return;
     let ativo = true;
     carregarLimites().then(tabela => {
       if (!ativo) return;
@@ -135,21 +157,11 @@ export function useDashboardData() {
       ativo = false;
       window.removeEventListener("alertLimitsUpdated", aoMudarLimites);
     };
-  }, []);
-
-  // Initial load
-  useEffect(() => { loadData(false); }, [loadData]);
-
-  // Reload when user signs in (handles incognito / fresh session)
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") loadData(false);
-    });
-    return () => subscription.unsubscribe();
-  }, [loadData]);
+  }, [habilitado]);
 
   // Realtime: auto-refresh when another user imports data
   useEffect(() => {
+    if (!habilitado) return;
     const channel = supabase
       .channel("dashboard_data_changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "dashboard_data" }, (payload) => {
@@ -162,7 +174,7 @@ export function useDashboardData() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [loadData]);
+  }, [habilitado, loadData]);
 
   const updateData = useCallback(async (data: DashboardData, fileName?: string) => {
     ownUpdateRef.current = true;

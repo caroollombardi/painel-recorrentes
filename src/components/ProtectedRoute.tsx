@@ -1,20 +1,21 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, AppRole } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
-
-type AppRole = 'admin' | 'viewer' | 'socio' | 'gestao' | 'operacional';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
   allowedRoles?: AppRole[];
+  /** Libera a rota para o perfil "indicadores". Sem isso, ele é mandado para /indicadores. */
+  permitirIndicadores?: boolean;
 }
 
-export function ProtectedRoute({ children, requireAdmin = false, allowedRoles }: ProtectedRouteProps) {
-  const { user, isAdmin, isLoading, hasRole } = useAuth();
+export function ProtectedRoute({ children, requireAdmin = false, allowedRoles, permitirIndicadores = false }: ProtectedRouteProps) {
+  const { user, isAdmin, isLoading, rolesCarregados, somenteIndicadores, hasRole } = useAuth();
   const location = useLocation();
 
-  if (isLoading) {
+  // Espera saber o perfil antes de mostrar qualquer tela.
+  if (isLoading || (user && !rolesCarregados)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -24,6 +25,11 @@ export function ProtectedRoute({ children, requireAdmin = false, allowedRoles }:
 
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  // Perfil "indicadores": só a tela de Indicadores por área.
+  if (somenteIndicadores) {
+    return permitirIndicadores ? <>{children}</> : <Navigate to="/indicadores" replace />;
   }
 
   if (requireAdmin && !isAdmin) {

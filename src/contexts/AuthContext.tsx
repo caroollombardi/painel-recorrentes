@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-type AppRole = 'admin' | 'viewer' | 'socio' | 'gestao' | 'operacional';
+export type AppRole = 'admin' | 'viewer' | 'socio' | 'gestao' | 'operacional' | 'indicadores';
 
 interface AuthContextType {
   user: User | null;
@@ -11,6 +11,10 @@ interface AuthContextType {
   roles: AppRole[];
   isAdmin: boolean;
   isLoading: boolean;
+  /** true quando já sabemos os perfis do usuário logado (evita mostrar tela antes da hora). */
+  rolesCarregados: boolean;
+  /** true para quem tem só o perfil "indicadores": vê apenas a tela de Indicadores por área. */
+  somenteIndicadores: boolean;
   hasRole: (role: AppRole) => boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
@@ -24,6 +28,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [rolesCarregados, setRolesCarregados] = useState(false);
+  // Usuário cujos perfis já foram buscados; renovação de token não dispara nova busca.
+  const usuarioDosPerfis = useRef<string | null>(null);
 
   const fetchUserRoles = async (userId: string) => {
     try {
@@ -31,17 +38,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('user_roles')
         .select('role')
         .eq('user_id', userId);
-      
+
       if (error) {
         console.error('Error fetching roles:', error);
         return [];
       }
-      
+
       return (data?.map(d => d.role as AppRole) || []);
     } catch (e) {
       console.error('Error in fetchUserRoles:', e);
       return [];
     }
+  };
+
+  const carregarPerfis = async (userId: string) => {
+    if (usuarioDosPerfis.current === userId) return;
+    usuarioDosPerfis.current = userId;
+    setRolesCarregados(false);
+    const fetched = await fetchUserRoles(userId);
+    if (usuarioDosPerfis.current !== userId) return; // trocou de usuário no meio
+    setRoles(fetched);
+    setRolesCarregados(true);
+  };
+
+  const limparPerfis = () => {
+    usuarioDosPerfis.current = null;
+    setRoles([]);
+    setRolesCarregados(true);
   };
 
   useEffect(() => {
@@ -50,31 +73,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
-        
+
         // Defer role fetching to avoid deadlock
         if (newSession?.user) {
-          setTimeout(() => {
-            fetchUserRoles(newSession.user.id).then(setRoles);
-          }, 0);
+          const id = newSession.user.id;
+          setTimeout(() => { carregarPerfis(id); }, 0);
         } else {
-          setRoles([]);
+          limparPerfis();
         }
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: existingSession } }) => {
       setSession(existingSession);
       setUser(existingSession?.user ?? null);
-      
+
       if (existingSession?.user) {
-        fetchUserRoles(existingSession.user.id).then((fetchedRoles) => {
-          setRoles(fetchedRoles);
-          setIsLoading(false);
-        });
+        await carregarPerfis(existingSession.user.id);
       } else {
-        setIsLoading(false);
+        limparPerfis();
       }
+      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -86,11 +106,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
       });
-      
+
       if (error) {
         return { error: new Error(error.message) };
       }
-      
+
       return { error: null };
     } catch (e) {
       return { error: e as Error };
@@ -100,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, name: string) => {
     try {
       const redirectUrl = `${window.location.origin}/`;
-      
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -111,11 +131,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         },
       });
-      
+
       if (error) {
         return { error: new Error(error.message) };
       }
-      
+
       return { error: null };
     } catch (e) {
       return { error: e as Error };
@@ -126,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-    setRoles([]);
+    limparPerfis();
   };
 
   const hasRole = (r: AppRole) => roles.includes(r);
@@ -138,6 +158,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     roles,
     isAdmin: roles.includes('admin'),
     isLoading,
+    rolesCarregados,
+    somenteIndicadores: roles.length > 0 && roles.every(r => r === 'indicadores'),
     hasRole,
     signIn,
     signUp,

@@ -13,26 +13,27 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { 
-  ArrowLeft, 
-  Users as UsersIcon, 
-  UserPlus, 
-  Shield, 
-  Eye, 
-  Loader2, 
+import {
+  ArrowLeft,
+  Users as UsersIcon,
+  UserPlus,
+  Shield,
+  Eye,
+  Gauge,
+  Loader2,
   AlertCircle,
   Check
 } from 'lucide-react';
 import wsaLogo from '@/assets/wsa-logo.png';
 import { z } from 'zod';
 
-type AppRoleType = 'admin' | 'viewer' | 'socio' | 'gestao' | 'operacional';
+type AppRoleType = 'admin' | 'viewer' | 'socio' | 'gestao' | 'operacional' | 'indicadores';
 
 const newUserSchema = z.object({
   name: z.string().trim().min(2, { message: 'Nome deve ter pelo menos 2 caracteres' }),
   email: z.string().trim().email({ message: 'Email inválido' }),
   password: z.string().min(6, { message: 'Senha deve ter pelo menos 6 caracteres' }),
-  role: z.enum(['admin', 'viewer', 'socio', 'gestao', 'operacional'], { required_error: 'Selecione um perfil' }),
+  role: z.enum(['admin', 'viewer', 'socio', 'gestao', 'operacional', 'indicadores'], { required_error: 'Selecione um perfil' }),
 });
 
 interface UserProfile {
@@ -45,17 +46,61 @@ interface UserProfile {
   role?: AppRoleType | null;
 }
 
+// Opções de perfil usadas no cadastro e na tabela.
+function OpcoesPerfil({ curto = false }: { curto?: boolean }) {
+  return (
+    <>
+      <SelectItem value="admin">
+        <div className="flex items-center gap-2">
+          <Shield className="w-4 h-4" />
+          {curto ? 'Admin' : 'Administrador'}
+        </div>
+      </SelectItem>
+      <SelectItem value="gestao">
+        <div className="flex items-center gap-2">
+          <Shield className="w-4 h-4" />
+          Gestão
+        </div>
+      </SelectItem>
+      <SelectItem value="socio">
+        <div className="flex items-center gap-2">
+          <Shield className="w-4 h-4" />
+          Sócio
+        </div>
+      </SelectItem>
+      <SelectItem value="operacional">
+        <div className="flex items-center gap-2">
+          <Eye className="w-4 h-4" />
+          Operacional
+        </div>
+      </SelectItem>
+      <SelectItem value="viewer">
+        <div className="flex items-center gap-2">
+          <Eye className="w-4 h-4" />
+          Visualizador
+        </div>
+      </SelectItem>
+      <SelectItem value="indicadores">
+        <div className="flex items-center gap-2">
+          <Gauge className="w-4 h-4" />
+          {curto ? 'Só indicadores' : 'Somente indicadores'}
+        </div>
+      </SelectItem>
+    </>
+  );
+}
+
 export function Users() {
   const navigate = useNavigate();
   const { user, isAdmin, signUp } = useAuth();
-  
+
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   // Form state
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -81,7 +126,7 @@ export function Users() {
       // Merge profiles with roles
       const usersWithRoles = profiles?.map(profile => ({
         ...profile,
-        role: roles?.find(r => r.user_id === profile.user_id)?.role || null
+        role: (roles?.find(r => r.user_id === profile.user_id)?.role as AppRoleType) || null
       })) || [];
 
       setUsers(usersWithRoles);
@@ -123,7 +168,7 @@ export function Users() {
     try {
       // Create user via signup
       const { error: signUpError } = await signUp(newEmail, newPassword, newName);
-      
+
       if (signUpError) {
         if (signUpError.message.includes('already registered')) {
           setError('Este email já está cadastrado.');
@@ -141,14 +186,14 @@ export function Users() {
       setNewEmail('');
       setNewPassword('');
       setNewRole('viewer');
-      
+
       // Refresh users list
       setTimeout(() => {
         fetchUsers();
         setIsDialogOpen(false);
         setSuccess(null);
       }, 2000);
-      
+
     } catch (e) {
       setError('Erro ao criar usuário. Tente novamente.');
     } finally {
@@ -164,7 +209,7 @@ export function Users() {
         .eq('user_id', userId);
 
       if (error) throw error;
-      
+
       fetchUsers();
     } catch (e) {
       console.error('Error toggling user status:', e);
@@ -180,9 +225,12 @@ export function Users() {
         .eq('user_id', userId)
         .maybeSingle();
 
+      // "indicadores" é um valor novo do enum; os tipos gerados ainda não o conhecem.
+      const db = supabase as any;
+
       if (existingRole) {
         // Update existing role
-        const { error } = await supabase
+        const { error } = await db
           .from('user_roles')
           .update({ role })
           .eq('user_id', userId);
@@ -190,17 +238,17 @@ export function Users() {
         if (error) throw error;
       } else {
         // Insert new role
-        const { error } = await supabase
+        const { error } = await db
           .from('user_roles')
-          .insert({ 
-            user_id: userId, 
+          .insert({
+            user_id: userId,
             role,
-            assigned_by: user?.id 
+            assigned_by: user?.id
           });
 
         if (error) throw error;
       }
-      
+
       fetchUsers();
     } catch (e) {
       console.error('Error assigning role:', e);
@@ -244,6 +292,13 @@ export function Users() {
             Visualizador
           </Badge>
         );
+      case 'indicadores':
+        return (
+          <Badge variant="secondary">
+            <Gauge className="w-3 h-3 mr-1" />
+            Só indicadores
+          </Badge>
+        );
       default:
         return (
           <Badge variant="outline" className="text-muted-foreground">
@@ -260,374 +315,327 @@ export function Users() {
   return (
     <AppShell>
       <>
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <img 
-                src={wsaLogo} 
-                alt="Wolff e Scripes Advogados" 
-                className="h-10 object-contain"
-              />
-              <div className="h-6 w-px bg-border" />
-              <h1 className="text-xl font-display font-semibold">
-                Gestão de <span style={{ color: '#FB7435' }}>Usuários</span>
-              </h1>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/')}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar ao Dashboard
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container py-8 space-y-6">
-        {/* Actions Bar */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <UsersIcon className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h2 className="font-semibold text-foreground">Usuários do Sistema</h2>
-              <p className="text-sm text-muted-foreground">
-                {users.length} usuário{users.length !== 1 ? 's' : ''} cadastrado{users.length !== 1 ? 's' : ''}
-              </p>
-            </div>
-          </div>
-
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button style={{ backgroundColor: '#FB7435' }}>
-                <UserPlus className="w-4 h-4 mr-2" />
-                Novo Usuário
+        {/* Header */}
+        <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="container py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-6">
+                <img
+                  src={wsaLogo}
+                  alt="Wolff e Scripes Advogados"
+                  className="h-10 object-contain"
+                />
+                <div className="h-6 w-px bg-border" />
+                <h1 className="text-xl font-display font-semibold">
+                  Gestão de <span style={{ color: '#FB7435' }}>Usuários</span>
+                </h1>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/')}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Voltar ao Dashboard
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Cadastrar Novo Usuário</DialogTitle>
-                <DialogDescription>
-                  Preencha os dados para criar um novo usuário no sistema.
-                </DialogDescription>
-              </DialogHeader>
+            </div>
+          </div>
+        </header>
 
-              <form onSubmit={handleCreateUser} className="space-y-4">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                {success && (
-                  <Alert className="border-green-200 bg-green-50 text-green-800">
-                    <Check className="h-4 w-4" />
-                    <AlertDescription>{success}</AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="new-name">Nome</Label>
-                  <Input
-                    id="new-name"
-                    placeholder="Nome completo"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="new-email">Email</Label>
-                  <Input
-                    id="new-email"
-                    type="email"
-                    placeholder="email@exemplo.com"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="new-password">Senha Inicial</Label>
-                  <Input
-                    id="new-password"
-                    type="password"
-                    placeholder="Mínimo 6 caracteres"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="new-role">Perfil de Acesso</Label>
-                  <Select 
-                    value={newRole} 
-                    onValueChange={(v: AppRoleType) => setNewRole(v)}
-                    disabled={isSubmitting}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o perfil" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">
-                        <div className="flex items-center gap-2">
-                          <Shield className="w-4 h-4" />
-                          Administrador
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="gestao">
-                        <div className="flex items-center gap-2">
-                          <Shield className="w-4 h-4" />
-                          Gestão
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="socio">
-                        <div className="flex items-center gap-2">
-                          <Shield className="w-4 h-4" />
-                          Sócio
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="operacional">
-                        <div className="flex items-center gap-2">
-                          <Eye className="w-4 h-4" />
-                          Operacional
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="viewer">
-                        <div className="flex items-center gap-2">
-                          <Eye className="w-4 h-4" />
-                          Visualizador
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Admin: técnico • Gestão: metas e operações • Sócio: estratégico • Operacional/Visualizador: consulta
-                  </p>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsDialogOpen(false)}
-                    className="flex-1"
-                    disabled={isSubmitting}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    className="flex-1"
-                    disabled={isSubmitting}
-                    style={{ backgroundColor: '#FB7435' }}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Criando...
-                      </>
-                    ) : (
-                      'Criar Usuário'
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Users Table */}
-        <Card>
-          <CardContent className="p-0">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <main className="container py-8 space-y-6">
+          {/* Actions Bar */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <UsersIcon className="w-5 h-5 text-primary" />
               </div>
-            ) : users.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                Nenhum usuário cadastrado.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Perfil</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Criado em</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="font-medium">{u.name}</TableCell>
-                      <TableCell>{u.email}</TableCell>
-                      <TableCell>
-                        <Select
-                          value={u.role || 'none'}
-                          onValueChange={(v) => {
-                            if (v !== 'none') {
-                              assignRole(u.user_id, v as AppRoleType);
-                            }
-                          }}
-                          disabled={u.user_id === user?.id}
-                        >
-                          <SelectTrigger className="w-40">
-                            <SelectValue>
-                              {getRoleBadge(u.role)}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">
-                              <div className="flex items-center gap-2">
-                                <Shield className="w-4 h-4" />
-                                Admin
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="gestao">
-                              <div className="flex items-center gap-2">
-                                <Shield className="w-4 h-4" />
-                                Gestão
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="socio">
-                              <div className="flex items-center gap-2">
-                                <Shield className="w-4 h-4" />
-                                Sócio
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="operacional">
-                              <div className="flex items-center gap-2">
-                                <Eye className="w-4 h-4" />
-                                Operacional
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="viewer">
-                              <div className="flex items-center gap-2">
-                                <Eye className="w-4 h-4" />
-                                Visualizador
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={u.is_active}
-                            onCheckedChange={() => toggleUserStatus(u.user_id, u.is_active)}
-                            disabled={u.user_id === user?.id}
-                          />
-                          <span className={u.is_active ? 'text-green-600' : 'text-muted-foreground'}>
-                            {u.is_active ? 'Ativo' : 'Inativo'}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(u.created_at).toLocaleDateString('pt-BR')}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {u.user_id === user?.id && (
-                          <Badge variant="outline" className="text-xs">
-                            Você
-                          </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Permission Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Perfis de Permissão</CardTitle>
-            <CardDescription>
-              Entenda as diferenças entre os níveis de acesso
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-                <div className="flex items-center gap-2 mb-2">
-                  <Shield className="w-5 h-5 text-primary" />
-                  <h3 className="font-semibold">Administrador</h3>
-                </div>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Acesso técnico ao sistema</li>
-                  <li>• Cadastrar e gerenciar usuários</li>
-                  <li>• Atualizar dados e integrações</li>
-                </ul>
-              </div>
-              <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-                <div className="flex items-center gap-2 mb-2">
-                  <Shield className="w-5 h-5 text-primary" />
-                  <h3 className="font-semibold">Gestão</h3>
-                </div>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Visualizar e editar metas</li>
-                  <li>• Acompanhar progresso</li>
-                  <li>• Apresentar resultados</li>
-                </ul>
-              </div>
-              <div className="p-4 rounded-lg border border-border bg-muted/30">
-                <div className="flex items-center gap-2 mb-2">
-                  <Shield className="w-5 h-5 text-muted-foreground" />
-                  <h3 className="font-semibold">Sócio</h3>
-                </div>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Visualizar metas e progresso</li>
-                  <li>• Acompanhar alertas</li>
-                  <li>• Acesso ao dashboard</li>
-                </ul>
-              </div>
-              <div className="p-4 rounded-lg border border-border bg-muted/30">
-                <div className="flex items-center gap-2 mb-2">
-                  <Eye className="w-5 h-5 text-muted-foreground" />
-                  <h3 className="font-semibold">Operacional</h3>
-                </div>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Dados operacionais</li>
-                  <li>• Sem acesso a metas</li>
-                </ul>
-              </div>
-              <div className="p-4 rounded-lg border border-border bg-muted/30">
-                <div className="flex items-center gap-2 mb-2">
-                  <Eye className="w-5 h-5 text-muted-foreground" />
-                  <h3 className="font-semibold">Visualizador</h3>
-                </div>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Acesso apenas ao dashboard</li>
-                  <li>• Não pode alterar dados</li>
-                </ul>
+              <div>
+                <h2 className="font-semibold text-foreground">Usuários do Sistema</h2>
+                <p className="text-sm text-muted-foreground">
+                  {users.length} usuário{users.length !== 1 ? 's' : ''} cadastrado{users.length !== 1 ? 's' : ''}
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border bg-card/50 py-6">
-        <div className="container text-center text-sm text-muted-foreground">
-          Wolff e Scripes Advogados • Sistema de Gestão
-        </div>
-      </footer>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button style={{ backgroundColor: '#FB7435' }}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Novo Usuário
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Cadastrar Novo Usuário</DialogTitle>
+                  <DialogDescription>
+                    Preencha os dados para criar um novo usuário no sistema.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleCreateUser} className="space-y-4">
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {success && (
+                    <Alert className="border-green-200 bg-green-50 text-green-800">
+                      <Check className="h-4 w-4" />
+                      <AlertDescription>{success}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="new-name">Nome</Label>
+                    <Input
+                      id="new-name"
+                      placeholder="Nome completo"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="new-email">Email</Label>
+                    <Input
+                      id="new-email"
+                      type="email"
+                      placeholder="email@exemplo.com"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="new-password">Senha Inicial</Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      placeholder="Mínimo 6 caracteres"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="new-role">Perfil de Acesso</Label>
+                    <Select
+                      value={newRole}
+                      onValueChange={(v: AppRoleType) => setNewRole(v)}
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o perfil" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <OpcoesPerfil />
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Admin: técnico • Gestão: metas e operações • Sócio: estratégico • Operacional/Visualizador: consulta • Somente indicadores: só a tela de Indicadores por área
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsDialogOpen(false)}
+                      className="flex-1"
+                      disabled={isSubmitting}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                      disabled={isSubmitting}
+                      style={{ backgroundColor: '#FB7435' }}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Criando...
+                        </>
+                      ) : (
+                        'Criar Usuário'
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {/* Users Table */}
+          <Card>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : users.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  Nenhum usuário cadastrado.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Perfil</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Criado em</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">{u.name}</TableCell>
+                        <TableCell>{u.email}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={u.role || 'none'}
+                            onValueChange={(v) => {
+                              if (v !== 'none') {
+                                assignRole(u.user_id, v as AppRoleType);
+                              }
+                            }}
+                            disabled={u.user_id === user?.id}
+                          >
+                            <SelectTrigger className="w-44">
+                              <SelectValue>
+                                {getRoleBadge(u.role)}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <OpcoesPerfil curto />
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={u.is_active}
+                              onCheckedChange={() => toggleUserStatus(u.user_id, u.is_active)}
+                              disabled={u.user_id === user?.id}
+                            />
+                            <span className={u.is_active ? 'text-green-600' : 'text-muted-foreground'}>
+                              {u.is_active ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(u.created_at).toLocaleDateString('pt-BR')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {u.user_id === user?.id && (
+                            <Badge variant="outline" className="text-xs">
+                              Você
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Permission Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Perfis de Permissão</CardTitle>
+              <CardDescription>
+                Entenda as diferenças entre os níveis de acesso
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Shield className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold">Administrador</h3>
+                  </div>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Acesso técnico ao sistema</li>
+                    <li>• Cadastrar e gerenciar usuários</li>
+                    <li>• Atualizar dados e integrações</li>
+                  </ul>
+                </div>
+                <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Shield className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold">Gestão</h3>
+                  </div>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Visualizar e editar metas</li>
+                    <li>• Acompanhar progresso</li>
+                    <li>• Apresentar resultados</li>
+                  </ul>
+                </div>
+                <div className="p-4 rounded-lg border border-border bg-muted/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Shield className="w-5 h-5 text-muted-foreground" />
+                    <h3 className="font-semibold">Sócio</h3>
+                  </div>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Visualizar metas e progresso</li>
+                    <li>• Acompanhar alertas</li>
+                    <li>• Acesso ao dashboard</li>
+                  </ul>
+                </div>
+                <div className="p-4 rounded-lg border border-border bg-muted/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Eye className="w-5 h-5 text-muted-foreground" />
+                    <h3 className="font-semibold">Operacional</h3>
+                  </div>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Dados operacionais</li>
+                    <li>• Sem acesso a metas</li>
+                  </ul>
+                </div>
+                <div className="p-4 rounded-lg border border-border bg-muted/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Eye className="w-5 h-5 text-muted-foreground" />
+                    <h3 className="font-semibold">Visualizador</h3>
+                  </div>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Acesso apenas ao dashboard</li>
+                    <li>• Não pode alterar dados</li>
+                  </ul>
+                </div>
+                <div className="p-4 rounded-lg border border-border bg-muted/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Gauge className="w-5 h-5 text-muted-foreground" />
+                    <h3 className="font-semibold">Somente indicadores</h3>
+                  </div>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Vê só a tela de Indicadores por área</li>
+                    <li>• Pode abrir o POP e atualizar do Asana</li>
+                    <li>• Sem acesso a clientes, valores e prospecção</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t border-border bg-card/50 py-6">
+          <div className="container text-center text-sm text-muted-foreground">
+            Wolff e Scripes Advogados • Sistema de Gestão
+          </div>
+        </footer>
       </>
     </AppShell>
   );

@@ -37,7 +37,7 @@ const NAVEGACAO: ItemNav[] = [
 ];
 
 const ADMINISTRACAO: ItemNav[] = [
-  { label: "Metas 2026", icon: Target, path: "/metas", restrito: "gestao" },
+  { label: "Metas 2026", icon: Target, path: "/metas-2026", restrito: "gestao" },
   { label: "Atualizar dados", icon: Upload, path: "/admin", restrito: "admin" },
   { label: "Usuários", icon: UsersRound, path: "/users", restrito: "admin" },
   { label: "Configurações", icon: SettingsIcon, path: "/settings", restrito: "gestao" },
@@ -46,12 +46,18 @@ const ADMINISTRACAO: ItemNav[] = [
 export function AppShell({ children, actions, defaultCollapsed = false }: AppShellProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { isAdmin, hasRole, user, signOut } = useAuth();
+  const { isAdmin, hasRole, user, signOut, somenteIndicadores } = useAuth();
   const { isDark, toggle: alternarTema } = useTheme();
   const [recolhida, setRecolhida] = useState(defaultCollapsed);
   const [menuMobile, setMenuMobile] = useState(false);
   const [busca, setBusca] = useState("");
   const campoBusca = useRef<HTMLInputElement>(null);
+
+  // Perfil "indicadores" só enxerga a própria tela.
+  const inicio = somenteIndicadores ? "/indicadores" : "/";
+  const navegacao = somenteIndicadores
+    ? NAVEGACAO.filter((i) => i.path === "/indicadores")
+    : NAVEGACAO;
 
   // Ctrl+K / Cmd+K foca a busca de qualquer lugar do sistema.
   useEffect(() => {
@@ -65,17 +71,8 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
     return () => window.removeEventListener("keydown", atalho);
   }, []);
 
-  // Busca transversal: leva direto ao módulo, de qualquer tela.
-  const buscar = (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = busca.trim().toLowerCase();
-    if (!q) return;
-    const alvo = [...NAVEGACAO, ...ADMINISTRACAO].find((i) =>
-      i.label.toLowerCase().includes(q) || i.path.slice(1).includes(q));
-    if (alvo) { navigate(alvo.path); setBusca(""); }
-  };
-
   const podeVer = (item: ItemNav) => {
+    if (somenteIndicadores) return false;
     if (!item.restrito) return true;
     if (item.restrito === "admin") return isAdmin;
     return isAdmin || hasRole("socio") || hasRole("gestao");
@@ -84,6 +81,16 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
   const administracao = ADMINISTRACAO.filter(podeVer);
   const ativo = (path: string) => path === "/" ? pathname === "/" : pathname.startsWith(path);
 
+  // Busca transversal: leva direto ao módulo, de qualquer tela.
+  const buscar = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = busca.trim().toLowerCase();
+    if (!q) return;
+    const alvo = [...navegacao, ...administracao].find((i) =>
+      i.label.toLowerCase().includes(q) || i.path.slice(1).includes(q));
+    if (alvo) { navigate(alvo.path); setBusca(""); }
+  };
+
   const hoje = new Date().toLocaleDateString("pt-BR", {
     weekday: "short", day: "2-digit", month: "long", year: "numeric",
   });
@@ -91,7 +98,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
   const Navegacao = ({ aoNavegar }: { aoNavegar?: () => void }) => (
     <nav className="flex-1 overflow-y-auto py-3">
       <ul className="space-y-px">
-        {NAVEGACAO.map((item) => (
+        {navegacao.map((item) => (
           <li key={item.path}>
             <BotaoNav item={item} ativo={ativo(item.path)} recolhida={recolhida}
               onClick={() => { navigate(item.path); aoNavegar?.(); }} />
@@ -133,7 +140,7 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
           recolhida ? "justify-center h-16" : "px-5 h-20",
         )}>
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate(inicio)}
             className="flex items-center min-w-0 w-full"
             aria-label="Ir para o início"
           >
@@ -194,20 +201,24 @@ export function AppShell({ children, actions, defaultCollapsed = false }: AppShe
               <Menu className="w-5 h-5 text-foreground" />
             </button>
 
-            <form onSubmit={buscar} className="relative flex-1 max-w-2xl">
-              <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                ref={campoBusca}
-                type="text"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar um módulo"
-                className="w-full pl-9 pr-16 h-9 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              <kbd className="hidden sm:flex absolute right-2.5 top-1/2 -translate-y-1/2 items-center gap-0.5 h-5 px-1.5 rounded border border-border bg-muted text-[10px] font-medium text-muted-foreground pointer-events-none">
-                Ctrl K
-              </kbd>
-            </form>
+            {somenteIndicadores ? (
+              <div className="flex-1" />
+            ) : (
+              <form onSubmit={buscar} className="relative flex-1 max-w-2xl">
+                <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  ref={campoBusca}
+                  type="text"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar um módulo"
+                  className="w-full pl-9 pr-16 h-9 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <kbd className="hidden sm:flex absolute right-2.5 top-1/2 -translate-y-1/2 items-center gap-0.5 h-5 px-1.5 rounded border border-border bg-muted text-[10px] font-medium text-muted-foreground pointer-events-none">
+                  Ctrl K
+                </kbd>
+              </form>
+            )}
 
             <div className="flex-1" />
             <p className="hidden lg:block text-sm text-muted-foreground first-letter:uppercase">{hoje}</p>

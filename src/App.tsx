@@ -2,8 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
@@ -21,7 +21,10 @@ import { useDashboardData } from "@/hooks/use-dashboard-data";
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const { dashboardData, isLoading, updateData, lastUpdated } = useDashboardData();
+  const { user, rolesCarregados, somenteIndicadores } = useAuth();
+  // Os dados de recorrentes (valores de contrato) só são buscados para quem pode vê-los.
+  const podeVerRecorrentes = !!user && rolesCarregados && !somenteIndicadores;
+  const { dashboardData, isLoading, updateData, lastUpdated } = useDashboardData(podeVerRecorrentes);
 
   if (isLoading) {
     return (
@@ -36,7 +39,7 @@ function AppRoutes() {
       {/* Public routes */}
       <Route path="/auth" element={<Auth />} />
       <Route path="/setup" element={<Setup />} />
-      
+
       {/* Protected routes */}
       <Route
         path="/"
@@ -46,8 +49,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route 
-        path="/recorrentes" 
+      <Route
+        path="/recorrentes"
         element={
           <ProtectedRoute>
             {dashboardData ? (
@@ -63,42 +66,42 @@ function AppRoutes() {
               </div>
             )}
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/admin" 
+      <Route
+        path="/admin"
         element={
           <ProtectedRoute requireAdmin>
-            <Home 
-              onDataUpdate={updateData} 
+            <Home
+              onDataUpdate={updateData}
               hasData={dashboardData !== null}
             />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/users" 
+      <Route
+        path="/users"
         element={
           <ProtectedRoute requireAdmin>
             <Users />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/settings" 
+      <Route
+        path="/settings"
         element={
           <ProtectedRoute allowedRoles={['admin', 'socio', 'gestao']}>
             <Settings />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/metas-2026" 
+      <Route
+        path="/metas-2026"
         element={
           <ProtectedRoute allowedRoles={['socio', 'gestao']}>
             <Metas2026 />
           </ProtectedRoute>
-        } 
+        }
       />
       <Route
         path="/prospeccao"
@@ -111,7 +114,7 @@ function AppRoutes() {
       <Route
         path="/indicadores"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute permitirIndicadores>
             <IndicadoresArea />
           </ProtectedRoute>
         }
