@@ -14,7 +14,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
 import { AppShell } from "@/components/layout/AppShell";
-import { useProspeccaoData, type Etapa, type MotivoFonte } from "@/hooks/use-prospeccao-data";
+import { useProspeccaoData, type Etapa, type MotivoFonte, type ProspeccaoItem } from "@/hooks/use-prospeccao-data";
+import { ListaOportunidades } from "@/components/prospeccao/ListaOportunidades";
 import { PlacarReunioes } from "@/components/prospeccao/PlacarReunioes";
 import { IndicadoresComerciais } from "@/components/prospeccao/IndicadoresComerciais";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,9 +35,13 @@ const DESFECHO_COLOR: Record<string, string> = {
   vazio: "hsl(var(--muted-foreground))",
 };
 
-const ETAPA_ORDER: Etapa[] = ["Lead recebido", "Reunião", "Proposta enviada", "Negociação", "Ganho", "Perdido", "Sem estrutura de funil"];
+// "Em espera" fica numa barra própria: lead em espera não aparece com etapa do funil
+type BarraFunil = Etapa | "Em espera";
 
-const ETAPA_COLOR: Record<Etapa, string> = {
+const ETAPA_ORDER: BarraFunil[] = ["Lead recebido", "Reunião", "Proposta enviada", "Negociação", "Em espera", "Ganho", "Perdido", "Sem estrutura de funil"];
+
+const ETAPA_COLOR: Record<BarraFunil, string> = {
+  "Em espera": "#9AB8D6",
   "Lead recebido": "hsl(var(--muted-foreground))",
   "Reunião": "#378ADD",
   "Proposta enviada": "#7F77DD",
@@ -78,6 +83,23 @@ export default function ProspeccaoDashboard() {
   const [ownerFilter, setOwnerFilter] = useState<string>("todos");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const pendentesRef = useRef<HTMLDivElement>(null);
+  const [etapaSel, setEtapaSel] = useState<BarraFunil | null>(null);
+  const [desfechoSel, setDesfechoSel] = useState<string | null>(null);
+
+  const barraDoItem = (i: ProspeccaoItem): BarraFunil =>
+    i.statusGeral === "em_espera" && i.etapaAtual !== "Ganho" && i.etapaAtual !== "Perdido"
+      ? "Em espera"
+      : i.etapaAtual;
+
+  const itensDaEtapa = useMemo(() => {
+    if (!data || !etapaSel) return [];
+    return data.items.filter((i) => barraDoItem(i) === etapaSel);
+  }, [data, etapaSel]);
+
+  const itensDoDesfecho = useMemo(() => {
+    if (!data || !desfechoSel) return [];
+    return data.items.filter((i) => i.statusGeral === "concluido" && i.desfecho === desfechoSel);
+  }, [data, desfechoSel]);
 
   const owners = useMemo(() => {
     if (!data) return [];
@@ -102,8 +124,13 @@ export default function ProspeccaoDashboard() {
 
   const funilChartData = useMemo(() => {
     if (!data) return [];
+    const contagem: Partial<Record<BarraFunil, number>> = {};
+    for (const i of data.items) {
+      const b = barraDoItem(i);
+      contagem[b] = (contagem[b] ?? 0) + 1;
+    }
     return ETAPA_ORDER
-      .map((etapa) => ({ etapa, value: data.funilEtapas[etapa] ?? 0 }))
+      .map((etapa) => ({ etapa, value: contagem[etapa] ?? 0 }))
       .filter((d) => d.value > 0);
   }, [data]);
 
@@ -236,22 +263,46 @@ export default function ProspeccaoDashboard() {
                     Etapa atual do pipeline
                   </h3>
                   <p className="text-xs text-muted-foreground mb-3">
-                    Onde cada oportunidade está agora, com base nas tarefas concluídas no Asana
+                    Onde cada oportunidade está agora, com base nas tarefas concluídas no Asana. Clique numa barra para ver os projetos.
                   </p>
-                  <div className="h-[190px]">
+                  <div className="h-[210px] cursor-pointer">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={funilChartData} layout="vertical" margin={{ left: 8, right: 30 }} barCategoryGap={10}>
+                      <BarChart
+                        data={funilChartData}
+                        layout="vertical"
+                        margin={{ left: 8, right: 30 }}
+                        barCategoryGap={10}
+                        onClick={(s: any) => {
+                          const etapa = s?.activeLabel as BarraFunil | undefined;
+                          if (etapa) setEtapaSel((atual) => (atual === etapa ? null : etapa));
+                        }}
+                      >
                         <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
                         <XAxis type="number" allowDecimals={false} hide />
                         <YAxis type="category" dataKey="etapa" width={120} tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }} />
                         <Tooltip cursor={{ fill: "hsl(var(--muted))" }} />
                         <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={20}>
-                          {funilChartData.map((d) => <Cell key={d.etapa} fill={ETAPA_COLOR[d.etapa]} />)}
+                          {funilChartData.map((d) => (
+                            <Cell
+                              key={d.etapa}
+                              fill={ETAPA_COLOR[d.etapa]}
+                              fillOpacity={etapaSel && etapaSel !== d.etapa ? 0.35 : 1}
+                            />
+                          ))}
                           <LabelList dataKey="value" position="right" style={{ fontSize: 12, fontWeight: 500, fill: "hsl(var(--foreground))" }} />
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
+                  {etapaSel && (
+                    <ListaOportunidades
+                      titulo={etapaSel}
+                      cor={ETAPA_COLOR[etapaSel]}
+                      itens={itensDaEtapa}
+                      mostrarMotivo={etapaSel === "Ganho" || etapaSel === "Perdido"}
+                      onFechar={() => setEtapaSel(null)}
+                    />
+                  )}
                 </section>
               )}
 
@@ -266,16 +317,32 @@ export default function ProspeccaoDashboard() {
                     {data.resumo.taxaConversaoClassificados !== null && (
                       <> · {data.resumo.taxaConversaoClassificados}% de conversão entre as classificadas</>
                     )}
+                    {" "}· Clique numa barra para ver os projetos.
                   </p>
-                  <div className="h-[170px]">
+                  <div className="h-[170px] cursor-pointer">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={desfechoChartData} layout="vertical" margin={{ left: 8, right: 44 }} barCategoryGap={14}>
+                      <BarChart
+                        data={desfechoChartData}
+                        layout="vertical"
+                        margin={{ left: 8, right: 44 }}
+                        barCategoryGap={14}
+                        onClick={(s: any) => {
+                          const d = desfechoChartData.find((x) => x.label === s?.activeLabel);
+                          if (d) setDesfechoSel((atual) => (atual === d.key ? null : d.key));
+                        }}
+                      >
                         <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
                         <XAxis type="number" allowDecimals={false} hide />
                         <YAxis type="category" dataKey="label" width={110} tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }} />
                         <Tooltip cursor={{ fill: "hsl(var(--muted))" }} />
                         <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={22}>
-                          {desfechoChartData.map((d) => <Cell key={d.key} fill={DESFECHO_COLOR[d.key]} />)}
+                          {desfechoChartData.map((d) => (
+                            <Cell
+                              key={d.key}
+                              fill={DESFECHO_COLOR[d.key]}
+                              fillOpacity={desfechoSel && desfechoSel !== d.key ? 0.35 : 1}
+                            />
+                          ))}
                           <LabelList
                             dataKey="value"
                             position="right"
@@ -312,6 +379,19 @@ export default function ProspeccaoDashboard() {
                   </Button>
                 </section>
               </div>
+
+              {/* Projetos da barra clicada em "Classificação dos encerramentos" (largura total) */}
+              {desfechoSel && (
+                <section className="bg-card rounded-xl border border-border px-4 pb-4 shadow-sm">
+                  <ListaOportunidades
+                    titulo={`Encerramentos: ${DESFECHO_LABEL[desfechoSel]}`}
+                    cor={DESFECHO_COLOR[desfechoSel]}
+                    itens={itensDoDesfecho}
+                    mostrarMotivo
+                    onFechar={() => setDesfechoSel(null)}
+                  />
+                </section>
+              )}
 
               {/* Pendências por responsável — tabela compacta */}
               <section className="bg-card rounded-xl border border-border p-4 shadow-sm">
