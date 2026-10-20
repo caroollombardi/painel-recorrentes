@@ -35,13 +35,17 @@ const DESFECHO_COLOR: Record<string, string> = {
   vazio: "hsl(var(--muted-foreground))",
 };
 
-// "Em espera" fica numa barra própria: lead em espera não aparece com etapa do funil
-type BarraFunil = Etapa | "Em espera";
+// "Em espera" fica numa barra própria: lead em espera não aparece com etapa do funil.
+// Projeto concluído também não fica em etapa de andamento: vai para Ganho, Perdido ou "Encerrado sem resultado".
+type BarraFunil = Etapa | "Em espera" | "Encerrado sem resultado";
 
-const ETAPA_ORDER: BarraFunil[] = ["Lead recebido", "Reunião", "Proposta enviada", "Negociação", "Em espera", "Ganho", "Perdido", "Sem estrutura de funil"];
+const ETAPAS_EM_ANDAMENTO: Etapa[] = ["Lead recebido", "Reunião", "Proposta enviada", "Negociação"];
+
+const ETAPA_ORDER: BarraFunil[] = ["Lead recebido", "Reunião", "Proposta enviada", "Negociação", "Em espera", "Ganho", "Perdido", "Encerrado sem resultado", "Sem estrutura de funil"];
 
 const ETAPA_COLOR: Record<BarraFunil, string> = {
   "Em espera": "#9AB8D6",
+  "Encerrado sem resultado": "hsl(var(--muted-foreground))",
   "Lead recebido": "hsl(var(--muted-foreground))",
   "Reunião": "#378ADD",
   "Proposta enviada": "#7F77DD",
@@ -86,10 +90,16 @@ export default function ProspeccaoDashboard() {
   const [etapaSel, setEtapaSel] = useState<BarraFunil | null>(null);
   const [desfechoSel, setDesfechoSel] = useState<string | null>(null);
 
-  const barraDoItem = (i: ProspeccaoItem): BarraFunil =>
-    i.statusGeral === "em_espera" && i.etapaAtual !== "Ganho" && i.etapaAtual !== "Perdido"
-      ? "Em espera"
-      : i.etapaAtual;
+  const barraDoItem = (i: ProspeccaoItem): BarraFunil => {
+    if (!ETAPAS_EM_ANDAMENTO.includes(i.etapaAtual)) return i.etapaAtual;
+    if (i.statusGeral === "em_espera") return "Em espera";
+    if (i.statusGeral === "concluido") {
+      if (i.desfecho === "ganho") return "Ganho";
+      if (i.desfecho === "perdido") return "Perdido";
+      return "Encerrado sem resultado";
+    }
+    return i.etapaAtual;
+  };
 
   const itensDaEtapa = useMemo(() => {
     if (!data || !etapaSel) return [];
@@ -299,7 +309,7 @@ export default function ProspeccaoDashboard() {
                       titulo={etapaSel}
                       cor={ETAPA_COLOR[etapaSel]}
                       itens={itensDaEtapa}
-                      mostrarMotivo={etapaSel === "Ganho" || etapaSel === "Perdido"}
+                      mostrarMotivo={etapaSel === "Ganho" || etapaSel === "Perdido" || etapaSel === "Encerrado sem resultado"}
                       onFechar={() => setEtapaSel(null)}
                     />
                   )}
