@@ -6,7 +6,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList, Legend,
 } from "recharts";
 import { AppShell } from "@/components/layout/AppShell";
 import { useProspeccaoData, type Etapa, type ProspeccaoItem } from "@/hooks/use-prospeccao-data";
@@ -15,6 +15,9 @@ import { ListaOportunidades } from "@/components/prospeccao/ListaOportunidades";
 import { PendenciasCadastro } from "@/components/prospeccao/PendenciasCadastro";
 import { InfoDica } from "@/components/prospeccao/InfoDica";
 import { calcularIndicadores, TEMPOS_DESDE, type TempoEtapa } from "@/lib/indicadores-prospeccao";
+import {
+  calcularFluxo, calcularConversao, marcarParados, FATOR_PARADO, MINIMO_DIAS_PARADO, type Taxa,
+} from "@/lib/saude-pipeline";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -71,12 +74,6 @@ function barraDoItem(i: ProspeccaoItem): BarraFunil {
     return "Encerrado sem resultado";
   }
   return i.etapaAtual;
-}
-
-function diasBadgeClass(d: number) {
-  if (d <= 7) return "bg-success/10 text-success-foreground border-success/20";
-  if (d <= 15) return "bg-warning/10 text-warning-foreground border-warning/20";
-  return "bg-destructive/10 text-destructive border-destructive/20";
 }
 
 function formatarDias(t: TempoEtapa) {
@@ -156,6 +153,21 @@ export default function ProspeccaoDashboard() {
   );
 
   const aguardandoDecisao = ind.emDia.filter((l) => l.etapa === "Aguardando decisão").length;
+  const parados = useMemo(() => marcarParados(ind.emDia), [ind]);
+  const ativosOrdenados = useMemo(
+    () => [...ind.emDia].sort((a, b) => Number(parados.has(b.gid)) - Number(parados.has(a.gid)) || b.dias - a.dias),
+    [ind, parados]
+  );
+  const fluxo = useMemo(() => calcularFluxo(items), [items]);
+
+  // Conversão compara os sócios entre si, então ignora o filtro de responsável
+  const conversao = useMemo(() => {
+    if (!data) return [];
+    return [
+      ...SEMPRE_NO_PLACAR.map((n) => ({ nome: primeiroNome(n), c: calcularConversao(data.items.filter((i) => i.owner === n)) })),
+      { nome: "Escritório", c: calcularConversao(data.items) },
+    ];
+  }, [data]);
   const esperaAntigos = ind.emEspera.filter((l) => l.dias > 30).length;
   const alternarPainel = (p: Painel) => setPainel((atual) => (atual === p ? null : p));
 
@@ -225,7 +237,12 @@ export default function ProspeccaoDashboard() {
                 <Kpi
                   rotulo="Pipeline ativo"
                   valor={String(ind.emDia.length)}
-                  dica={aguardandoDecisao > 0 ? `${aguardandoDecisao} aguardando decisão do cliente` : "Leads em andamento"}
+                  dica={
+                    parados.size > 0
+                      ? `${parados.size} parado${parados.size > 1 ? "s" : ""} além do normal`
+                      : aguardandoDecisao > 0 ? `${aguardandoDecisao} aguardando decisão do cliente` : "Leads em andamento"
+                  }
+                  alerta={parados.size > 0}
                   ativo={painel === "ativos"}
                   onClick={() => alternarPainel("ativos")}
                 />
@@ -254,6 +271,12 @@ export default function ProspeccaoDashboard() {
 
               {painel && (
                 <div className="border-t border-border px-5 py-4">
+                  {painel === "ativos" && parados.size > 0 && (
+                    <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                      Em vermelho, os parados além do normal, que pedem follow-up primeiro.
+                      <InfoDica texto={`Parado além do normal: está na etapa há mais de ${String(FATOR_PARADO).replace(".", ",")}× o tempo típico dos leads ativos na mesma etapa, e há pelo menos ${MINIMO_DIAS_PARADO} dias. Etapas com menos de 3 leads usam o tempo típico do pipe inteiro.`} />
+                    </p>
+                  )}
                   {painel === "ativos" && (
                     <TabelaRolavel vazio="Nenhum lead em andamento." linhas={ind.emDia.length}>
                       <TableHeader>
@@ -264,7 +287,7 @@ export default function ProspeccaoDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {ind.emDia.map((l) => (
+                        {ativosOrdenados.map((l) => (
                           <TableRow key={l.gid}>
                             <TableCell>
                               <LinkProjeto gid={l.gid} nome={l.nome} />
@@ -272,7 +295,12 @@ export default function ProspeccaoDashboard() {
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">{l.etapa}</TableCell>
                             <TableCell className="text-right">
-                              <Badge variant="outline" className={diasBadgeClass(l.dias)}>{l.dias}</Badge>
+                              <Badge
+                                variant="outline"
+                                className={parados.has(l.gid) ? "bg-destructive/10 text-destructive border-destructive/20" : "text-muted-foreground"}
+                              >
+                                {l.dias}
+                              </Badge>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -355,7 +383,7 @@ export default function ProspeccaoDashboard() {
               )}
             </section>
 
-            {/* 2. Velocidade do funil */}
+            {/* 2. Velocidade e conversão */}
             <section className="bg-card rounded-xl border border-border shadow-sm px-5 py-4">
               <h3 className="text-sm font-display font-semibold text-foreground flex items-center gap-1.5 mb-3">
                 Tempo entre etapas
@@ -365,6 +393,37 @@ export default function ProspeccaoDashboard() {
                 <Tempo rotulo="Do lead à proposta" t={ind.ateProposta} />
                 <Tempo rotulo="Da proposta ao fechamento" t={ind.ateGanho} />
                 <Tempo rotulo="Da proposta à perda" t={ind.atePerda} />
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-border">
+                <h3 className="text-sm font-display font-semibold text-foreground flex items-center gap-1.5 mb-2">
+                  Conversão por etapa
+                  <InfoDica texto="De cada 100 leads que passaram pela etapa, quantos avançaram. Conta quem avançou e quem foi encerrado ali; quem ainda está na etapa fica fora. Só entram projetos com a estrutura de funil no Asana." />
+                </h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead />
+                        <TableHead className="text-right">Lead → Reunião</TableHead>
+                        <TableHead className="text-right">Reunião → Proposta</TableHead>
+                        <TableHead className="text-right">Proposta → Ganho</TableHead>
+                        <TableHead className="text-right">Do lead ao contrato</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {conversao.map((linha, k) => (
+                        <TableRow key={linha.nome} className={k === conversao.length - 1 ? "bg-muted/30" : ""}>
+                          <TableCell className="font-medium text-foreground">{linha.nome}</TableCell>
+                          <CelulaTaxa t={linha.c.leadReuniao} />
+                          <CelulaTaxa t={linha.c.reuniaoProposta} />
+                          <CelulaTaxa t={linha.c.propostaGanho} />
+                          <CelulaTaxa t={linha.c.geral} destaque />
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </section>
 
@@ -381,17 +440,37 @@ export default function ProspeccaoDashboard() {
               </section>
 
               <section className="lg:col-span-2 bg-card rounded-xl border border-border shadow-sm p-5">
-                <h3 className="text-sm font-display font-semibold text-foreground mb-1">Novos leads por mês</h3>
-                <p className="text-xs text-muted-foreground mb-3">Últimos 6 meses</p>
-                <div className="h-[220px]">
+                <h3 className="text-sm font-display font-semibold text-foreground flex items-center gap-1.5 mb-3">
+                  Entrada e saída do pipe
+                  <InfoDica texto="Entrada: lead criado no Asana. Saída: lead ganho, perdido ou concluído, na data da decisão (ou da última atualização de status, quando a decisão não foi registrada). Para o pipe não encolher, precisa entrar ao menos o que sai." />
+                </h3>
+                <div className="grid grid-cols-2 gap-3 mb-1">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Entraram · 30 dias</p>
+                    <p className="text-2xl font-display font-semibold text-foreground tabular-nums">{fluxo.entradas30}</p>
+                    <p className={`text-xs ${fluxo.entradas30 < fluxo.mediaEntradasAnterior * 0.8 ? "text-destructive" : "text-muted-foreground"}`}>
+                      Média anterior: {Math.round(fluxo.mediaEntradasAnterior)}/mês
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Saíram · 30 dias</p>
+                    <p className="text-2xl font-display font-semibold text-foreground tabular-nums">{fluxo.saidas30}</p>
+                    <p className={`text-xs ${fluxo.saidas30 > fluxo.entradas30 ? "text-destructive" : "text-muted-foreground"}`}>
+                      {fluxo.saidas30 > fluxo.entradas30
+                        ? "Pipe encolhendo"
+                        : fluxo.entradas30 === fluxo.saidas30 ? "Pipe estável" : "Pipe crescendo"}
+                    </p>
+                  </div>
+                </div>
+                <div className="h-[170px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={ind.leadsPorMes.map((d) => ({ ...d, rotulo: rotuloMes(d.mes) }))} margin={{ top: 18, left: 0, right: 0 }}>
-                      <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                    <BarChart data={fluxo.porMes.map((d) => ({ ...d, rotulo: rotuloMes(d.mes) }))} margin={{ top: 8, left: 0, right: 0 }} barGap={2}>
+                      <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                       <YAxis allowDecimals={false} hide />
-                      <Tooltip cursor={{ fill: "hsl(var(--muted))" }} formatter={(v: number) => [v, "Leads"]} />
-                      <Bar dataKey="leads" fill="#7F77DD" radius={[4, 4, 0, 0]} maxBarSize={32}>
-                        <LabelList dataKey="leads" position="top" style={{ fontSize: 12, fontWeight: 600, fill: "hsl(var(--foreground))" }} />
-                      </Bar>
+                      <Tooltip cursor={{ fill: "hsl(var(--muted))" }} />
+                      <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                      <Bar dataKey="entradas" name="Entraram" fill="#7F77DD" radius={[3, 3, 0, 0]} maxBarSize={14} />
+                      <Bar dataKey="saidas" name="Saíram" fill="hsl(var(--muted-foreground) / 0.45)" radius={[3, 3, 0, 0]} maxBarSize={14} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -431,8 +510,8 @@ export default function ProspeccaoDashboard() {
 }
 
 function Kpi({
-  rotulo, valor, dica, ativo, onClick,
-}: { rotulo: string; valor: string; dica: string; ativo: boolean; onClick: () => void }) {
+  rotulo, valor, dica, ativo, onClick, alerta = false,
+}: { rotulo: string; valor: string; dica: string; ativo: boolean; onClick: () => void; alerta?: boolean }) {
   return (
     <button
       type="button"
@@ -443,8 +522,19 @@ function Kpi({
       {ativo && <span className="absolute left-0 right-0 bottom-0 h-0.5" style={{ background: LARANJA }} />}
       <p className="text-xs text-muted-foreground">{rotulo}</p>
       <p className="text-3xl font-display font-semibold text-foreground mt-1 tabular-nums">{valor}</p>
-      <p className="text-xs text-muted-foreground mt-1">{dica}</p>
+      <p className={`text-xs mt-1 ${alerta ? "text-destructive" : "text-muted-foreground"}`}>{dica}</p>
     </button>
+  );
+}
+
+function CelulaTaxa({ t, destaque = false }: { t: Taxa; destaque?: boolean }) {
+  return (
+    <TableCell className="text-right whitespace-nowrap">
+      <span className={`tabular-nums ${destaque ? "font-semibold text-foreground" : "text-foreground"}`}>
+        {t.pct === null ? "—" : `${t.pct}%`}
+      </span>
+      <span className="block text-[11px] text-muted-foreground/70">{t.base > 0 ? `${t.avancaram} de ${t.base}` : "sem casos"}</span>
+    </TableCell>
   );
 }
 
