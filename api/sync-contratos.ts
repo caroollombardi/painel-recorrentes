@@ -5,6 +5,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 // Padrão do time: cada demanda é um projeto com tarefas de elaboração (tag "WSA - Contratos"),
 // a tarefa de entrega (tag "WSA - Entrega Externa") e o FUP (tag "WSA - FUP").
 // Quando a tag falta, o nome da tarefa serve de reserva ("… Entrega Externa", "FUP - …").
+// Tipo da demanda: campo "Tipo de demanda" (Elaboração / Análise) na tarefa do Asana.
 // Grava em public.contratos_tarefas; os indicadores saem das views no Supabase.
 //
 // Quem pode chamar: o Cron da Vercel (CRON_SECRET) ou um usuário logado no painel.
@@ -63,6 +64,14 @@ function tipoTarefa(t: AsanaTask): "entrega" | "fup" | "outra" {
   return "outra";
 }
 
+// Campo "Tipo de demanda" → "elaboracao" | "analise" | null
+function tipoDemanda(t: AsanaTask): "elaboracao" | "analise" | null {
+  const v = norm(campo(t, "Tipo de demanda")?.display_value ?? "");
+  if (v.startsWith("anal")) return "analise";
+  if (v.startsWith("elab")) return "elaboracao";
+  return null;
+}
+
 function mapearTask(t: AsanaTask, p: { gid: string; name: string }) {
   const est = campo(t, "Estimated time") ?? campo(t, "Tempo estimado");
   return {
@@ -71,6 +80,7 @@ function mapearTask(t: AsanaTask, p: { gid: string; name: string }) {
     projeto_nome: p.name ?? null,
     nome: t.name,
     tipo: tipoTarefa(t),
+    tipo_demanda: tipoDemanda(t),
     cancelada: RE_CANCELADO.test(t.name || ""),
     responsavel: t.assignee?.name ?? null,
     criada_ts: t.created_at,

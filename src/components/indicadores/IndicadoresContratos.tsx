@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 
 // Indicadores da área de Contratos. Os números vêm das views
-// vw_indicadores_contratos_mensal e vw_contratos_demandas (Supabase),
+// vw_indicadores_contratos_mensal, vw_contratos_demandas e vw_contratos_projetos (Supabase),
 // alimentadas por /api/sync-contratos a partir do padrão do Asana.
 
 const SLA_PADRAO = 5;
@@ -19,14 +19,37 @@ interface Mensal {
   entregas?: number;
   entregas_no_prazo?: number;
   c1_pct_no_prazo?: number | null;
-  entregas_sem_ajustes?: number;
-  c2_pct_sem_ajustes?: number | null;
+  elaboracoes?: number;
+  elaboracoes_sem_ajuste?: number;
+  elaboracoes_com_1_ajuste?: number;
+  elaboracoes_com_retrabalho?: number;
+  elaboracoes_sem_classificacao?: number;
+  c2_pct_sem_retrabalho?: number | null;
+  analises?: number;
   encerradas?: number;
   encerradas_com_estimativa?: number;
   horas_lancadas?: number | null;
   horas_estimadas?: number | null;
   c3_razao_horas?: number | null;
   cobertura_estimativa_pct?: number | null;
+  projetos_encerrados?: number;
+  c4_media_dias_uteis_aberto?: number | null;
+  c4_media_dias_corridos_aberto?: number | null;
+}
+
+interface Projeto {
+  projeto_gid: string;
+  projeto_nome: string | null;
+  tipo_demanda: "elaboracao" | "analise";
+  tipo_origem: "campo" | "nome" | "padrao";
+  aberto_em: string;
+  primeira_entrega_em: string | null;
+  ultima_entrega_em: string | null;
+  ajustes: number;
+  encerrado: boolean;
+  dias_uteis_aberto: number | null;
+  dias_corridos_aberto: number | null;
+  url: string | null;
 }
 
 interface Entrega {
@@ -49,6 +72,8 @@ const fmtMes = (iso: string) => { const [a, m] = iso.split("-"); return `${MESES
 const fmtData = (iso?: string | null) => (iso ? iso.split("-").reverse().slice(0, 2).join("/") : "—");
 const pct = (v?: number | null) => (v == null ? "—" : `${Math.round(Number(v))}%`);
 const razao = (v?: number | null) => (v == null ? "—" : `${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}×`);
+const dias = (v?: number | null) => (v == null ? "—" : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 1 }));
+const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
 const num = (v?: number | null) => Number(v ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 const mesAtual = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`; };
 const somaMes = (iso: string, n: number) => {
@@ -97,8 +122,8 @@ function Indicador({ codigo, nome, valor, detalhe, nota, children }: {
   );
 }
 
-function ListaEntregas({ titulo, vazio, itens, detalhe }: {
-  titulo: string; vazio: string; itens: Entrega[]; detalhe: (d: Entrega) => string;
+function ListaEntregas<T extends { nome: string; url: string | null }>({ titulo, vazio, itens, detalhe, chave }: {
+  titulo: string; vazio: string; itens: T[]; detalhe: (d: T) => string; chave: (d: T) => string;
 }) {
   return (
     <section className="space-y-2">
@@ -108,7 +133,7 @@ function ListaEntregas({ titulo, vazio, itens, detalhe }: {
       ) : (
         <ul className="border-t border-border">
           {itens.map((d) => (
-            <li key={d.task_gid} className="py-2.5 border-b border-border">
+            <li key={chave(d)} className="py-2.5 border-b border-border">
               {d.url ? (
                 <a href={d.url} target="_blank" rel="noreferrer"
                   className="text-sm text-foreground hover:underline inline-flex items-center gap-1">
@@ -128,6 +153,7 @@ export function IndicadoresContratos({ versao = 0 }: { versao?: number }) {
   const [mes, setMes] = useState(mesAtual());
   const [mensal, setMensal] = useState<Mensal[]>([]);
   const [entregas, setEntregas] = useState<Entrega[]>([]);
+  const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [estado, setEstado] = useState<"carregando" | "ok" | string>("carregando");
 
   useEffect(() => {
@@ -136,16 +162,21 @@ export function IndicadoresContratos({ versao = 0 }: { versao?: number }) {
       setEstado("carregando");
       const inicio = somaMes(mesAtual(), -11);
       const db = supabase as any; // views novas ainda não estão nos tipos gerados
-      const [m, d] = await Promise.all([
+      const [m, d, p] = await Promise.all([
         db.from("vw_indicadores_contratos_mensal").select("*").gte("mes", inicio).order("mes"),
         db.from("vw_contratos_demandas")
           .select("task_gid,nome,projeto_nome,recebido_em,entregue_em,concluida,sla_dias,dias_uteis_ate_entrega,no_prazo,no_prazo_agendado,prazo,dias_uteis_em_aberto,url")
           .or(`entregue_em.gte.${inicio},concluida.eq.false`),
+        db.from("vw_contratos_projetos")
+          .select("projeto_gid,projeto_nome,tipo_demanda,tipo_origem,aberto_em,primeira_entrega_em,ultima_entrega_em,ajustes,encerrado,dias_uteis_aberto,dias_corridos_aberto,url")
+          .gte("primeira_entrega_em", inicio),
       ]);
       if (!vivo) return;
-      if (m.error || d.error) { setEstado(`erro: ${(m.error || d.error).message}`); return; }
+      const erro = m.error || d.error || p.error;
+      if (erro) { setEstado(`erro: ${erro.message}`); return; }
       setMensal(m.data ?? []);
       setEntregas(d.data ?? []);
+      setProjetos(p.data ?? []);
       setEstado("ok");
     })();
     return () => { vivo = false; };
@@ -161,6 +192,10 @@ export function IndicadoresContratos({ versao = 0 }: { versao?: number }) {
   const provisorio = mes >= somaMes(mesAtual(), -1);
 
   const foraDoPrazo = entregas.filter((d) => d.entregue_em?.startsWith(mes.slice(0, 7)) && d.no_prazo === false);
+  const comRetrabalho = projetos
+    .filter((p) => p.tipo_demanda === "elaboracao" && p.primeira_entrega_em?.startsWith(mes.slice(0, 7)) && p.ajustes >= 2)
+    .sort((a, b) => b.ajustes - a.ajustes)
+    .map((p) => ({ ...p, nome: p.projeto_nome ?? "Projeto sem nome" }));
   const abertasAtrasadas = entregas
     .filter((d) => !d.concluida && (d.dias_uteis_em_aberto ?? 0) > (d.sla_dias ?? SLA_PADRAO))
     .sort((a, b) => (b.dias_uteis_em_aberto ?? 0) - (a.dias_uteis_em_aberto ?? 0));
@@ -194,16 +229,27 @@ export function IndicadoresContratos({ versao = 0 }: { versao?: number }) {
 
       {estado === "ok" && (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-px bg-border border border-border rounded-lg overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-px bg-border border border-border rounded-lg overflow-hidden">
             <Indicador codigo="C1" nome="Entregas no prazo" valor={pct(atual.c1_pct_no_prazo)}
               detalhe={atual.entregas ? `${atual.entregas_no_prazo} de ${atual.entregas} entregas` : "Nenhuma entrega no mês"}>
               <Tendencia serie={serie} campo="c1_pct_no_prazo" mes={mes} max={100} fmt={pct} />
             </Indicador>
 
-            <Indicador codigo="C2" nome="Entregas sem ajustes" valor={pct(atual.c2_pct_sem_ajustes)}
-              detalhe={atual.entregas ? `${atual.entregas_sem_ajustes} de ${atual.entregas} entregas` : "Nenhuma entrega no mês"}
-              nota={provisorio && atual.entregas ? "Provisório: o cliente ainda pode devolver entregas recentes." : null}>
-              <Tendencia serie={serie} campo="c2_pct_sem_ajustes" mes={mes} max={100} fmt={pct} />
+            <Indicador codigo="C2" nome="Elaborações sem retrabalho" valor={pct(atual.c2_pct_sem_retrabalho)}
+              detalhe={atual.elaboracoes
+                ? `${atual.elaboracoes! - (atual.elaboracoes_com_retrabalho ?? 0)} de ${atual.elaboracoes} demandas com até 1 ajuste`
+                : "Nenhuma elaboração entregue no mês"}
+              nota={atual.elaboracoes || atual.analises ? [
+                atual.elaboracoes
+                  ? `${atual.elaboracoes_sem_ajuste ?? 0} sem ajuste, ${atual.elaboracoes_com_1_ajuste ?? 0} com 1 ajuste, ${atual.elaboracoes_com_retrabalho ?? 0} com retrabalho (2 ajustes ou mais).`
+                  : null,
+                atual.analises ? `${plural(atual.analises, "análise fica fora", "análises ficam fora")} do indicador.` : null,
+                atual.elaboracoes_sem_classificacao
+                  ? `${plural(atual.elaboracoes_sem_classificacao, "demanda sem", "demandas sem")} o campo "Tipo de demanda" no Asana, contada como elaboração.`
+                  : null,
+                provisorio ? "Provisório: o cliente ainda pode pedir ajustes nas entregas recentes." : null,
+              ].filter(Boolean).join(" ") : null}>
+              <Tendencia serie={serie} campo="c2_pct_sem_retrabalho" mes={mes} max={100} fmt={pct} />
             </Indicador>
 
             <Indicador codigo="C3" nome="Horas × estimativa" valor={razao(atual.c3_razao_horas)}
@@ -215,20 +261,39 @@ export function IndicadoresContratos({ versao = 0 }: { versao?: number }) {
                 : null}>
               <Tendencia serie={serie} campo="c3_razao_horas" mes={mes} fmt={(v) => razao(v).replace("×", "")} />
             </Indicador>
+
+            <Indicador codigo="C4" nome="Tempo médio do projeto aberto"
+              valor={atual.c4_media_dias_uteis_aberto == null ? "—" : `${dias(atual.c4_media_dias_uteis_aberto)} d`}
+              detalhe={atual.projetos_encerrados
+                ? `dias úteis em ${plural(atual.projetos_encerrados, "projeto encerrado", "projetos encerrados")} · ${dias(atual.c4_media_dias_corridos_aberto)} dias corridos`
+                : "Nenhum projeto encerrado no mês"}
+              nota={atual.projetos_encerrados ? "Da abertura do projeto à conclusão da última Entrega Externa, com os ajustes. Projeto com entrega em aberto ainda não entra." : null}>
+              <Tendencia serie={serie} campo="c4_media_dias_uteis_aberto" mes={mes} fmt={(v) => dias(v)} />
+            </Indicador>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <ListaEntregas
               titulo={`Entregues fora do prazo em ${fmtMes(mes)}`}
               vazio="Nenhuma entrega fora do prazo neste mês."
               itens={foraDoPrazo}
+              chave={(d) => d.task_gid}
               detalhe={(d) => `${d.projeto_nome ?? ""} · entregue ${fmtData(d.entregue_em)} · ${d.dias_uteis_ate_entrega} de ${d.sla_dias} dias úteis`
                 + (d.no_prazo_agendado ? ` · dentro do prazo agendado no Asana (${fmtData(d.prazo)})` : "")}
+            />
+            <ListaEntregas
+              titulo={`Elaborações com retrabalho em ${fmtMes(mes)}`}
+              vazio="Nenhuma elaboração com mais de 1 ajuste neste mês."
+              itens={comRetrabalho}
+              chave={(p) => p.projeto_gid}
+              detalhe={(p) => `${p.ajustes} ajustes · aberto em ${fmtData(p.aberto_em)}`
+                + (p.encerrado ? ` · encerrado em ${fmtData(p.ultima_entrega_em)}, ${p.dias_uteis_aberto} dias úteis` : " · ainda com entrega em aberto")}
             />
             <ListaEntregas
               titulo="Abertas além do prazo hoje"
               vazio="Nenhuma entrega aberta passou do prazo."
               itens={abertasAtrasadas}
+              chave={(d) => d.task_gid}
               detalhe={(d) => `${d.projeto_nome ?? ""} · aberta em ${fmtData(d.recebido_em)} · ${d.dias_uteis_em_aberto} de ${d.sla_dias} dias úteis`}
             />
           </div>
