@@ -15,7 +15,7 @@ import wsaLogo from "@/assets/wsa-logo.png";
 import wsaLogoDark from "@/assets/wsa-logo-dark.png";
 
 interface DashboardHeaderProps {
-  activeTab: "recorrentes" | "horas" | "prospeccao";
+  activeTab: "recorrentes" | "horas" | "prospeccao" | "registros";
   showValues?: boolean;
   onShowValuesChange?: (v: boolean) => void;
   onPresentationToggle?: () => void;
@@ -26,6 +26,7 @@ const tabs = [
   { id: "recorrentes" as const, label: "Clientes Recorrentes", shortLabel: "Recorrentes", path: "/recorrentes" },
   { id: "horas" as const, label: "Lançamento de Horas", shortLabel: "Horas", path: "/horas" },
   { id: "prospeccao" as const, label: "Funil de Prospecção", shortLabel: "Prospecção", path: "/prospeccao" },
+  { id: "registros" as const, label: "Registros na Junta", shortLabel: "Registros", path: "/registros" },
 ];
 
 export function DashboardHeader({ activeTab, showValues, onShowValuesChange, onPresentationToggle, hideModuleSelector }: DashboardHeaderProps) {

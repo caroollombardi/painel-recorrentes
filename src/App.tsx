@@ -13,6 +13,7 @@ import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import Metas2026 from "./pages/Metas2026";
 import ProspeccaoDashboard from "./pages/ProspeccaoDashboard";
+import RegistrosDashboard from "./pages/RegistrosDashboard";
 import IndicadoresArea from "./pages/IndicadoresArea";
 import SistemaHome from "./pages/SistemaHome";
 import NotFound from "./pages/NotFound";
@@ -116,6 +117,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute permitirIndicadores>
             <IndicadoresArea />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/registros"
+        element={
+          <ProtectedRoute>
+            <RegistrosDashboard />
           </ProtectedRoute>
         }
       />
