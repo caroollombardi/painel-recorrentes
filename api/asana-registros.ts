@@ -6,14 +6,22 @@ export const config = { maxDuration: 60 };
 
 const ASANA_BASE = "https://app.asana.com/api/1.0";
 const WORKSPACE_GID = "1209757363771221"; // Wolff & Scripes Advogados
-const CONCURRENCY = 8;
+// A busca do Asana tem limite de chamadas por minuto bem menor que o resto da API:
+// poucas chamadas em paralelo, janelas trimestrais e nova tentativa quando vier 429
+const CONCURRENCY = 3;
 const SEARCH_LIMIT = 100;
+const MAX_TENTATIVAS = 4;
 const OPT_FIELDS = "name,completed,created_at,completed_at,actual_time_minutes,assignee.name,projects.name";
-// A busca do Asana casa palavras inteiras, então cada variação entra separada
-const TERMOS = ["registro", "registros", "registrar", "protocolo", "exigência", "junta", "JUCEPAR", "rerratificação"];
+// A busca casa palavras inteiras; tarefas de "junta"/"JUCEPAR" quase sempre trazem também registro ou protocolo
+const TERMOS = ["registro", "registrar", "protocolo", "exigência", "rerratificação"];
 
-async function asanaGet(path: string, pat: string): Promise<unknown> {
+async function asanaGet(path: string, pat: string, tentativa = 1): Promise<unknown> {
   const res = await fetch(`${ASANA_BASE}${path}`, { headers: { Authorization: `Bearer ${pat}` } });
+  if (res.status === 429 && tentativa < MAX_TENTATIVAS) {
+    const espera = Math.min(Number(res.headers.get("retry-after")) || 2 ** tentativa, 20);
+    await new Promise((r) => setTimeout(r, espera * 1000));
+    return asanaGet(path, pat, tentativa + 1);
+  }
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Asana ${path} → ${res.status}: ${text}`);
@@ -52,14 +60,18 @@ async function buscarJanela(pat: string, termo: string, inicio: Date, fim: Date,
   return [...a, ...b];
 }
 
-function janelasMensais(meses: number, agora: Date): [Date, Date][] {
-  const janelas: [Date, Date][] = [];
-  for (let i = meses - 1; i >= 0; i--) {
-    const inicio = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() - i, 1));
-    const fim = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() - i + 1, 1));
-    janelas.push([inicio, fim]);
+function janelas(meses: number, agora: Date, mesesPorJanela = 3): [Date, Date][] {
+  const lista: [Date, Date][] = [];
+  const fimTotal = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() + 1, 1));
+  for (let i = meses; i > 0; i -= mesesPorJanela) {
+    const inicio = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() + 1 - i, 1));
+    const fim = new Date(Math.min(
+      Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() + 1 - i + mesesPorJanela, 1),
+      fimTotal.getTime(),
+    ));
+    lista.push([inicio, fim]);
   }
-  return janelas;
+  return lista;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -75,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const consultas: (() => Promise<RegistroTask[]>)[] = [];
     for (const termo of TERMOS) {
-      for (const [inicio, fim] of janelasMensais(meses, agora)) {
+      for (const [inicio, fim] of janelas(meses, agora)) {
         consultas.push(() => buscarJanela(pat, termo, inicio, fim));
       }
       // registros ainda abertos que começaram antes da janela
@@ -90,6 +102,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const registros = agruparRegistros([...porGid.values()], agora);
 
+    // cache na borda da Vercel: evita refazer dezenas de buscas no Asana a cada visita
+    res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=1800");
     return res.json({
       generatedAt: agora.toISOString(),
       periodoMeses: meses,
