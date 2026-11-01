@@ -31,9 +31,9 @@ export interface Registro {
   tarefasAbertas: { gid: string; name: string; responsavel: string | null; criadaEm: string }[];
 }
 
-const REGISTRO_RE = /registr|protocol|exig[eê]ncia|junta|jucepar|jucesp|rerratifica|redesim|\bdbe\b|\bfcn\b|viabilidade/i;
+const REGISTRO_RE = /registr|protocol|exig[eê]ncia|junta|\bjuce[a-z]{1,3}\b|rerratifica|redesim|\bdbe\b|\bfcn\b|viabilidade/i;
 // "Registro" aparece também em coisas que não são da junta comercial
-const FORA_RE = /marca|inpi|im[oó]ve(l|is)|cart[oó]rio|matr[ií]cula|\brtd\b|t[ií]tulos e documentos|bacen|\bccv\b|compra e venda|escritura|procec|horas?\b|timesheet|decis[õo]es|ponto\b|oab\b/i;
+const FORA_RE = /marca|inpi|im[oó]ve(l|is)|cart[oó]rio|matr[ií]cula|\brtd\b|t[ií]tulos e documentos|bacen|\bccv\b|compra e venda|escritura|procec|horas?\b|timesheet|decis[õo]es|ponto\b|oab\b|motivo de (perda|ganho)|registrar conversa/i;
 const EXIGENCIA_RE = /exig[eê]ncia|rerratifica|refazer protocolo|novo protocolo/i;
 const PROTOCOLO_NUM_RE = /PRP\s?\d{6,}/gi;
 

@@ -37,6 +37,10 @@ describe("isTarefaDeRegistro", () => {
     expect(isTarefaDeRegistro(task({ name: "LUCAS DZIERWA LIMA - CCV Boa Vista - Acompanhar Registro" }))).toBe(false);
     expect(isTarefaDeRegistro(task({ name: "FUP Protocolo no PROCEC Capc 01-277873/2026" }))).toBe(false);
     expect(isTarefaDeRegistro(task({ name: "REGISTRO DE MARCAS - Omnichat - Oposição Onechat" }))).toBe(false);
+    // tarefa do modelo do funil de prospecção, presente em dezenas de projetos
+    expect(isTarefaDeRegistro(task({ name: "Registrar motivo de perda" }))).toBe(false);
+    expect(isTarefaDeRegistro(task({ name: "Formalizar e registrar conversa com a Seguradora" }))).toBe(false);
+    expect(isTarefaDeRegistro(task({ name: "Registrar 2ª ACS na JUCESC" }))).toBe(true);
     expect(isTarefaDeRegistro(task({ name: "Continuar Registro de ata de AGE para renovação mandato conselheiros" }))).toBe(true);
     expect(isTarefaDeRegistro(task({ name: "Acompanhamento Assinaturas Registro 1ACS" }))).toBe(true);
     expect(isTarefaDeRegistro(task({
