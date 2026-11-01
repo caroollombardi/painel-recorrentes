@@ -2,13 +2,14 @@ import { useMemo, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users, Clock4, Gauge, Filter as FunnelIcon, MessageCircle,
-  CircleCheck, AlertTriangle, Upload, X, Send, ChevronRight,
+  CircleCheck, AlertTriangle, Upload, X, Send, ChevronRight, FileCheck2,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { useProspeccaoData } from "@/hooks/use-prospeccao-data";
+import { useRegistrosData } from "@/hooks/use-registros-data";
 import { useMonthlySnapshots } from "@/hooks/use-monthly-snapshots";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardData } from "@/lib/data-parser";
@@ -103,6 +104,11 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: prospeccaoData } = useProspeccaoData();
+  const { data: registrosData } = useRegistrosData();
+  const registros = useMemo(() => {
+    const abertos = registrosData?.registros.filter((r) => r.aberto) ?? [];
+    return { abertos: abertos.length, parados: abertos.filter((r) => r.diasCiclo > 30).length };
+  }, [registrosData]);
   const { snapshots } = useMonthlySnapshots();
   const [serie, setSerie] = useState<"valor" | "horas" | "clientes">("valor");
   const [periodo, setPeriodo] = useState<3 | 6 | 0>(6); // 0 = todo o histórico
@@ -595,7 +601,7 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
         </div>
 
         {/* Módulos */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
           <ModuleCard
             icon={Users}
             title="Clientes recorrentes"
@@ -612,6 +618,15 @@ export default function SistemaHome({ dashboardData, lastUpdated }: SistemaHomeP
             stats={[
               { value: prospeccao.total, label: "no pipeline" },
               { value: prospeccao.semMotivo, label: "sem motivo", danger: prospeccao.semMotivo > 0 },
+            ]}
+          />
+          <ModuleCard
+            icon={FileCheck2}
+            title="Registros na junta"
+            onClick={() => navigate("/registros")}
+            stats={[
+              { value: registrosData ? registros.abertos : "...", label: "em aberto" },
+              { value: registrosData ? registros.parados : "...", label: "há mais de 30 dias", danger: registros.parados > 0 },
             ]}
           />
         </div>

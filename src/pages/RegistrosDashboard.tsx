@@ -13,7 +13,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend, LabelList,
 } from "recharts";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { AppShell } from "@/components/layout/AppShell";
 import { useRegistrosData, type Registro } from "@/hooks/use-registros-data";
 
 // Baseline fixado no diagnóstico da Fundação de IA (registros iniciados de mai a out/2026)
@@ -155,10 +155,8 @@ export default function RegistrosDashboard() {
   const metaAtingida = meta !== null && ind.medianaMin !== null && ind.medianaMin <= meta;
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardHeader activeTab="registros" />
-
-      <div className="container py-5">
+    <AppShell>
+      <div>
         <div className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -399,15 +397,14 @@ export default function RegistrosDashboard() {
         </div>
       </div>
 
-      <footer className="border-t border-border bg-card/50 py-4 mt-4">
-        <div className="container text-center text-sm text-muted-foreground">
+      <footer className="border-t border-border py-4 mt-8">
+        <div className="container text-center text-xs text-muted-foreground">
           <a href="https://wolffescripes.com.br" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
             Wolff e Scripes Advogados
-          </a>{" "}
-          &bull; Registros na Junta
+          </a>
         </div>
       </footer>
-    </div>
+    </AppShell>
   );
 }
 
