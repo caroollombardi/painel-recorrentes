@@ -1,0 +1,648 @@
+import React, { useState, useMemo, useRef, useCallback, useImperativeHandle, forwardRef } from "react";
+import { ClientData, HealthStatus } from "@/lib/data-parser";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, ListChecks, FileText, Calendar, Bell, CheckCircle2, ClipboardList, XCircle, CalendarClock } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { TimeEntry } from "@/hooks/use-hours-data";
+import { cn } from "@/lib/utils";
+import { CreditUsageBar } from "./CreditUsageBar";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+
+export interface ClientValueTableHandle {
+  scrollToClient: (clientName: string) => void;
+}
+
+interface ClientValueTableProps {
+  data: ClientData[];
+  showValues?: boolean;
+  clientVariations?: Record<string, number | null>;
+  onAsanaClick?: (clientName: string) => void;
+  timeEntries?: TimeEntry[];
+}
+
+function formatCurrency(value: number, show: boolean = true): string {
+  if (!show) return "—";
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+}
+
+type SortKey = 'horas' | 'valorMedioHora' | 'valorConsumed' | 'saldoPrevisto';
+type SortDir = 'asc' | 'desc';
+
+function formatHours(h: number): string {
+  return `${h.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h`;
+}
+
+/** A provisão só existe quando os dados vieram da sincronização com o Asana. */
+function hasProvision(client: ClientData): boolean {
+  return client.horasProvisionadas !== undefined;
+}
+
+/** Crédito − consumido − provisionado. Null para avulso ou sem provisão. */
+function getSaldoPrevisto(client: ClientData): number | null {
+  if (!client.creditUsage || !hasProvision(client)) return null;
+  return client.creditUsage.valorCredito - client.valorMensal - (client.valorProvisionado ?? 0);
+}
+
+function getValorMedioHora(client: ClientData): number | null {
+  if (client.creditUsage && client.horasMensal > 0) {
+    return client.creditUsage.valorPago / client.horasMensal;
+  }
+  return null;
+}
+
+type StatusGroup = 'overflow' | 'risk' | 'warning' | 'healthy' | 'avulso';
+
+function getClientStatus(client: ClientData): StatusGroup {
+  if (!client.creditUsage) return 'avulso';
+  const pct = client.creditUsage.percentualUsado;
+  if (pct >= 100) return 'overflow';
+  if (pct >= 80) return 'risk';
+  if (pct >= 60) return 'warning';
+  return 'healthy';
+}
+
+const statusConfig: Record<StatusGroup, { label: string; icon: React.ReactNode; bgClass: string; headerBg: string }> = {
+  overflow: { label: 'Estouro', icon: <XCircle className="w-4 h-4 text-destructive inline-block mr-1.5 shrink-0" aria-hidden="true" />, bgClass: 'bg-destructive/5 hover:bg-destructive/10', headerBg: 'bg-destructive/10 border-destructive/20' },
+  risk:     { label: 'Risco',   icon: <AlertTriangle className="w-4 h-4 text-warning-foreground inline-block mr-1.5 shrink-0" aria-hidden="true" />, bgClass: 'bg-risk/5 hover:bg-risk/10', headerBg: 'bg-risk/10 border-risk/20' },
+  warning:  { label: 'Atenção', icon: <Bell className="w-4 h-4 text-warning-foreground inline-block mr-1.5 shrink-0" aria-hidden="true" />, bgClass: 'bg-warning/5 hover:bg-warning/10', headerBg: 'bg-warning/10 border-warning/20' },
+  healthy:  { label: 'Saudável', icon: <CheckCircle2 className="w-4 h-4 text-success-foreground inline-block mr-1.5 shrink-0" aria-hidden="true" />, bgClass: 'bg-success/5 hover:bg-success/10', headerBg: 'bg-success/10 border-success/20' },
+  avulso:   { label: 'Avulso',  icon: <ClipboardList className="w-4 h-4 text-muted-foreground inline-block mr-1.5 shrink-0" aria-hidden="true" />, bgClass: 'hover:bg-muted/50', headerBg: 'bg-muted/30 border-border' },
+};
+
+const statusOrder: StatusGroup[] = ['overflow', 'risk', 'warning', 'healthy', 'avulso'];
+
+const badgeTooltips: Record<string, string> = {
+  'Saudável': 'Abaixo de 60% do crédito consumido',
+  'Atenção': 'Entre 60% e 80% do crédito consumido',
+  'Risco': 'Entre 80% e 100% do crédito consumido',
+  'Estouro': 'Acima de 100% do crédito consumido',
+};
+
+export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTableProps>(
+  function ClientValueTable({ data, showValues = true, clientVariations = {}, onAsanaClick, timeEntries }, ref) {
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const [expandedLawyers, setExpandedLawyers] = useState<Set<string>>(new Set());
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(prev => prev === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  };
+
+  const scrollToClient = useCallback((clientName: string) => {
+    setExpandedClients(prev => {
+      const next = new Set(prev);
+      next.add(clientName);
+      return next;
+    });
+    setTimeout(() => {
+      const el = rowRefs.current.get(clientName);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-primary', 'ring-offset-1');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-primary', 'ring-offset-1'), 2000);
+      }
+    }, 100);
+  }, []);
+
+  useImperativeHandle(ref, () => ({ scrollToClient }), [scrollToClient]);
+
+  const sortedData = useMemo(() => {
+    let sorted = [...data].filter(c => c.valorMensal > 0 || (c.valorProvisionado ?? 0) > 0 || (c.tarefasSemEstimativa ?? 0) > 0);
+
+    if (sortKey) {
+      sorted.sort((a, b) => {
+        let aVal = 0, bVal = 0;
+        if (sortKey === 'horas') {
+          aVal = a.horasMensal; bVal = b.horasMensal;
+        } else if (sortKey === 'saldoPrevisto') {
+          aVal = getSaldoPrevisto(a) ?? Number.POSITIVE_INFINITY;
+          bVal = getSaldoPrevisto(b) ?? Number.POSITIVE_INFINITY;
+        } else if (sortKey === 'valorMedioHora') {
+          aVal = getValorMedioHora(a) ?? -1;
+          bVal = getValorMedioHora(b) ?? -1;
+        } else if (sortKey === 'valorConsumed') {
+          aVal = a.valorMensal; bVal = b.valorMensal;
+        }
+        return sortDir === 'desc' ? bVal - aVal : aVal - bVal;
+      });
+    } else {
+      sorted.sort((a, b) => b.valorMensal - a.valorMensal);
+    }
+    return sorted;
+  }, [data, sortKey, sortDir]);
+
+  // Group by status
+  const groupedData = useMemo(() => {
+    const groups: Record<StatusGroup, ClientData[]> = {
+      overflow: [], risk: [], warning: [], healthy: [], avulso: [],
+    };
+    sortedData.forEach(c => {
+      groups[getClientStatus(c)].push(c);
+    });
+    return groups;
+  }, [sortedData]);
+
+  const toggleClient = (project: string) => {
+    const newExpanded = new Set(expandedClients);
+    if (newExpanded.has(project)) {
+      newExpanded.delete(project);
+    } else {
+      newExpanded.add(project);
+    }
+    setExpandedClients(newExpanded);
+  };
+
+  const toggleLawyer = (key: string) => {
+    const next = new Set(expandedLawyers);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    setExpandedLawyers(next);
+  };
+
+  if (sortedData.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-30" />
+        <p>Nenhum cliente recorrente com valor calculado.</p>
+        <p className="text-sm mt-2">Verifique se os advogados das tarefas estão na tabela de preços.</p>
+      </div>
+    );
+  }
+
+  const totalValue = sortedData.reduce((sum, c) => sum + c.valorMensal, 0);
+  const totalHours = sortedData.reduce((sum, c) => sum + c.horasMensal, 0);
+  const anyProvision = sortedData.some(hasProvision);
+  const totalHorasProv = sortedData.reduce((sum, c) => sum + (c.horasProvisionadas ?? 0), 0);
+  const totalValorProv = sortedData.reduce((sum, c) => sum + (c.valorProvisionado ?? 0), 0);
+
+  const SortableHeader = ({ label, sortKeyName }: { label: string; sortKeyName: SortKey }) => {
+    const isActive = sortKey === sortKeyName;
+    return (
+      <button
+        onClick={() => handleSort(sortKeyName)}
+        className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+      >
+        {label}
+        {isActive ? (
+          sortDir === 'desc' ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
+        ) : (
+          <ArrowUpDown className="w-3 h-3 opacity-40" />
+        )}
+      </button>
+    );
+  };
+
+  const renderClientRow = (client: ClientData) => {
+    const isExpanded = expandedClients.has(client.project);
+    const status = getClientStatus(client);
+    const config = statusConfig[status];
+    const isAvulso = !client.creditUsage;
+
+    return (
+      <React.Fragment key={client.project}>
+        <TableRow 
+          ref={(el) => { if (el) rowRefs.current.set(client.project, el); }}
+          className={cn(
+            "border-border transition-all cursor-pointer",
+            config.bgClass,
+            isExpanded && "bg-muted/30",
+          )}
+          onClick={() => toggleClient(client.project)}
+        >
+          <TableCell className="w-8 p-2">
+            {client.lawyers.length > 0 && (
+              isExpanded 
+                ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                : <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            )}
+          </TableCell>
+          <TableCell className="font-medium text-foreground">
+            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-0.5 min-w-0">
+            <div className="flex items-center gap-2">
+              {client.creditUsage?.isCritical && (
+                <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+              )}
+              {client.creditUsage?.isWarning && !client.creditUsage?.isCritical && (
+                <AlertTriangle className="w-4 h-4 text-warning-foreground flex-shrink-0" />
+              )}
+              <span translate="no" className={cn(
+                client.creditUsage?.isCritical && "text-destructive font-semibold",
+                client.creditUsage?.isWarning && !client.creditUsage?.isCritical && "text-warning-foreground font-semibold"
+              )}>
+                {client.project}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-normal text-muted-foreground">
+                {client.lawyers.length} advogado{client.lawyers.length !== 1 ? 's' : ''}
+              </span>
+              {isAvulso && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                  Avulso
+                </span>
+              )}
+              {client.creditUsage?.limiteProprio && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border"
+                  title={`Limites próprios: atenção ${client.creditUsage.limiteAtencao}%, risco ${client.creditUsage.limiteRisco}%, estouro ${client.creditUsage.limiteEstouro}%`}
+                >
+                  Régua própria
+                </span>
+              )}
+              {client.creditUsage?.alertasAtivos === false && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border"
+                  title="Alertas desligados para este cliente"
+                >
+                  Alertas off
+                </span>
+              )}
+            </div>
+            </div>
+              {onAsanaClick && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onAsanaClick(client.project); }}
+                  className="ml-auto text-muted-foreground/40 hover:text-primary transition-colors p-0.5 rounded flex-shrink-0"
+                  title="Ver tarefas no Asana"
+                >
+                  <ListChecks className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </TableCell>
+          <TableCell>
+            {client.creditUsage ? (
+              <div>
+              <CreditUsageBar
+                creditUsage={client.creditUsage}
+                compact
+                provisionPercent={
+                  hasProvision(client) && client.creditUsage.valorCredito > 0
+                    ? ((client.valorProvisionado ?? 0) / client.creditUsage.valorCredito) * 100
+                    : undefined
+                }
+              />
+              <span className="block text-[11px] text-muted-foreground mt-1 whitespace-nowrap">
+                crédito {formatCurrency(client.creditUsage.valorCredito, showValues)}
+              </span>
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground">—</span>
+            )}
+          </TableCell>
+          <TableCell className="text-right text-muted-foreground">
+            <div className="flex flex-col items-end leading-tight gap-0.5 whitespace-nowrap">
+            <div className="flex items-center justify-end gap-1.5">
+              <span className="text-foreground">{formatHours(client.horasMensal)}</span>
+              {(() => {
+                const prevHoras = clientVariations[client.project];
+                if (prevHoras != null && prevHoras > 0) {
+                  const pctChange = ((client.horasMensal - prevHoras) / prevHoras) * 100;
+                  if (Math.abs(pctChange) >= 0.5) {
+                    return (
+                      <span className={cn("text-[10px] font-semibold", pctChange >= 0 ? "text-success-foreground" : "text-destructive")}>
+                        {pctChange >= 0 ? "↑" : "↓"}{Math.abs(pctChange).toFixed(0)}%
+                      </span>
+                    );
+                  }
+                }
+                return null;
+              })()}
+            </div>
+            {hasProvision(client) && (client.horasProvisionadas ?? 0) > 0 && (
+              <span className="text-xs text-muted-foreground" title="Horas estimadas das tarefas abertas com prazo neste mês">
+                + {formatHours(client.horasProvisionadas ?? 0)} prev.
+              </span>
+            )}
+            {(client.tarefasSemEstimativa ?? 0) > 0 && (
+              <span
+                className="text-[10px] text-warning-foreground"
+                title="Tarefas abertas com prazo no mês sem horas estimadas no Asana — não entram na provisão"
+              >
+                {client.tarefasSemEstimativa} sem estimativa
+              </span>
+            )}
+            </div>
+          </TableCell>
+          <TableCell className="text-center">
+            {client.creditUsage && client.horasMensal > 0 ? (
+              (() => {
+                const valorMedioHora = client.creditUsage.valorPago / client.horasMensal;
+                const avgLawyerRate = client.valorMensal / client.horasMensal;
+                const ratio = avgLawyerRate > 0 ? (valorMedioHora / avgLawyerRate) * 100 : 0;
+                const health: HealthStatus = ratio >= 110 ? 'green' : ratio >= 90 ? 'yellow' : 'red';
+                const healthLabel = health === 'green' ? 'Saudável' : health === 'yellow' ? 'Atenção' : 'Risco';
+                return (
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className="text-sm font-medium text-foreground">
+                      {formatCurrency(valorMedioHora, showValues)}
+                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px] px-1.5 py-0 cursor-help",
+                                health === 'green' && "border-success/50 text-success-foreground bg-success/10",
+                                health === 'yellow' && "border-warning/50 text-warning-foreground bg-warning/10",
+                                health === 'red' && "border-destructive/50 text-destructive bg-destructive/10",
+                              )}
+                            >
+                              {healthLabel}
+                            </Badge>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <p className="text-xs">{badgeTooltips[healthLabel] || ''}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                );
+              })()
+            ) : (
+              <span className="text-xs text-muted-foreground">—</span>
+            )}
+          </TableCell>
+          <TableCell className="text-right">
+            <div className="flex flex-col items-end leading-tight gap-0.5 whitespace-nowrap">
+              <span className="font-semibold text-primary">{formatCurrency(client.valorMensal, showValues)}</span>
+              {hasProvision(client) && (client.valorProvisionado ?? 0) > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  + {formatCurrency(client.valorProvisionado ?? 0, showValues)} prev.
+                </span>
+              )}
+            </div>
+          </TableCell>
+          <TableCell className="text-right">
+            {(() => {
+              const saldo = getSaldoPrevisto(client);
+              if (saldo === null || !client.creditUsage) return <span className="text-xs text-muted-foreground">—</span>;
+              const credito = client.creditUsage.valorCredito;
+              const pctPrevisto = credito > 0
+                ? ((client.valorMensal + (client.valorProvisionado ?? 0)) / credito) * 100
+                : 0;
+              return (
+                <div
+                  className="flex flex-col items-end leading-tight whitespace-nowrap"
+                  title={`Total previsto no mês (consumido + provisionado): ${formatCurrency(client.valorMensal + (client.valorProvisionado ?? 0), showValues)}`}
+                >
+                  <span className={cn("font-semibold", saldo < 0 ? "text-destructive" : "text-foreground")}>
+                    {formatCurrency(saldo, showValues)}
+                  </span>
+                  <span className={cn("text-[10px]", pctPrevisto > 100 ? "text-destructive" : "text-muted-foreground")}>
+                    {pctPrevisto.toFixed(0)}% do crédito
+                  </span>
+                </div>
+              );
+            })()}
+          </TableCell>
+        </TableRow>
+        
+        {/* Expanded Lawyers */}
+        {isExpanded && client.lawyers.map((lawyer) => {
+          const pct = client.horasMensal > 0 ? (lawyer.hours / client.horasMensal) * 100 : 0;
+          const lawyerKey = `${client.project}::${lawyer.name}`;
+          const isLawyerExpanded = expandedLawyers.has(lawyerKey);
+          // O detalhe vem das tarefas do Asana que formaram este total,
+          // e não mais de time_entries (EasyJur), que é outra importação
+          // e devolvia números que não batiam com a linha de cima.
+          const entries = lawyer.tasks ?? [];
+          const provEntries = lawyer.provisionTasks ?? [];
+          const hasDetail = entries.length > 0 || provEntries.length > 0;
+          return (
+            <React.Fragment key={lawyerKey}>
+              <TableRow
+                className={cn("bg-muted/20 border-border transition-colors", hasDetail && "cursor-pointer hover:bg-muted/30")}
+                onClick={() => hasDetail && toggleLawyer(lawyerKey)}
+              >
+                <TableCell className="p-2 pl-4">
+                  {hasDetail && (
+                    isLawyerExpanded
+                      ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                      : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                  )}
+                </TableCell>
+                <TableCell colSpan={2} className="pl-8">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-muted-foreground">
+                    <User className="w-4 h-4" />
+                    <span className="font-medium text-foreground whitespace-nowrap" translate="no">{lawyer.name}</span>
+                    {showValues && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                        {formatCurrency(lawyer.hourlyRate, showValues)}/h
+                      </span>
+                    )}
+                    {entries.length > 0 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        ({entries.length} lançamento{entries.length !== 1 ? "s" : ""})
+                      </span>
+                    )}
+                    {provEntries.length > 0 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        ({provEntries.length} prevista{provEntries.length !== 1 ? "s" : ""})
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  <div className="flex flex-col items-end leading-tight gap-0.5 whitespace-nowrap">
+                    <div className="flex items-center gap-2 justify-end">
+                      <Progress value={Math.min(pct, 100)} className="w-10 h-1.5" />
+                      <span>{formatHours(lawyer.hours)}</span>
+                    </div>
+                    {(lawyer.horasProvisionadas ?? 0) > 0 && (
+                      <span className="text-xs">+ {formatHours(lawyer.horasProvisionadas ?? 0)} prev.</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell></TableCell>
+                <TableCell className="text-right text-foreground">
+                  <div className="flex flex-col items-end leading-tight gap-0.5 whitespace-nowrap">
+                    <span>{formatCurrency(lawyer.value, showValues)}</span>
+                    {(lawyer.valorProvisionado ?? 0) > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        + {formatCurrency(lawyer.valorProvisionado ?? 0, showValues)} prev.
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+
+              {/* Lançamentos do advogado */}
+              {isLawyerExpanded && entries.map((entry, idx) => (
+                <TableRow key={`${lawyerKey}-entry-${idx}`} className="bg-muted/10 border-border/50">
+                  <TableCell></TableCell>
+                  <TableCell colSpan={2} className="pl-14">
+                    <div className="flex items-start gap-2 py-0.5">
+                      <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-muted-foreground/60" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground/80 leading-snug">{entry.taskName || "Sem descrição"}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {entry.completedAt && (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <Calendar className="w-3 h-3" />
+                              {format(parseISO(entry.completedAt), "dd/MM/yyyy", { locale: ptBR })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground text-sm">
+                    {entry.hours.toFixed(2).replace(".", ",")} h
+                  </TableCell>
+                  <TableCell colSpan={3}></TableCell>
+                </TableRow>
+              ))}
+
+              {/* Tarefas abertas com prazo no mês (provisão) */}
+              {isLawyerExpanded && provEntries.map((entry, idx) => (
+                <TableRow key={`${lawyerKey}-prov-${idx}`} className="bg-muted/10 border-border/50">
+                  <TableCell></TableCell>
+                  <TableCell colSpan={2} className="pl-14">
+                    <div className="flex items-start gap-2 py-0.5">
+                      <CalendarClock className="w-3.5 h-3.5 mt-0.5 shrink-0 text-muted-foreground/60" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground/80 leading-snug">{entry.taskName || "Sem descrição"}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                            Prevista · prazo {format(parseISO(entry.dueOn), "dd/MM/yyyy", { locale: ptBR })}
+                          </span>
+                          {entry.hours === 0 && (
+                            <span className="text-[11px] text-warning-foreground">sem horas estimadas</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground text-sm">
+                    {entry.hours > 0 ? `${entry.hours.toFixed(2).replace(".", ",")} h prev.` : "—"}
+                  </TableCell>
+                  <TableCell></TableCell>
+                  <TableCell className="text-right text-muted-foreground text-sm">
+                    {entry.hours > 0 ? formatCurrency(entry.value, showValues) : ""}
+                  </TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              ))}
+            </React.Fragment>
+          );
+        })}
+      </React.Fragment>
+    );
+  };
+
+  // If sorting is active, don't group - just render flat
+  const useGrouping = !sortKey;
+
+  return (
+    <div className="space-y-4">
+      <div className="overflow-x-auto">
+        <Table className="min-w-[880px]">
+          <TableHeader>
+            <TableRow className="border-border">
+              <TableHead className="text-muted-foreground font-semibold w-8"></TableHead>
+              <TableHead className="text-muted-foreground font-semibold">Cliente Recorrente</TableHead>
+              <TableHead
+                className="text-muted-foreground font-semibold"
+                title="Barra cheia = consumido; parte clara = provisionado (tarefas abertas com prazo no mês)"
+              >
+                Uso do Crédito
+              </TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-right">
+                <SortableHeader label="Horas" sortKeyName="horas" />
+              </TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-center whitespace-nowrap">
+                <SortableHeader label="Valor Médio/Hora" sortKeyName="valorMedioHora" />
+              </TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-right">
+                <SortableHeader label="Consumido" sortKeyName="valorConsumed" />
+              </TableHead>
+              <TableHead
+                className="text-muted-foreground font-semibold text-right"
+                title="Crédito − consumido − provisionado"
+                style={{ whiteSpace: "nowrap" }}
+              >
+                <SortableHeader label="Saldo Previsto" sortKeyName="saldoPrevisto" />
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {useGrouping ? (
+              statusOrder.map(status => {
+                const clients = groupedData[status];
+                if (clients.length === 0) return null;
+                const config = statusConfig[status];
+                return (
+                  <React.Fragment key={status}>
+                    <TableRow className={cn("border-border", config.headerBg)}>
+                      <TableCell colSpan={7} className="py-2 px-4">
+                        <span className="inline-flex items-center text-sm font-semibold">
+                          {config.icon}{config.label}
+                          <span className="font-normal text-muted-foreground ml-2">
+                            ({clients.length} cliente{clients.length !== 1 ? 's' : ''})
+                          </span>
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                    {clients.map(renderClientRow)}
+                  </React.Fragment>
+                );
+              })
+            ) : (
+              sortedData.map(renderClientRow)
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      
+      {/* Summary Footer */}
+      <div className="flex items-center justify-between pt-4 border-t border-border">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <span>{sortedData.length} clientes recorrentes</span>
+          <span>•</span>
+          <span>{totalHours.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h totais</span>
+          {anyProvision && (
+            <>
+              <span>•</span>
+              <span>{formatHours(totalHorasProv)} provisionadas ({formatCurrency(totalValorProv, showValues)})</span>
+            </>
+          )}
+        </div>
+        <div className="text-right">
+          <span className="text-sm text-muted-foreground">Valor Total Recorrente: </span>
+          <span className="text-lg font-bold text-primary">{formatCurrency(totalValue, showValues)}</span>
+        </div>
+      </div>
+      
+      <p className="text-xs text-muted-foreground/70 mt-3 leading-relaxed">
+        Uso do crédito (%) refere-se ao percentual do pacote mensal contratado já consumido por cada cliente no período.
+        Provisão = horas estimadas das tarefas MENSAL ainda abertas no Asana com prazo neste mês, valorizadas pelo valor-hora do responsável
+        (sem responsável: valor-hora médio do cliente). Saldo previsto = crédito − consumido − provisionado.
+      </p>
+    </div>
+  );
+});
