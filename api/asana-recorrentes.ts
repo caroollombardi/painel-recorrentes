@@ -110,16 +110,23 @@ interface ProvisaoRecord {
 }
 
 // Campo de estimativa do Asana. O nativo ("Estimated time"/"Tempo estimado")
-// vem em minutos (representation_type = "duration"); se for um campo numérico
-// próprio ("Horas estimadas"), o número já está em horas.
-const ESTIMATE_FIELD_NAMES = ["ESTIMATED TIME", "TEMPO ESTIMADO", "HORAS ESTIMADAS"];
+// vem SEMPRE em minutos (ex.: number_value 60, display "1h 00m"); a API não
+// devolve representation_type para ele, então a unidade é decidida pelo nome.
+// Só um campo numérico próprio chamado "Horas estimadas" é lido como horas.
+const ESTIMATE_FIELDS_MINUTES = ["ESTIMATED TIME", "TEMPO ESTIMADO"];
+const ESTIMATE_FIELDS_HOURS = ["HORAS ESTIMADAS"];
 
 function estimatedMinutes(task: AsanaTask): number | null {
-  const field = (task.custom_fields ?? []).find((f) =>
-    ESTIMATE_FIELD_NAMES.includes(f.name?.trim().toUpperCase() ?? "")
-  );
-  if (field?.number_value == null || field.number_value <= 0) return null;
-  return field.representation_type === "duration" ? field.number_value : field.number_value * 60;
+  const fields = task.custom_fields ?? [];
+  const nome = (f: AsanaCustomField) => f.name?.trim().toUpperCase() ?? "";
+  const emMinutos = fields.find((f) => ESTIMATE_FIELDS_MINUTES.includes(nome(f)));
+  if (emMinutos?.number_value != null && emMinutos.number_value > 0) return emMinutos.number_value;
+  const emHoras = fields.find((f) => ESTIMATE_FIELDS_HOURS.includes(nome(f)));
+  if (emHoras?.number_value != null && emHoras.number_value > 0) {
+    // Se o display vier como duração ("1h 00m"), o número já está em minutos.
+    return /\d+\s*h/i.test(emHoras.display_value ?? "") ? emHoras.number_value : emHoras.number_value * 60;
+  }
+  return null;
 }
 
 // Mês corrente no fuso do escritório, no formato "YYYY-MM".
