@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, ListChecks, FileText, Calendar, Bell, CheckCircle2, ClipboardList, XCircle } from "lucide-react";
+import { DollarSign, ChevronDown, ChevronRight, User, AlertTriangle, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, ListChecks, FileText, Calendar, Bell, CheckCircle2, ClipboardList, XCircle, CalendarClock } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { TimeEntry } from "@/hooks/use-hours-data";
@@ -38,8 +38,23 @@ function formatCurrency(value: number, show: boolean = true): string {
   }).format(value);
 }
 
-type SortKey = 'horas' | 'valorMedioHora' | 'valorConsumed';
+type SortKey = 'horas' | 'horasProv' | 'valorMedioHora' | 'valorConsumed' | 'valorProv' | 'saldoPrevisto';
 type SortDir = 'asc' | 'desc';
+
+function formatHours(h: number): string {
+  return `${h.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h`;
+}
+
+/** A provisão só existe quando os dados vieram da sincronização com o Asana. */
+function hasProvision(client: ClientData): boolean {
+  return client.horasProvisionadas !== undefined;
+}
+
+/** Crédito − consumido − provisionado. Null para avulso ou sem provisão. */
+function getSaldoPrevisto(client: ClientData): number | null {
+  if (!client.creditUsage || !hasProvision(client)) return null;
+  return client.creditUsage.valorCredito - client.valorMensal - (client.valorProvisionado ?? 0);
+}
 
 function getValorMedioHora(client: ClientData): number | null {
   if (client.creditUsage && client.horasMensal > 0) {
@@ -112,13 +127,20 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
   useImperativeHandle(ref, () => ({ scrollToClient }), [scrollToClient]);
 
   const sortedData = useMemo(() => {
-    let sorted = [...data].filter(c => c.valorMensal > 0);
+    let sorted = [...data].filter(c => c.valorMensal > 0 || (c.valorProvisionado ?? 0) > 0 || (c.tarefasSemEstimativa ?? 0) > 0);
 
     if (sortKey) {
       sorted.sort((a, b) => {
         let aVal = 0, bVal = 0;
         if (sortKey === 'horas') {
           aVal = a.horasMensal; bVal = b.horasMensal;
+        } else if (sortKey === 'horasProv') {
+          aVal = a.horasProvisionadas ?? -1; bVal = b.horasProvisionadas ?? -1;
+        } else if (sortKey === 'valorProv') {
+          aVal = a.valorProvisionado ?? -1; bVal = b.valorProvisionado ?? -1;
+        } else if (sortKey === 'saldoPrevisto') {
+          aVal = getSaldoPrevisto(a) ?? Number.POSITIVE_INFINITY;
+          bVal = getSaldoPrevisto(b) ?? Number.POSITIVE_INFINITY;
         } else if (sortKey === 'valorMedioHora') {
           aVal = getValorMedioHora(a) ?? -1;
           bVal = getValorMedioHora(b) ?? -1;
@@ -172,6 +194,9 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
 
   const totalValue = sortedData.reduce((sum, c) => sum + c.valorMensal, 0);
   const totalHours = sortedData.reduce((sum, c) => sum + c.horasMensal, 0);
+  const anyProvision = sortedData.some(hasProvision);
+  const totalHorasProv = sortedData.reduce((sum, c) => sum + (c.horasProvisionadas ?? 0), 0);
+  const totalValorProv = sortedData.reduce((sum, c) => sum + (c.valorProvisionado ?? 0), 0);
 
   const SortableHeader = ({ label, sortKeyName }: { label: string; sortKeyName: SortKey }) => {
     const isActive = sortKey === sortKeyName;
@@ -289,6 +314,23 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
               })()}
             </div>
           </TableCell>
+          <TableCell className="text-right text-muted-foreground">
+            {hasProvision(client) ? (
+              <div className="flex flex-col items-end leading-tight">
+                <span>{formatHours(client.horasProvisionadas ?? 0)}</span>
+                {(client.tarefasSemEstimativa ?? 0) > 0 && (
+                  <span
+                    className="text-[10px] text-warning-foreground"
+                    title="Tarefas abertas com prazo no mês sem horas estimadas no Asana — não entram na provisão"
+                  >
+                    {client.tarefasSemEstimativa} sem estimativa
+                  </span>
+                )}
+              </div>
+            ) : (
+              <span className="text-xs">—</span>
+            )}
+          </TableCell>
           <TableCell className="text-center">
             {client.creditUsage && client.horasMensal > 0 ? (
               (() => {
@@ -339,6 +381,34 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
           <TableCell className="text-right font-semibold text-primary">
             {formatCurrency(client.valorMensal, showValues)}
           </TableCell>
+          <TableCell className="text-right text-muted-foreground">
+            {hasProvision(client)
+              ? formatCurrency(client.valorProvisionado ?? 0, showValues)
+              : <span className="text-xs">—</span>}
+          </TableCell>
+          <TableCell className="text-right">
+            {(() => {
+              const saldo = getSaldoPrevisto(client);
+              if (saldo === null || !client.creditUsage) return <span className="text-xs text-muted-foreground">—</span>;
+              const credito = client.creditUsage.valorCredito;
+              const pctPrevisto = credito > 0
+                ? ((client.valorMensal + (client.valorProvisionado ?? 0)) / credito) * 100
+                : 0;
+              return (
+                <div
+                  className="flex flex-col items-end leading-tight"
+                  title={`Total previsto no mês (consumido + provisionado): ${formatCurrency(client.valorMensal + (client.valorProvisionado ?? 0), showValues)}`}
+                >
+                  <span className={cn("font-semibold", saldo < 0 ? "text-destructive" : "text-foreground")}>
+                    {formatCurrency(saldo, showValues)}
+                  </span>
+                  <span className={cn("text-[10px]", pctPrevisto > 100 ? "text-destructive" : "text-muted-foreground")}>
+                    {pctPrevisto.toFixed(0)}% do crédito previsto
+                  </span>
+                </div>
+              );
+            })()}
+          </TableCell>
         </TableRow>
         
         {/* Expanded Lawyers */}
@@ -350,21 +420,22 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
           // e não mais de time_entries (EasyJur), que é outra importação
           // e devolvia números que não batiam com a linha de cima.
           const entries = lawyer.tasks ?? [];
+          const provEntries = lawyer.provisionTasks ?? [];
+          const hasDetail = entries.length > 0 || provEntries.length > 0;
           return (
             <React.Fragment key={lawyerKey}>
               <TableRow
-                className={cn("bg-muted/20 border-border transition-colors", entries.length > 0 && "cursor-pointer hover:bg-muted/30")}
-                onClick={() => entries.length > 0 && toggleLawyer(lawyerKey)}
+                className={cn("bg-muted/20 border-border transition-colors", hasDetail && "cursor-pointer hover:bg-muted/30")}
+                onClick={() => hasDetail && toggleLawyer(lawyerKey)}
               >
                 <TableCell className="p-2 pl-4">
-                  {entries.length > 0 && (
+                  {hasDetail && (
                     isLawyerExpanded
                       ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                       : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
                   )}
                 </TableCell>
-                <TableCell></TableCell>
-                <TableCell className="pl-8">
+                <TableCell colSpan={2} className="pl-8">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <User className="w-4 h-4" />
                     <span className="font-medium text-foreground" translate="no">{lawyer.name}</span>
@@ -378,27 +449,36 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                         ({entries.length} lançamento{entries.length !== 1 ? "s" : ""})
                       </span>
                     )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-center">
-                  <div className="flex items-center gap-2 justify-center">
-                    <Progress value={Math.min(pct, 100)} className="w-12 h-1.5" />
-                    <span className="text-xs text-muted-foreground font-medium">{pct.toFixed(0)}%</span>
+                    {provEntries.length > 0 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        ({provEntries.length} prevista{provEntries.length !== 1 ? "s" : ""})
+                      </span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell className="text-right text-muted-foreground">
-                  {lawyer.hours.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h
+                  <div className="flex items-center gap-2 justify-end">
+                    <Progress value={Math.min(pct, 100)} className="w-10 h-1.5" />
+                    <span>{formatHours(lawyer.hours)}</span>
+                  </div>
                 </TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  {lawyer.horasProvisionadas !== undefined ? formatHours(lawyer.horasProvisionadas) : ""}
+                </TableCell>
+                <TableCell></TableCell>
                 <TableCell></TableCell>
                 <TableCell className="text-right text-foreground">
                   {formatCurrency(lawyer.value, showValues)}
                 </TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  {lawyer.valorProvisionado !== undefined ? formatCurrency(lawyer.valorProvisionado, showValues) : ""}
+                </TableCell>
+                <TableCell></TableCell>
               </TableRow>
 
               {/* Lançamentos do advogado */}
               {isLawyerExpanded && entries.map((entry, idx) => (
                 <TableRow key={`${lawyerKey}-entry-${idx}`} className="bg-muted/10 border-border/50">
-                  <TableCell></TableCell>
                   <TableCell></TableCell>
                   <TableCell colSpan={2} className="pl-14">
                     <div className="flex items-start gap-2 py-0.5">
@@ -416,10 +496,41 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground text-sm pr-4">
+                  <TableCell className="text-right text-muted-foreground text-sm">
                     {entry.hours.toFixed(2)}h
                   </TableCell>
+                  <TableCell colSpan={6}></TableCell>
+                </TableRow>
+              ))}
+
+              {/* Tarefas abertas com prazo no mês (provisão) */}
+              {isLawyerExpanded && provEntries.map((entry, idx) => (
+                <TableRow key={`${lawyerKey}-prov-${idx}`} className="bg-muted/10 border-border/50">
                   <TableCell></TableCell>
+                  <TableCell colSpan={2} className="pl-14">
+                    <div className="flex items-start gap-2 py-0.5">
+                      <CalendarClock className="w-3.5 h-3.5 mt-0.5 shrink-0 text-muted-foreground/60" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground/80 leading-snug">{entry.taskName || "Sem descrição"}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                            Prevista · prazo {format(parseISO(entry.dueOn), "dd/MM/yyyy", { locale: ptBR })}
+                          </span>
+                          {entry.hours === 0 && (
+                            <span className="text-[11px] text-warning-foreground">sem horas estimadas</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell></TableCell>
+                  <TableCell className="text-right text-muted-foreground text-sm">
+                    {entry.hours > 0 ? `${entry.hours.toFixed(2)}h` : "—"}
+                  </TableCell>
+                  <TableCell colSpan={3}></TableCell>
+                  <TableCell className="text-right text-muted-foreground text-sm">
+                    {entry.hours > 0 ? formatCurrency(entry.value, showValues) : ""}
+                  </TableCell>
                   <TableCell></TableCell>
                 </TableRow>
               ))}
@@ -436,7 +547,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto">
-        <Table className="min-w-[900px]">
+        <Table className="min-w-[1200px]">
           <TableHeader>
             <TableRow className="border-border">
               <TableHead className="text-muted-foreground font-semibold w-8"></TableHead>
@@ -445,12 +556,27 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
               <TableHead className="text-muted-foreground font-semibold text-right">
                 <SortableHeader label="Horas Consumidas" sortKeyName="horas" />
               </TableHead>
+              <TableHead
+                className="text-muted-foreground font-semibold text-right"
+                title="Horas estimadas das tarefas MENSAL ainda abertas no Asana com prazo neste mês"
+              >
+                <SortableHeader label="Horas Provisionadas" sortKeyName="horasProv" />
+              </TableHead>
               <TableHead className="text-muted-foreground font-semibold text-center">
                 <SortableHeader label="Valor Médio/Hora" sortKeyName="valorMedioHora" />
               </TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">Valor Crédito</TableHead>
               <TableHead className="text-muted-foreground font-semibold text-right">
                 <SortableHeader label="Valor Consumido" sortKeyName="valorConsumed" />
+              </TableHead>
+              <TableHead className="text-muted-foreground font-semibold text-right">
+                <SortableHeader label="Valor Provisionado" sortKeyName="valorProv" />
+              </TableHead>
+              <TableHead
+                className="text-muted-foreground font-semibold text-right"
+                title="Valor crédito − valor consumido − valor provisionado"
+              >
+                <SortableHeader label="Saldo Previsto" sortKeyName="saldoPrevisto" />
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -463,7 +589,7 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
                 return (
                   <React.Fragment key={status}>
                     <TableRow className={cn("border-border", config.headerBg)}>
-                      <TableCell colSpan={7} className="py-2 px-4">
+                      <TableCell colSpan={10} className="py-2 px-4">
                         <span className="inline-flex items-center text-sm font-semibold">
                           {config.icon}{config.label}
                           <span className="font-normal text-muted-foreground ml-2">
@@ -489,6 +615,12 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
           <span>{sortedData.length} clientes recorrentes</span>
           <span>•</span>
           <span>{totalHours.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h totais</span>
+          {anyProvision && (
+            <>
+              <span>•</span>
+              <span>{formatHours(totalHorasProv)} provisionadas ({formatCurrency(totalValorProv, showValues)})</span>
+            </>
+          )}
         </div>
         <div className="text-right">
           <span className="text-sm text-muted-foreground">Valor Total Recorrente: </span>
@@ -498,6 +630,8 @@ export const ClientValueTable = forwardRef<ClientValueTableHandle, ClientValueTa
       
       <p className="text-xs text-muted-foreground/70 mt-3 leading-relaxed">
         Uso do crédito (%) refere-se ao percentual do pacote mensal contratado já consumido por cada cliente no período.
+        Provisão = horas estimadas das tarefas MENSAL ainda abertas no Asana com prazo neste mês, valorizadas pelo valor-hora do responsável
+        (sem responsável: valor-hora médio do cliente). Saldo previsto = crédito − consumido − provisionado.
       </p>
     </div>
   );

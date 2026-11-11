@@ -25,6 +25,16 @@ export interface LawyerTask {
   value: number;
 }
 
+/** Tarefa aberta no Asana, com prazo no mês: compõe a provisão de horas. */
+export interface ProvisionTask {
+  taskId: string;
+  taskName: string;
+  dueOn: string;
+  /** 0 quando a tarefa não tem horas estimadas no Asana. */
+  hours: number;
+  value: number;
+}
+
 export interface LawyerWork {
   name: string;
   hours: number;
@@ -37,6 +47,10 @@ export interface LawyerWork {
    * os números continuam certos e só o detalhe some.
    */
   tasks?: LawyerTask[];
+  /** Provisão do mês (tarefas abertas com prazo no mês). Só na importação do Asana. */
+  horasProvisionadas?: number;
+  valorProvisionado?: number;
+  provisionTasks?: ProvisionTask[];
 }
 
 export interface CreditUsage {
@@ -63,6 +77,14 @@ export interface ClientData {
   valorMensal: number;
   lawyers: LawyerWork[];
   creditUsage: CreditUsage | null;
+  /**
+   * Provisão do mês: soma das horas estimadas das tarefas MENSAL ainda abertas
+   * no Asana com prazo no mês corrente. Indefinido na importação por planilha.
+   */
+  horasProvisionadas?: number;
+  valorProvisionado?: number;
+  /** Tarefas abertas com prazo no mês, mas sem horas estimadas no Asana. */
+  tarefasSemEstimativa?: number;
 }
 
 export interface DashboardData {
@@ -73,6 +95,8 @@ export interface DashboardData {
   topClientHours: number;
   topClientValor: number;
   avgHourlyRate: number;
+  totalHorasProvisionadas?: number;
+  totalValorProvisionado?: number;
   clientsAtWarning: number;
   clientsAtCritical: number;
   clientsAtRisk: number; // Novo: clientes em 80-99%

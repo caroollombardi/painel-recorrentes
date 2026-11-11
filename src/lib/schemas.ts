@@ -9,12 +9,23 @@ const lawyerTaskSchema = z.object({
   value: z.number(),
 });
 
+const provisionTaskSchema = z.object({
+  taskId: z.string(),
+  taskName: z.string(),
+  dueOn: z.string(),
+  hours: z.number(),
+  value: z.number(),
+});
+
 const lawyerWorkSchema = z.object({
   name: z.string(),
   hours: z.number(),
   hourlyRate: z.number(),
   value: z.number(),
   tasks: z.array(lawyerTaskSchema).optional(),
+  horasProvisionadas: z.number().optional(),
+  valorProvisionado: z.number().optional(),
+  provisionTasks: z.array(provisionTaskSchema).optional(),
 });
 
 // Schema for ConsumptionAnalysis
@@ -51,6 +62,9 @@ const clientDataSchema = z.object({
   valorMensal: z.number(),
   lawyers: z.array(lawyerWorkSchema),
   creditUsage: creditUsageSchema,
+  horasProvisionadas: z.number().optional(),
+  valorProvisionado: z.number().optional(),
+  tarefasSemEstimativa: z.number().optional(),
 });
 
 // Schema for MonthProgress
@@ -70,6 +84,8 @@ export const dashboardDataSchema = z.object({
   topClientHours: z.number(),
   topClientValor: z.number(),
   avgHourlyRate: z.number(),
+  totalHorasProvisionadas: z.number().optional(),
+  totalValorProvisionado: z.number().optional(),
   clientsAtWarning: z.number(),
   clientsAtCritical: z.number(),
   clientsAtRisk: z.number(),

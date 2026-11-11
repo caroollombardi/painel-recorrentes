@@ -74,6 +74,8 @@ interface AsanaProject {
 interface AsanaCustomField {
   name: string;
   display_value: string | null;
+  number_value?: number | null;
+  representation_type?: string | null;
 }
 
 interface AsanaTask {
@@ -81,6 +83,7 @@ interface AsanaTask {
   name: string;
   completed: boolean;
   completed_at: string | null;
+  due_on: string | null;
   actual_time_minutes: number | null;
   assignee: { name: string } | null;
   custom_fields?: AsanaCustomField[];
@@ -93,6 +96,42 @@ interface RawRecord {
   assignee: string;
   actualTimeMinutes: number;
   completedAt: string;
+}
+
+// Tarefa ainda aberta, com prazo no mês corrente: vira provisão de horas.
+interface ProvisaoRecord {
+  taskId: string;
+  taskName: string;
+  project: string;
+  assignee: string;
+  /** null = a tarefa não tem horas estimadas preenchidas no Asana. */
+  estimatedMinutes: number | null;
+  dueOn: string;
+}
+
+// Campo de estimativa do Asana. O nativo ("Estimated time"/"Tempo estimado")
+// vem em minutos (representation_type = "duration"); se for um campo numérico
+// próprio ("Horas estimadas"), o número já está em horas.
+const ESTIMATE_FIELD_NAMES = ["ESTIMATED TIME", "TEMPO ESTIMADO", "HORAS ESTIMADAS"];
+
+function estimatedMinutes(task: AsanaTask): number | null {
+  const field = (task.custom_fields ?? []).find((f) =>
+    ESTIMATE_FIELD_NAMES.includes(f.name?.trim().toUpperCase() ?? "")
+  );
+  if (field?.number_value == null || field.number_value <= 0) return null;
+  return field.representation_type === "duration" ? field.number_value : field.number_value * 60;
+}
+
+// Mês corrente no fuso do escritório, no formato "YYYY-MM".
+function currentMonthKey(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+  const y = parts.find((p) => p.type === "year")?.value;
+  const m = parts.find((p) => p.type === "month")?.value;
+  return `${y}-${m}`;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -128,15 +167,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const p of matching) jobs.push({ project: p, clientName });
     }
 
-    const perJob = await mapWithConcurrency(jobs, CONCURRENCY, async (job): Promise<RawRecord[]> => {
+    const monthKey = currentMonthKey();
+
+    const perJob = await mapWithConcurrency(jobs, CONCURRENCY, async (job): Promise<{ records: RawRecord[]; provisoes: ProvisaoRecord[] }> => {
       try {
         const tasks = await asanaGetAll<AsanaTask>(
           `/projects/${job.project.gid}/tasks` +
-            `?opt_fields=name,completed,completed_at,actual_time_minutes,assignee.name,custom_fields.name,custom_fields.display_value` +
+            `?opt_fields=name,completed,completed_at,due_on,actual_time_minutes,assignee.name,` +
+            `custom_fields.name,custom_fields.display_value,custom_fields.number_value,custom_fields.representation_type` +
             `&completed_since=${encodeURIComponent(monthStart)}&limit=100`,
           pat
         );
-        return tasks
+        // completed_since também traz as tarefas ainda abertas — são elas que
+        // formam a provisão (sem nenhuma chamada extra ao Asana).
+        const provisoes: ProvisaoRecord[] = tasks
+          .filter((t) => !t.completed && t.due_on?.startsWith(monthKey) && isRecurringTask(t))
+          .map((t) => ({
+            taskId: t.gid,
+            taskName: t.name,
+            project: job.clientName,
+            assignee: t.assignee?.name ?? "",
+            estimatedMinutes: estimatedMinutes(t),
+            dueOn: t.due_on as string,
+          }));
+
+        const records = tasks
           .filter((t) => t.completed && t.actual_time_minutes && t.actual_time_minutes > 0 && isRecurringTask(t))
           .map((t) => ({
             taskId: t.gid,
@@ -146,8 +201,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             actualTimeMinutes: t.actual_time_minutes as number,
             completedAt: t.completed_at ?? "",
           }));
+
+        return { records, provisoes };
       } catch {
-        return [];
+        return { records: [], provisoes: [] };
       }
     });
 
@@ -155,7 +212,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       generatedAt: new Date().toISOString(),
       clientsSearched: clientNames.length,
       projectsFound: jobs.length,
-      records: perJob.flat(),
+      records: perJob.flatMap((j) => j.records),
+      provisoes: perJob.flatMap((j) => j.provisoes),
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
